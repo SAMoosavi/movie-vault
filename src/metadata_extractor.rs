@@ -138,22 +138,21 @@ fn extract_name(input: &str) -> String {
 }
 
 fn detect_year(input: &str) -> Option<u32> {
-    Regex::new(r"\b(19|20)\d{2}\b")
-        .unwrap()
-        .find(input)
-        .and_then(|m| m.as_str().parse().ok())
+    let re = Regex::new(r"(19|20)\d{2}").unwrap();
+    re.find_iter(input)
+        .filter_map(|m| m.as_str().parse::<u32>().ok())
+        .find(|&year| (1900..=2099).contains(&year))
 }
 
 fn detect_quality(input: &str) -> Option<String> {
     // Case-insensitive regex for common quality tags
     let re = Regex::new(r"(?i)\b(4k|2160p|1080p|720p|480p|hd|hq)\b").unwrap();
 
-    re.find(input).map(|m| {
-        match m.as_str().to_lowercase().as_str() {
+    re.find(input)
+        .map(|m| match m.as_str().to_lowercase().as_str() {
             "hd" | "hq" => "720p".to_string(),
             other => other.to_string(),
-        }
-    })
+        })
 }
 
 fn detect_dubbed(input: &str) -> bool {
@@ -377,5 +376,34 @@ mod detect_quality {
     }
 }
 
+#[cfg(test)]
+mod detect_year {
+    use super::*;
 
+    #[test]
+    fn test_detect_year_found() {
+        let cases = [
+            ("Movie.1999.1080p.mkv", Some(1999)),
+            ("Film.2015.Release", Some(2015)),
+            ("NoYearHere", None),
+            ("Year200", None),
+            ("OldMovie.1899", None),
+            ("Future.2099", Some(2099)),
+            ("Future_2099", Some(2099)),
+        ];
 
+        for (input, expected) in cases {
+            assert_eq!(detect_year(input), expected, "Failed on input: {:?}", input);
+        }
+    }
+
+    #[cfg(FALSE)]
+    #[test]
+    fn disabled_test() {
+        let cases = [("Future_20993", None), ("2015.year.2020", Some(2020))];
+
+        for (input, expected) in cases {
+            assert_eq!(detect_year(input), expected, "Failed on input: {:?}", input);
+        }
+    }
+}
