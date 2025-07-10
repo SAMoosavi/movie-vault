@@ -153,7 +153,9 @@ fn detect_quality(input: &str) -> Option<String> {
 }
 
 fn detect_dubbed(input: &str) -> bool {
-    input.contains("dub") || input.contains("farsi") || input.contains("dubbed")
+    // Matches "dub", "dubbed", or "farsi" as whole words, case-insensitive
+    let re = Regex::new(r"(?i)\b(dub|dubbed|farsi)\b").unwrap();
+    re.is_match(input)
 }
 
 fn detect_hard_sub(input: &str) -> bool {
@@ -244,7 +246,7 @@ mod detect_series_tests {
 }
 
 #[cfg(test)]
-mod sub {
+mod detect_sub {
     use super::*;
 
     #[test]
@@ -297,6 +299,49 @@ mod sub {
                 !detect_hard_sub(case),
                 "Expected detect_hard_sub to return false for {:?}",
                 case
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod detect_dubbed {
+    use super::*;
+
+    #[test]
+    fn test_detect_dubbed_positive() {
+        let positives = [
+            "movie.dub.mkv",
+            "Farsi dubbed version",
+            "farsi audio",
+            "official DUB release",
+            "dubbed film",
+        ];
+
+        for input in positives {
+            assert!(
+                detect_dubbed(input),
+                "Expected detect_dubbed to return true for {:?}",
+                input
+            );
+        }
+    }
+
+    #[test]
+    fn test_detect_dubbed_negative() {
+        let negatives = [
+            "dubious story",
+            "redubbed version",
+            "no subtitles",
+            "audio track",
+            "farsight analysis",
+        ];
+
+        for input in negatives {
+            assert!(
+                !detect_dubbed(input),
+                "Expected detect_dubbed to return false for {:?}",
+                input
             );
         }
     }
