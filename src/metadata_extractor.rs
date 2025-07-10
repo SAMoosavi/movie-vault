@@ -145,10 +145,14 @@ fn detect_year(input: &str) -> Option<u32> {
 }
 
 fn detect_quality(input: &str) -> Option<String> {
-    let re = Regex::new(r"(4k|2160p|1080p|720p|480p|hd|hq)").unwrap();
-    re.find(input).map(|m| match m.as_str() {
-        "hd" | "hq" => "720p".to_string(),
-        s => s.to_string(),
+    // Case-insensitive regex for common quality tags
+    let re = Regex::new(r"(?i)\b(4k|2160p|1080p|720p|480p|hd|hq)\b").unwrap();
+
+    re.find(input).map(|m| {
+        match m.as_str().to_lowercase().as_str() {
+            "hd" | "hq" => "720p".to_string(),
+            other => other.to_string(),
+        }
     })
 }
 
@@ -346,3 +350,32 @@ mod detect_dubbed {
         }
     }
 }
+
+#[cfg(test)]
+mod detect_quality {
+    use super::*;
+
+    #[test]
+    fn test_detect_quality_matches() {
+        let cases = vec![
+            ("Movie.1080p.mkv", Some("1080p".to_string())),
+            ("Show.4K.UltraHD", Some("4k".to_string())),
+            ("Clip.HD.version", Some("720p".to_string())),
+            ("Video.hq.release", Some("720p".to_string())),
+            ("OldMovie.480p.avi", Some("480p".to_string())),
+            ("UnknownQuality.mkv", None),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(
+                detect_quality(input),
+                expected,
+                "Failed on input: {:?}",
+                input
+            );
+        }
+    }
+}
+
+
+
