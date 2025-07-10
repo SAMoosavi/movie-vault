@@ -157,16 +157,13 @@ fn detect_dubbed(input: &str) -> bool {
 }
 
 fn detect_hard_sub(input: &str) -> bool {
-    input.contains("hardsub") || input.contains("hard sub")
+    let re = Regex::new(r"(?i)\bhard[\s._-]?(sub|subtitle)\b").unwrap();
+    re.is_match(input)
 }
 
 fn detect_soft_sub(input: &str) -> bool {
-    input.contains("softsub")
-        || input.contains("soft sub")
-        || input.contains("soft_sub")
-        || input.contains("soft.sub")
-        || input.contains("soft-sub")
-        || input.contains("sub")
+    let re = Regex::new(r"(?i)\bsoft[\s._-]?(sub|subtitle)\b").unwrap();
+    re.is_match(input)
 }
 
 fn detect_series(input: &str) -> Option<SeriesMeta> {
@@ -243,5 +240,64 @@ mod detect_series_tests {
             episode: 8,
         });
         assert_eq!(detect_series(input), expected);
+    }
+}
+
+#[cfg(test)]
+mod sub {
+    use super::*;
+
+    #[test]
+    fn test_detect_hard_sub_cases() {
+        let positives = [
+            "movie.hardsub.mkv",
+            "hard sub release",
+            "hard.sub.version",
+            "this-is-hardsub",
+        ];
+
+        for case in positives {
+            assert!(
+                detect_hard_sub(case),
+                "Expected detect_hard_sub to return true for {:?}",
+                case
+            );
+        }
+
+        let negatives = ["softsub", "subtitle", "audio.hardtrack"];
+        for case in negatives {
+            assert!(
+                !detect_hard_sub(case),
+                "Expected detect_hard_sub to return false for {:?}",
+                case
+            );
+        }
+    }
+    #[test]
+    fn test_detect_soft_sub_cases() {
+        let positives = [
+            "movie.softsub.mkv",
+            "soft sub release",
+            "soft.sub.version",
+            "this-is-softsub",
+            "soft.subtitle",
+        ];
+
+        for case in positives {
+            assert!(
+                detect_soft_sub(case),
+                "Expected detect_soft_sub to return true for {:?}",
+                case
+            );
+        }
+
+        let negatives = ["hardsub", "subtitle", "audio.hardtrack"];
+        for case in negatives {
+            assert!(
+                !detect_hard_sub(case),
+                "Expected detect_hard_sub to return false for {:?}",
+                case
+            );
+        }
     }
 }
