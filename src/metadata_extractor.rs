@@ -7,7 +7,7 @@ use std::{
 
 use crate::media_scanner;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct SeriesMeta {
     pub season: u32,
     pub episode: u32,
@@ -161,41 +161,87 @@ fn detect_hard_sub(input: &str) -> bool {
 }
 
 fn detect_soft_sub(input: &str) -> bool {
-    input.contains("softsub") || input.contains("soft sub") || input.contains("sub")
+    input.contains("softsub")
+        || input.contains("soft sub")
+        || input.contains("soft_sub")
+        || input.contains("soft.sub")
+        || input.contains("soft-sub")
+        || input.contains("sub")
 }
 
 fn detect_series(input: &str) -> Option<SeriesMeta> {
-    // Try S01E01 pattern first
-    if let Some(caps) = Regex::new(r"[Ss](\d{1,2})[Ee](\d{1,2})")
-        .unwrap()
-        .captures(input)
-    {
-        let season = caps
-            .get(1)
-            .and_then(|s| s.as_str().parse().ok())
-            .unwrap_or(0);
-        let episode = caps
-            .get(2)
-            .and_then(|s| s.as_str().parse().ok())
-            .unwrap_or(0);
-        return Some(SeriesMeta { season, episode });
+    let re = Regex::new(r"(?i)s(\d{1,2})[\s._-]?e(\d{1,2})").ok()?;
+
+    re.captures(input).and_then(|caps| {
+        let season = caps.get(1)?.as_str().parse().ok()?;
+        let episode = caps.get(2)?.as_str().parse().ok()?;
+        Some(SeriesMeta { season, episode })
+    })
+}
+
+#[cfg(test)]
+mod detect_series_tests {
+    use super::*;
+
+    #[test]
+    fn detects_standard_sxxexx_format() {
+        let input = "Breaking.Bad.S02E05.720p.mkv";
+        let expected = Some(SeriesMeta {
+            season: 2,
+            episode: 5,
+        });
+        assert_eq!(detect_series(input), expected);
     }
 
-    // Try _S01_E04 pattern
-    if let Some(caps) = Regex::new(r"_S(\d{1,2})_E(\d{1,2})_")
-        .unwrap()
-        .captures(input)
-    {
-        let season = caps
-            .get(1)
-            .and_then(|s| s.as_str().parse().ok())
-            .unwrap_or(0);
-        let episode = caps
-            .get(2)
-            .and_then(|s| s.as_str().parse().ok())
-            .unwrap_or(0);
-        return Some(SeriesMeta { season, episode });
+    #[test]
+    fn detects_underscored_format() {
+        let input = "_S03_E10_.mp4";
+        let expected = Some(SeriesMeta {
+            season: 3,
+            episode: 10,
+        });
+        assert_eq!(detect_series(input), expected);
     }
 
-    None
+    #[test]
+    fn detects_mixed_case_and_separator() {
+        let input = "s04-e11.avi";
+        let expected = Some(SeriesMeta {
+            season: 4,
+            episode: 11,
+        });
+        assert_eq!(detect_series(input), expected);
+    }
+
+    #[test]
+    fn handles_lowercase_with_dot_separator() {
+        let input = "showname.s01.e09.mkv";
+        let expected = Some(SeriesMeta {
+            season: 1,
+            episode: 9,
+        });
+        assert_eq!(detect_series(input), expected);
+    }
+
+    #[test]
+    fn returns_none_if_no_match() {
+        let input = "Inception.2010.1080p.mkv";
+        assert_eq!(detect_series(input), None);
+    }
+
+    #[test]
+    fn handles_partial_match_but_incorrect_format() {
+        let input = "some_show_S05E.avi";
+        assert_eq!(detect_series(input), None);
+    }
+
+    #[test]
+    fn accepts_input_with_leading_or_trailing_underscores() {
+        let input = "_S2_E8_.Something.Else.mp4";
+        let expected = Some(SeriesMeta {
+            season: 2,
+            episode: 8,
+        });
+        assert_eq!(detect_series(input), expected);
+    }
 }
