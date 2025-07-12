@@ -33,56 +33,87 @@ pub struct VideoMetaData {
 }
 
 pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData> {
-    // Pre-process subtitles into a more searchable structure
-    let subtitles_by_dir: HashMap<PathBuf, Vec<(String, &PathBuf)>> = found_files
+    // Build a map of subtitle stems by directory
+    let subtitles_by_dir = found_files
         .subtitles
         .par_iter()
         .filter_map(|sub| {
             let dir = sub.parent().unwrap_or_else(|| Path::new(""));
-            let stem = sub
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .map(|s| s.to_lowercase())?;
+            let stem = sub.file_stem()?.to_str()?.to_lowercase();
             Some((dir.to_path_buf(), (stem, sub)))
         })
         .fold(
-            HashMap::new,
-            |mut map: HashMap<PathBuf, Vec<(String, &PathBuf)>>, (dir, entry)| {
-                map.entry(dir).or_default().push(entry);
-                map
+            HashMap::<PathBuf, Vec<(String, &PathBuf)>>::new,
+            |mut acc, (dir, entry)| {
+                acc.entry(dir).or_default().push(entry);
+                acc
             },
         )
         .reduce(HashMap::new, |mut a, b| {
-            for (k, v) in b {
-                a.entry(k).or_default().extend(v);
+            for (dir, entries) in b {
+                a.entry(dir).or_default().extend(entries);
             }
             a
         });
 
-    found_files
+    // Match subtitles to videos
+    let meta_data = found_files
         .videos
-        .into_par_iter() // Process videos in parallel too
+        .into_par_iter()
         .map(|video| {
-            let video_dir = video.parent().unwrap_or_else(|| Path::new(""));
-            let video_stem = video.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+            let dir = video.parent().unwrap_or_else(|| Path::new(""));
 
-            let mut meta_data = detect_metadata(video_stem, video.clone());
+            let mut meta = detect_metadata(video.clone());
 
-            meta_data.subtitle_path = subtitles_by_dir
-                .get(video_dir)
-                .and_then(|subs| {
-                    subs.par_iter()  // Parallel search within directory
-                        .find_any(|(sub_stem, _)| sub_stem.contains(&meta_data.name.to_lowercase()))
-                        .map(|(_, sub_path)| sub_path.to_owned())
-                })
-                .cloned();
+            meta.subtitle_path = subtitles_by_dir.get(dir).and_then(|subs| {
+                let name_lower = meta.name.to_lowercase();
+                subs.par_iter()
+                    .find_any(|(sub_stem, _)| sub_stem.contains(&name_lower))
+                    .map(|(_, path)| path.to_path_buf())
+            });
 
-            meta_data
+            meta
         })
-        .collect()
+        .collect();
+
+    merge_metadata(meta_data)
 }
 
-fn detect_metadata(video_stem: &str, path: PathBuf) -> VideoMetaData {
+fn merge_metadata(mut metas: Vec<VideoMetaData>) -> Vec<VideoMetaData> {
+    let mut merged: Vec<VideoMetaData> = Vec::new();
+
+    for mut new_meta in metas.drain(..) {
+        if let Some(existing) = merged.iter_mut().find(|old| {
+            old.name == new_meta.name
+                && old.series == new_meta.series
+                && match (old.year, new_meta.year) {
+                    (Some(y1), Some(y2)) => y1 == y2,
+                    _ => true,
+                }
+        }) {
+            // Merge file data
+            existing.files_data.append(&mut new_meta.files_data);
+
+            // Fill year and subtitle path if missing
+            existing
+                .year
+                .is_none()
+                .then(|| existing.year = new_meta.year);
+            existing
+                .subtitle_path
+                .is_none()
+                .then(|| existing.subtitle_path = new_meta.subtitle_path);
+        } else {
+            merged.push(new_meta);
+        }
+    }
+
+    merged
+}
+
+fn detect_metadata(path: PathBuf) -> VideoMetaData {
+    let video_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
     let normalized = video_stem.to_lowercase();
 
     VideoMetaData {
@@ -90,7 +121,7 @@ fn detect_metadata(video_stem: &str, path: PathBuf) -> VideoMetaData {
         subtitle_path: None,
         year: detect_year(&normalized),
         files_data: vec![VideoFileData {
-            title: video_stem.to_string(),
+            title: video_stem.into(),
             path,
             quality: detect_quality(&normalized),
             is_dubbed: detect_dubbed(&normalized),
@@ -209,8 +240,8 @@ fn detect_quality(input: &str) -> Option<String> {
 
     re.find(input)
         .map(|m| match m.as_str().to_lowercase().as_str() {
-            "hd" | "hq" => "720p".to_string(),
-            other => other.to_string(),
+            "hd" | "hq" => "720p".into(),
+            other => other.into(),
         })
 }
 
@@ -410,11 +441,11 @@ mod detect_quality_tests {
     #[test]
     fn test_detect_quality_matches() {
         let cases = vec![
-            ("Movie.1080p.mkv", Some("1080p".to_string())),
-            ("Show.4K.UltraHD", Some("4k".to_string())),
-            ("Clip.HD.version", Some("720p".to_string())),
-            ("Video.hq.release", Some("720p".to_string())),
-            ("OldMovie.480p.avi", Some("480p".to_string())),
+            ("Movie.1080p.mkv", Some("1080p".into())),
+            ("Show.4K.UltraHD", Some("4k".into())),
+            ("Clip.HD.version", Some("720p".into())),
+            ("Video.hq.release", Some("720p".into())),
+            ("OldMovie.480p.avi", Some("480p".into())),
             ("UnknownQuality.mkv", None),
         ];
 
@@ -512,10 +543,7 @@ mod detect_metadata_tests {
     #[test]
     fn test_get_meta_data_full() {
         assert_eq!(
-            detect_metadata(
-                "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm",
-                "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()
-            ),
+            detect_metadata("/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()),
             VideoMetaData {
                 name: "Loki".into(),
                 subtitle_path: None,
@@ -536,10 +564,7 @@ mod detect_metadata_tests {
         );
 
         assert_eq!(
-            detect_metadata(
-                "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez",
-                "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into()
-            ),
+            detect_metadata("/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into()),
             VideoMetaData {
                 name: "Who Am I".into(),
                 subtitle_path: None,
@@ -557,10 +582,7 @@ mod detect_metadata_tests {
         );
 
         assert_eq!(
-            detect_metadata(
-                "Avengers.2012.720p.Farsi.Dubbed.Film9",
-                "/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into()
-            ),
+            detect_metadata("/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into()),
             VideoMetaData {
                 name: "Avengers".into(),
                 subtitle_path: None,
@@ -576,5 +598,134 @@ mod detect_metadata_tests {
                 series: None,
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod merge_metadata_tests {
+    use super::*;
+
+    fn dummy_file(title: &str, path: &str) -> VideoFileData {
+        VideoFileData {
+            title: title.into(),
+            path: path.into(),
+            quality: None,
+            has_hard_sub: false,
+            has_soft_sub: false,
+            is_dubbed: false,
+        }
+    }
+
+    #[test]
+    fn test_merge_metadata_basic() {
+        let meta1 = VideoMetaData {
+            name: "Sample Movie".into(),
+            subtitle_path: Some("subs/sample.srt".into()),
+            year: Some(2023),
+            files_data: vec![dummy_file("Sample Movie 1080p", "movies/sample_1080p.mkv")],
+            series: None,
+        };
+
+        let meta2 = VideoMetaData {
+            name: "Sample Movie".into(),
+            subtitle_path: None,
+            year: Some(2023),
+            files_data: vec![dummy_file("Sample Movie 720p", "movies/sample_720p.mkv")],
+            series: None,
+        };
+
+        let result = merge_metadata(vec![meta1, meta2]);
+
+        assert_eq!(result.len(), 1);
+        let merged = &result[0];
+
+        assert_eq!(merged.name, "Sample Movie");
+        assert_eq!(merged.year, Some(2023));
+        assert_eq!(merged.subtitle_path, Some("subs/sample.srt".into()));
+        assert_eq!(merged.files_data.len(), 2);
+    }
+
+    #[test]
+    fn test_should_not_merge_metadata_different_year() {
+        let meta1 = VideoMetaData {
+            name: "Sample Movie".into(),
+            subtitle_path: Some("subs/sample.srt".into()),
+            year: Some(2024),
+            files_data: vec![dummy_file("Sample Movie 1080p", "movies/sample_1080p.mkv")],
+            series: None,
+        };
+
+        let meta2 = VideoMetaData {
+            name: "Sample Movie".into(),
+            subtitle_path: None,
+            year: Some(2023),
+            files_data: vec![dummy_file("Sample Movie 720p", "movies/sample_720p.mkv")],
+            series: None,
+        };
+
+        let result = merge_metadata(vec![meta1, meta2]);
+
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_merge_with_missing_year() {
+        let meta1 = VideoMetaData {
+            name: "Show".into(),
+            subtitle_path: None,
+            year: None,
+            files_data: vec![dummy_file("Show S01E01", "shows/show_s01e01.mkv")],
+            series: Some(SeriesMeta {
+                season: 1,
+                episode: 1,
+            }),
+        };
+
+        let meta2 = VideoMetaData {
+            name: "Show".into(),
+            subtitle_path: Some("subs/show_s01e01.srt".into()),
+            year: Some(2021),
+            files_data: vec![dummy_file("Show S01E01 720p", "shows/show_s01e01_720p.mkv")],
+            series: Some(SeriesMeta {
+                season: 1,
+                episode: 1,
+            }),
+        };
+
+        let result = merge_metadata(vec![meta1, meta2]);
+
+        assert_eq!(result.len(), 1);
+        let merged = &result[0];
+        assert_eq!(merged.year, Some(2021));
+        assert_eq!(merged.subtitle_path, Some("subs/show_s01e01.srt".into()));
+        assert_eq!(merged.files_data.len(), 2);
+    }
+
+    #[test]
+    fn test_merge_different_series_not_combined() {
+        let meta1 = VideoMetaData {
+            name: "Show".into(),
+            subtitle_path: None,
+            year: None,
+            files_data: vec![dummy_file("Show S01E01", "shows/show_s01e01.mkv")],
+            series: Some(SeriesMeta {
+                season: 1,
+                episode: 1,
+            }),
+        };
+
+        let meta2 = VideoMetaData {
+            name: "Show".into(),
+            subtitle_path: None,
+            year: None,
+            files_data: vec![dummy_file("Show S01E02", "shows/show_s01e02.mkv")],
+            series: Some(SeriesMeta {
+                season: 1,
+                episode: 2,
+            }),
+        };
+
+        let result = merge_metadata(vec![meta1, meta2]);
+        assert_eq!(result.len(), 2);
     }
 }
