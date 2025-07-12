@@ -41,21 +41,18 @@ pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMeta>
             Some((dir.to_path_buf(), (stem, sub)))
         })
         .fold(
-            || HashMap::new(),
+            HashMap::new,
             |mut map: HashMap<PathBuf, Vec<(String, &PathBuf)>>, (dir, entry)| {
                 map.entry(dir).or_default().push(entry);
                 map
             },
         )
-        .reduce(
-            || HashMap::new(),
-            |mut a, b| {
-                for (k, v) in b {
-                    a.entry(k).or_default().extend(v);
-                }
-                a
-            },
-        );
+        .reduce(HashMap::new, |mut a, b| {
+            for (k, v) in b {
+                a.entry(k).or_default().extend(v);
+            }
+            a
+        });
 
     found_files
         .videos
@@ -102,7 +99,7 @@ fn detect_name(input: &str) -> String {
     #[cfg(debug_assertions)]
     {
         if input != input.to_lowercase() {
-            eprintln!("Warning: input is not lowercase: '{}'", input);
+            eprintln!("Warning: input is not lowercase: '{input}'");
             return String::new();
         }
     }
@@ -160,7 +157,6 @@ fn detect_name(input: &str) -> String {
 
     // Step 4: Capitalize each word's first character, preserving rest lowercase.
     raw_name
-        .trim()
         .split_whitespace()
         .map(|word| {
             let mut chars = word.chars();
@@ -182,7 +178,7 @@ fn detect_year(input: &str) -> Option<u32> {
         let start = m.start();
         let end = m.end();
 
-        let before = input[..start].chars().rev().next();
+        let before = input[..start].chars().next_back();
         let after = input[end..].chars().next();
 
         let is_before_digit = before.map(|c| c.is_ascii_digit()).unwrap_or(false);
@@ -320,8 +316,7 @@ mod detect_sub_tests {
         for case in positives {
             assert!(
                 detect_hard_sub(case),
-                "Expected detect_hard_sub to return true for {:?}",
-                case
+                "Expected detect_hard_sub to return true for {case:?}"
             );
         }
 
@@ -329,8 +324,7 @@ mod detect_sub_tests {
         for case in negatives {
             assert!(
                 !detect_hard_sub(case),
-                "Expected detect_hard_sub to return false for {:?}",
-                case
+                "Expected detect_hard_sub to return false for {case:?}"
             );
         }
     }
@@ -347,8 +341,7 @@ mod detect_sub_tests {
         for case in positives {
             assert!(
                 detect_soft_sub(case),
-                "Expected detect_soft_sub to return true for {:?}",
-                case
+                "Expected detect_soft_sub to return true for {case:?}"
             );
         }
 
@@ -356,8 +349,7 @@ mod detect_sub_tests {
         for case in negatives {
             assert!(
                 !detect_hard_sub(case),
-                "Expected detect_hard_sub to return false for {:?}",
-                case
+                "Expected detect_hard_sub to return false for {case:?}"
             );
         }
     }
@@ -380,8 +372,7 @@ mod detect_dubbed_tests {
         for input in positives {
             assert!(
                 detect_dubbed(input),
-                "Expected detect_dubbed to return true for {:?}",
-                input
+                "Expected detect_dubbed to return true for {input:?}"
             );
         }
     }
@@ -399,8 +390,7 @@ mod detect_dubbed_tests {
         for input in negatives {
             assert!(
                 !detect_dubbed(input),
-                "Expected detect_dubbed to return false for {:?}",
-                input
+                "Expected detect_dubbed to return false for {input:?}"
             );
         }
     }
@@ -425,8 +415,7 @@ mod detect_quality_tests {
             assert_eq!(
                 detect_quality(input),
                 expected,
-                "Failed on input: {:?}",
-                input
+                "Failed on input: {input:?}"
             );
         }
     }
@@ -453,7 +442,7 @@ mod detect_year_tests {
         ];
 
         for (input, expected) in cases {
-            assert_eq!(detect_year(input), expected, "Failed on input: {:?}", input);
+            assert_eq!(detect_year(input), expected, "Failed on input: {input:?}");
         }
     }
 }

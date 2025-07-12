@@ -1,7 +1,5 @@
-
 mod media_scanner;
 mod metadata_extractor;
-
 
 #[tokio::main]
 async fn main() {
@@ -12,6 +10,6 @@ async fn main() {
     let meta_datas = metadata_extractor::match_subtitles(found_files);
 
     for meta_data in &meta_datas {
-        println!("{:#?}", meta_data);
+        println!("{meta_data:#?}",);
     }
 }
