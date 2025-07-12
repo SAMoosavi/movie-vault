@@ -13,7 +13,7 @@ pub struct SeriesMeta {
     pub episode: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VideoMeta {
     pub name: String,
     pub title: String,
@@ -64,7 +64,7 @@ pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMeta>
             let video_dir = video.parent().unwrap_or_else(|| Path::new(""));
             let video_stem = video.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
-            let mut meta_data = get_meta_data(video_stem, video.clone());
+            let mut meta_data = detect_metadata(video_stem, video.clone());
 
             meta_data.subtitle_path = subtitles_by_dir
                 .get(video_dir)
@@ -80,26 +80,25 @@ pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMeta>
         .collect()
 }
 
-fn get_meta_data(video_stem: &str, path: PathBuf) -> VideoMeta {
-    let stem_lower = video_stem.to_lowercase().replace("_", ".");
-    let name = extract_name(&stem_lower);
+fn detect_metadata(video_stem: &str, path: PathBuf) -> VideoMeta {
+    let normalized = video_stem.to_lowercase();
 
     VideoMeta {
-        name,
+        name: detect_name(&normalized),
         title: video_stem.to_string(),
         path,
         subtitle_path: None,
-        year: detect_year(&stem_lower),
-        quality: detect_quality(&stem_lower),
-        is_dubbed: detect_dubbed(&stem_lower),
-        has_hard_sub: detect_hard_sub(&stem_lower),
-        has_soft_sub: detect_soft_sub(&stem_lower),
-        series: detect_series(video_stem),
+        year: detect_year(&normalized),
+        quality: detect_quality(&normalized),
+        is_dubbed: detect_dubbed(&normalized),
+        has_hard_sub: detect_hard_sub(&normalized),
+        has_soft_sub: detect_soft_sub(&normalized),
+        series: detect_series(&normalized),
     }
 }
 
 /// Assumes `input` is already lowercase for consistent matching.
-fn extract_name(input: &str) -> String {
+fn detect_name(input: &str) -> String {
     #[cfg(debug_assertions)]
     {
         if input != input.to_lowercase() {
@@ -306,7 +305,7 @@ mod detect_series_tests {
 }
 
 #[cfg(test)]
-mod detect_sub {
+mod detect_sub_tests {
     use super::*;
 
     #[test]
@@ -365,7 +364,7 @@ mod detect_sub {
 }
 
 #[cfg(test)]
-mod detect_dubbed {
+mod detect_dubbed_tests {
     use super::*;
 
     #[test]
@@ -408,7 +407,7 @@ mod detect_dubbed {
 }
 
 #[cfg(test)]
-mod detect_quality {
+mod detect_quality_tests {
     use super::*;
 
     #[test]
@@ -434,7 +433,7 @@ mod detect_quality {
 }
 
 #[cfg(test)]
-mod detect_year {
+mod detect_year_tests {
     use super::*;
 
     #[test]
@@ -460,11 +459,11 @@ mod detect_year {
 }
 
 #[cfg(test)]
-mod extract_name_tests {
+mod detect_name_tests {
     use super::*;
 
     #[test]
-    fn test_extract_name_examples() {
+    fn test_detect_name_examples() {
         let cases = [
             (
                 "3.days.to.kill.2014.extended.720p.farsi.dubbed.film2media",
@@ -504,8 +503,76 @@ mod extract_name_tests {
         ];
 
         for (input, expected) in cases {
-            let result = extract_name(input);
+            let result = detect_name(input);
             assert_eq!(result, expected, "Failed on: {input}");
         }
+    }
+}
+
+#[cfg(test)]
+mod detect_metadata_tests {
+    use super::*;
+
+    #[test]
+    fn test_get_meta_data_full() {
+        assert_eq!(
+            detect_metadata(
+                "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm",
+                "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()
+            ),
+            VideoMeta {
+                name: "Loki".into(),
+                title: "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
+                path: "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
+                subtitle_path: None,
+                year: None,
+                quality: Some("720p".into()),
+                is_dubbed: true,
+                has_hard_sub: false,
+                has_soft_sub: false,
+                series: Some(SeriesMeta {
+                    season: 1,
+                    episode: 2,
+                }),
+            }
+        );
+
+        assert_eq!(
+            detect_metadata(
+                "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez",
+                "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into()
+            ),
+            VideoMeta {
+                name: "Who Am I".into(),
+                title: "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez".into(),
+                path: "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into(),
+                subtitle_path: None,
+                year: Some(2014,),
+                quality: Some("720p".into()),
+                is_dubbed: false,
+                has_hard_sub: true,
+                has_soft_sub: false,
+                series: None,
+            }
+        );
+
+        assert_eq!(
+            detect_metadata(
+                "Avengers.2012.720p.Farsi.Dubbed.Film9",
+                "/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into()
+            ),
+            VideoMeta {
+                name: "Avengers".into(),
+                title: "Avengers.2012.720p.Farsi.Dubbed.Film9".into(),
+                path: "/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into(),
+                subtitle_path: None,
+                year: Some(2012),
+                quality: Some("720p".into()),
+                is_dubbed: true,
+                has_hard_sub: false,
+                has_soft_sub: false,
+                series: None,
+            }
+        );
     }
 }
