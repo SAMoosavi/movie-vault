@@ -14,20 +14,25 @@ pub struct SeriesMeta {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct VideoMeta {
-    pub name: String,
+pub struct VideoFileData {
     pub title: String,
     pub path: PathBuf,
-    pub subtitle_path: Option<PathBuf>,
-    pub year: Option<u32>,
     pub quality: Option<String>,
-    pub is_dubbed: bool,
     pub has_hard_sub: bool,
     pub has_soft_sub: bool,
+    pub is_dubbed: bool,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct VideoMetaData {
+    pub name: String,
+    pub subtitle_path: Option<PathBuf>,
+    pub year: Option<u32>,
+    pub files_data: Vec<VideoFileData>,
     pub series: Option<SeriesMeta>,
 }
 
-pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMeta> {
+pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData> {
     // Pre-process subtitles into a more searchable structure
     let subtitles_by_dir: HashMap<PathBuf, Vec<(String, &PathBuf)>> = found_files
         .subtitles
@@ -77,19 +82,21 @@ pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMeta>
         .collect()
 }
 
-fn detect_metadata(video_stem: &str, path: PathBuf) -> VideoMeta {
+fn detect_metadata(video_stem: &str, path: PathBuf) -> VideoMetaData {
     let normalized = video_stem.to_lowercase();
 
-    VideoMeta {
+    VideoMetaData {
         name: detect_name(&normalized),
-        title: video_stem.to_string(),
-        path,
         subtitle_path: None,
         year: detect_year(&normalized),
-        quality: detect_quality(&normalized),
-        is_dubbed: detect_dubbed(&normalized),
-        has_hard_sub: detect_hard_sub(&normalized),
-        has_soft_sub: detect_soft_sub(&normalized),
+        files_data: vec![VideoFileData {
+            title: video_stem.to_string(),
+            path,
+            quality: detect_quality(&normalized),
+            is_dubbed: detect_dubbed(&normalized),
+            has_hard_sub: detect_hard_sub(&normalized),
+            has_soft_sub: detect_soft_sub(&normalized),
+        }],
         series: detect_series(&normalized),
     }
 }
@@ -509,16 +516,18 @@ mod detect_metadata_tests {
                 "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm",
                 "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()
             ),
-            VideoMeta {
+            VideoMetaData {
                 name: "Loki".into(),
-                title: "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
-                path: "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
                 subtitle_path: None,
                 year: None,
-                quality: Some("720p".into()),
-                is_dubbed: true,
-                has_hard_sub: false,
-                has_soft_sub: false,
+                files_data: vec![VideoFileData {
+                    path: "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
+                    title: "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
+                    quality: Some("720p".into()),
+                    is_dubbed: true,
+                    has_hard_sub: false,
+                    has_soft_sub: false,
+                }],
                 series: Some(SeriesMeta {
                     season: 1,
                     episode: 2,
@@ -531,16 +540,18 @@ mod detect_metadata_tests {
                 "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez",
                 "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into()
             ),
-            VideoMeta {
+            VideoMetaData {
                 name: "Who Am I".into(),
-                title: "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez".into(),
-                path: "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into(),
                 subtitle_path: None,
                 year: Some(2014,),
-                quality: Some("720p".into()),
-                is_dubbed: false,
-                has_hard_sub: true,
-                has_soft_sub: false,
+                files_data: vec![VideoFileData {
+                    title: "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez".into(),
+                    path: "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into(),
+                    quality: Some("720p".into()),
+                    is_dubbed: false,
+                    has_hard_sub: true,
+                    has_soft_sub: false
+                }],
                 series: None,
             }
         );
@@ -550,16 +561,18 @@ mod detect_metadata_tests {
                 "Avengers.2012.720p.Farsi.Dubbed.Film9",
                 "/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into()
             ),
-            VideoMeta {
+            VideoMetaData {
                 name: "Avengers".into(),
-                title: "Avengers.2012.720p.Farsi.Dubbed.Film9".into(),
-                path: "/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into(),
                 subtitle_path: None,
                 year: Some(2012),
-                quality: Some("720p".into()),
-                is_dubbed: true,
-                has_hard_sub: false,
-                has_soft_sub: false,
+                files_data: vec![VideoFileData {
+                    title: "Avengers.2012.720p.Farsi.Dubbed.Film9".into(),
+                    path: "/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into(),
+                    quality: Some("720p".into()),
+                    is_dubbed: true,
+                    has_hard_sub: false,
+                    has_soft_sub: false
+                }],
                 series: None,
             }
         );
