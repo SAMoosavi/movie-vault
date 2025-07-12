@@ -348,7 +348,7 @@ mod detect_sub_tests {
         let negatives = ["hardsub", "subtitle", "audio.hardtrack"];
         for case in negatives {
             assert!(
-                !detect_hard_sub(case),
+                !detect_soft_sub(case),
                 "Expected detect_hard_sub to return false for {case:?}"
             );
         }
