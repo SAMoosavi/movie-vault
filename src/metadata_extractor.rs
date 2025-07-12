@@ -137,11 +137,31 @@ fn extract_name(input: &str) -> String {
         .unwrap_or_else(|| cleaned.trim().to_string())
 }
 
-fn detect_year(input: &str) -> Option<u32> {
+pub fn detect_year(input: &str) -> Option<u32> {
     let re = Regex::new(r"(19|20)\d{2}").unwrap();
-    re.find_iter(input)
-        .filter_map(|m| m.as_str().parse::<u32>().ok())
-        .find(|&year| (1900..=2099).contains(&year))
+    let mut last = None;
+
+    for m in re.find_iter(input) {
+        let s = m.as_str();
+        let start = m.start();
+        let end = m.end();
+
+        let before = input[..start].chars().rev().next();
+        let after = input[end..].chars().next();
+
+        let is_before_digit = before.map(|c| c.is_ascii_digit()).unwrap_or(false);
+        let is_after_digit = after.map(|c| c.is_ascii_digit()).unwrap_or(false);
+
+        if !is_before_digit && !is_after_digit {
+            if let Ok(year) = s.parse::<u32>() {
+                if (1900..=2099).contains(&year) {
+                    last = Some(year); // keep updating to get the last
+                }
+            }
+        }
+    }
+
+    last
 }
 
 fn detect_quality(input: &str) -> Option<String> {
@@ -390,17 +410,11 @@ mod detect_year {
             ("OldMovie.1899", None),
             ("Future.2099", Some(2099)),
             ("Future_2099", Some(2099)),
+            ("Future_2099_test", Some(2099)),
+            ("Future_20993", None),
+            ("2015.year.2020", Some(2020)),
+            ("2015.year.2020.1080p", Some(2020)),
         ];
-
-        for (input, expected) in cases {
-            assert_eq!(detect_year(input), expected, "Failed on input: {:?}", input);
-        }
-    }
-
-    #[cfg(FALSE)]
-    #[test]
-    fn disabled_test() {
-        let cases = [("Future_20993", None), ("2015.year.2020", Some(2020))];
 
         for (input, expected) in cases {
             assert_eq!(detect_year(input), expected, "Failed on input: {:?}", input);
