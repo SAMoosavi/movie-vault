@@ -82,7 +82,7 @@ pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMeta>
 
 fn get_meta_data(video_stem: &str, path: PathBuf) -> VideoMeta {
     let stem_lower = video_stem.to_lowercase().replace("_", ".");
-    let name = extract_name(video_stem);
+    let name = extract_name(&stem_lower);
 
     VideoMeta {
         name,
@@ -98,59 +98,76 @@ fn get_meta_data(video_stem: &str, path: PathBuf) -> VideoMeta {
     }
 }
 
+/// Assumes `input` is already lowercase for consistent matching.
 fn extract_name(input: &str) -> String {
+    #[cfg(debug_assertions)]
+    {
+        if input != input.to_lowercase() {
+            eprintln!("Warning: input is not lowercase: '{}'", input);
+            return String::new();
+        }
+    }
+
+    // List of junk tags to remove from the input string.
+    // These represent common metadata noise in filenames.
     let junk_tags = [
-        "Farsi",
-        "Dubbed",
-        "Dub",
-        "HardSub",
-        "SoftSub",
-        "BluRay",
-        "WEB-DL",
+        "farsi",
+        "dubbed",
+        "dub",
+        "hardsub",
+        "softsub",
+        "bluray",
+        "web-dl",
         "10bit",
         "x265",
         "x264",
-        "6CH",
-        "PSA",
-        "Film2Media",
-        "DigiMoviez",
-        "Zardfilm.Net",
+        "6ch",
+        "psa",
+        "film2media",
+        "digimoviez",
+        "zardfilm.net",
         "mer30download.com",
-        "EXTENDED",
-        "HD720",
-        "HD1080",
-        "BrRip",
-        "anoXmous",
-        "SalamDL",
+        "extended",
+        "hd720",
+        "hd1080",
+        "brrip",
+        "anoxmous",
+        "salamdl",
     ];
 
-    // Normalize input
-    let mut cleaned = input.replace(['.', '_', '(', ')'], " ");
+    // Step 1: Normalize separators by replacing '.', '(', ')' with spaces.
+    let mut cleaned = input.replace(['.', '_', '-', '(', ')'], " ");
 
-    // Remove known junk tags
-    for tag in junk_tags {
+    // Step 2: Remove all junk tags to reduce noise.
+    for tag in junk_tags.iter() {
         cleaned = cleaned.replace(tag, "");
     }
 
-    // Regex to stop title at first metadata marker (year, resolution, SxxExx)
+    // Step 3: Regex to find and truncate at metadata (year, quality, or season/episode).
+    // Pattern explanation:
+    //   - non-greedy capture of anything until a whitespace + (year|resolution|season-episode)
+    //   - case-insensitive matching (?i)
     let re = Regex::new(
         r"(?i)(.*?)(?:\s+(19|20)\d{2}|\s+\d{3,4}p|\s+S\d{1,2}E\d{1,2}|\s+S\d{1,2}\s+E\d{1,2})",
     )
-    .unwrap();
+    .expect("Regex compilation failed");
+
+    // Apply regex and extract the first capturing group or fallback to full cleaned string.
     let raw_name = re
         .captures(&cleaned)
         .and_then(|caps| caps.get(1))
         .map(|m| m.as_str())
         .unwrap_or(&cleaned);
 
+    // Step 4: Capitalize each word's first character, preserving rest lowercase.
     raw_name
         .trim()
         .split_whitespace()
         .map(|word| {
-            let mut c = word.chars();
-            match c.next() {
+            let mut chars = word.chars();
+            match chars.next() {
                 None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
             }
         })
         .collect::<Vec<_>>()
@@ -450,39 +467,39 @@ mod extract_name_tests {
     fn test_extract_name_examples() {
         let cases = [
             (
-                "3.Days.to.Kill.2014.EXTENDED.720p.Farsi.Dubbed.Film2Media",
+                "3.days.to.kill.2014.extended.720p.farsi.dubbed.film2media",
                 "3 Days To Kill",
             ),
-            ("Coco.2017.720p.BluRay.Dubbed.DigiMoviez", "Coco"),
-            ("In.Time.2011.720p.Film2Media", "In Time"),
-            ("Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez", "Who Am I"),
+            ("coco.2017.720p.bluray.dubbed.digimoviez", "Coco"),
+            ("in.time.2011.720p.film2media", "In Time"),
+            ("who.am.i.2014.720p.bluray.hardsub.digimoviez", "Who Am I"),
             (
-                "Radhe.2021.Hindi.720p.WEB-DL.x264.Farsi.Dubbed.Zardfilm.Net",
+                "radhe.2021.hindi.720p.web-dl.x264.farsi.dubbed.zardfilm.net",
                 "Radhe",
             ),
-            ("tenet.Dubbed", "Tenet"),
-            ("Civil.War.2024.720p.WEB-DL.SoftSub.DigiMoviez", "Civil War"),
-            ("GodFather_2022_Dubbed_HD720", "GodFather"),
+            ("tenet.dubbed", "Tenet"),
+            ("civil.war.2024.720p.web-dl.softsub.digimoviez", "Civil War"),
+            ("godfather_2022_dubbed_hd720", "Godfather"),
             (
-                "Freelance.2023.10bit.1080p.x265.WEB-DL.6CH.PSA.Farsi.Sub.Film2Media",
+                "freelance.2023.10bit.1080p.x265.web-dl.6ch.psa.farsi.sub.film2media",
                 "Freelance",
             ),
             (
-                "Ralph.Breaks.the.Internet.2018.720p.Farsi.Dub",
+                "ralph.breaks.the.internet.2018.720p.farsi.dub",
                 "Ralph Breaks The Internet",
             ),
-            ("Black.Mirror.S01.E01.480p.WEB-DL.x264", "Black Mirror"),
+            ("black.mirror.s01.e01.480p.web-dl.x264", "Black Mirror"),
             (
-                "Breaking.Bad.S02E13.720p.BluRay.Farsi.Dubbed",
+                "breaking.bad.s02e13.720p.bluray.farsi.dubbed",
                 "Breaking Bad",
             ),
             (
-                "Emperor_of_the_Sea_2004_s01e04_Farsi_Dubbed_(mer30download.com)",
+                "emperor_of_the_sea_2004_s01e04_farsi_dubbed_(mer30download.com)",
                 "Emperor Of The Sea",
             ),
             (
-                "197863_Harry_Potter_and_the_HalfBlood_Prince_2009_DUBBED_1080p_BrRip_anoXmous_SalamDL",
-                "197863 Harry Potter And The HalfBlood Prince",
+                "197863_harry_potter_and_the_halfblood_prince_2009_dubbed_1080p_brrip_anoxmous_salamdl",
+                "197863 Harry Potter And The Halfblood Prince",
             ),
         ];
 
