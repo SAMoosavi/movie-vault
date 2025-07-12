@@ -99,45 +99,65 @@ fn get_meta_data(video_stem: &str, path: PathBuf) -> VideoMeta {
 }
 
 fn extract_name(input: &str) -> String {
-    // Remove common patterns first
-    let cleaned = input
-        .replace(['.', '_'], " ")
-        .replace("Farsi", "")
-        .replace("Dubbed", "")
-        .replace("Dub", "")
-        .replace("HardSub", "")
-        .replace("SoftSub", "")
-        .replace("BluRay", "")
-        .replace("WEB-DL", "")
-        .replace("10bit", "")
-        .replace("x265", "")
-        .replace("x264", "")
-        .replace("6CH", "")
-        .replace("PSA", "")
-        .replace("Film2Media", "")
-        .replace("DigiMoviez", "")
-        .replace("Zardfilm.Net", "")
-        .replace("mer30download.com", "")
-        .replace("EXTENDED", "")
-        .replace("(", "")
-        .replace(")", "");
+    let junk_tags = [
+        "Farsi",
+        "Dubbed",
+        "Dub",
+        "HardSub",
+        "SoftSub",
+        "BluRay",
+        "WEB-DL",
+        "10bit",
+        "x265",
+        "x264",
+        "6CH",
+        "PSA",
+        "Film2Media",
+        "DigiMoviez",
+        "Zardfilm.Net",
+        "mer30download.com",
+        "EXTENDED",
+        "HD720",
+        "HD1080",
+        "BrRip",
+        "anoXmous",
+        "SalamDL",
+    ];
 
-    // Extract the main title part (before year or quality)
-    let re = Regex::new(r"(.*?)(\d{4}|[0-9]{3,4}p|s\d{1,2}e\d{1,2}|$)").unwrap();
-    re.captures(&cleaned)
+    // Normalize input
+    let mut cleaned = input.replace(['.', '_', '(', ')'], " ");
+
+    // Remove known junk tags
+    for tag in junk_tags {
+        cleaned = cleaned.replace(tag, "");
+    }
+
+    // Regex to stop title at first metadata marker (year, resolution, SxxExx)
+    let re = Regex::new(
+        r"(?i)(.*?)(?:\s+(19|20)\d{2}|\s+\d{3,4}p|\s+S\d{1,2}E\d{1,2}|\s+S\d{1,2}\s+E\d{1,2})",
+    )
+    .unwrap();
+    let raw_name = re
+        .captures(&cleaned)
         .and_then(|caps| caps.get(1))
-        .map(|m| {
-            m.as_str()
-                .trim()
-                .split_whitespace()
-                .filter(|s| !s.is_empty())
-                .collect::<Vec<_>>()
-                .join(" ")
+        .map(|m| m.as_str())
+        .unwrap_or(&cleaned);
+
+    raw_name
+        .trim()
+        .split_whitespace()
+        .map(|word| {
+            let mut c = word.chars();
+            match c.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+            }
         })
-        .unwrap_or_else(|| cleaned.trim().to_string())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
-pub fn detect_year(input: &str) -> Option<u32> {
+fn detect_year(input: &str) -> Option<u32> {
     let re = Regex::new(r"(19|20)\d{2}").unwrap();
     let mut last = None;
 
@@ -217,7 +237,7 @@ mod detect_series_tests {
 
     #[test]
     fn detects_underscored_format() {
-        let input = "_S03_E10_.mp4";
+        let input = "_S03_E10_";
         let expected = Some(SeriesMeta {
             season: 3,
             episode: 10,
@@ -418,6 +438,57 @@ mod detect_year {
 
         for (input, expected) in cases {
             assert_eq!(detect_year(input), expected, "Failed on input: {:?}", input);
+        }
+    }
+}
+
+#[cfg(test)]
+mod extract_name_tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_name_examples() {
+        let cases = [
+            (
+                "3.Days.to.Kill.2014.EXTENDED.720p.Farsi.Dubbed.Film2Media",
+                "3 Days To Kill",
+            ),
+            ("Coco.2017.720p.BluRay.Dubbed.DigiMoviez", "Coco"),
+            ("In.Time.2011.720p.Film2Media", "In Time"),
+            ("Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez", "Who Am I"),
+            (
+                "Radhe.2021.Hindi.720p.WEB-DL.x264.Farsi.Dubbed.Zardfilm.Net",
+                "Radhe",
+            ),
+            ("tenet.Dubbed", "Tenet"),
+            ("Civil.War.2024.720p.WEB-DL.SoftSub.DigiMoviez", "Civil War"),
+            ("GodFather_2022_Dubbed_HD720", "GodFather"),
+            (
+                "Freelance.2023.10bit.1080p.x265.WEB-DL.6CH.PSA.Farsi.Sub.Film2Media",
+                "Freelance",
+            ),
+            (
+                "Ralph.Breaks.the.Internet.2018.720p.Farsi.Dub",
+                "Ralph Breaks The Internet",
+            ),
+            ("Black.Mirror.S01.E01.480p.WEB-DL.x264", "Black Mirror"),
+            (
+                "Breaking.Bad.S02E13.720p.BluRay.Farsi.Dubbed",
+                "Breaking Bad",
+            ),
+            (
+                "Emperor_of_the_Sea_2004_s01e04_Farsi_Dubbed_(mer30download.com)",
+                "Emperor Of The Sea",
+            ),
+            (
+                "197863_Harry_Potter_and_the_HalfBlood_Prince_2009_DUBBED_1080p_BrRip_anoXmous_SalamDL",
+                "197863 Harry Potter And The HalfBlood Prince",
+            ),
+        ];
+
+        for (input, expected) in cases {
+            let result = extract_name(input);
+            assert_eq!(result, expected, "Failed on: {input}");
         }
     }
 }
