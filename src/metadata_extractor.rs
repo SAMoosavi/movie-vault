@@ -24,12 +24,36 @@ pub struct VideoFileData {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub struct ImdbMetaData {
+    pub title: String,
+    pub year: String,
+    pub rated: String,
+    pub released: String,
+    pub runtime: String,
+    pub genre: Vec<String>,
+    pub directors: Vec<String>,
+    pub writers: Vec<String>,
+    pub actors: Vec<String>,
+    pub plot: String,
+    pub languages: Vec<String>,
+    pub country: Vec<String>,
+    pub awards: String,
+    pub poster: String,
+    pub imdb_rating: String,
+    pub imdb_votes: String,
+    pub imdb_id: String,
+    pub box_office: Option<String>,
+    pub total_seasons: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VideoMetaData {
     pub name: String,
     pub subtitle_path: Option<PathBuf>,
     pub year: Option<u32>,
     pub files_data: Vec<VideoFileData>,
     pub series: Option<SeriesMeta>,
+    pub imdb_metadata: Option<ImdbMetaData>,
 }
 
 pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData> {
@@ -129,6 +153,7 @@ fn detect_metadata(path: PathBuf) -> VideoMetaData {
             has_soft_sub: detect_soft_sub(&normalized),
         }],
         series: detect_series(&normalized),
+        imdb_metadata: None,
     }
 }
 
@@ -560,6 +585,7 @@ mod detect_metadata_tests {
                     season: 1,
                     episode: 2,
                 }),
+                imdb_metadata: None,
             }
         );
 
@@ -578,6 +604,7 @@ mod detect_metadata_tests {
                     has_soft_sub: false
                 }],
                 series: None,
+                imdb_metadata: None,
             }
         );
 
@@ -596,6 +623,7 @@ mod detect_metadata_tests {
                     has_soft_sub: false
                 }],
                 series: None,
+                imdb_metadata: None,
             }
         );
     }
@@ -624,6 +652,7 @@ mod merge_metadata_tests {
             year: Some(2023),
             files_data: vec![dummy_file("Sample Movie 1080p", "movies/sample_1080p.mkv")],
             series: None,
+            imdb_metadata: None,
         };
 
         let meta2 = VideoMetaData {
@@ -632,6 +661,7 @@ mod merge_metadata_tests {
             year: Some(2023),
             files_data: vec![dummy_file("Sample Movie 720p", "movies/sample_720p.mkv")],
             series: None,
+            imdb_metadata: None,
         };
 
         let result = merge_metadata(vec![meta1, meta2]);
@@ -653,6 +683,7 @@ mod merge_metadata_tests {
             year: Some(2024),
             files_data: vec![dummy_file("Sample Movie 1080p", "movies/sample_1080p.mkv")],
             series: None,
+            imdb_metadata: None,
         };
 
         let meta2 = VideoMetaData {
@@ -661,6 +692,7 @@ mod merge_metadata_tests {
             year: Some(2023),
             files_data: vec![dummy_file("Sample Movie 720p", "movies/sample_720p.mkv")],
             series: None,
+            imdb_metadata: None,
         };
 
         let result = merge_metadata(vec![meta1, meta2]);
@@ -679,6 +711,7 @@ mod merge_metadata_tests {
                 season: 1,
                 episode: 1,
             }),
+            imdb_metadata: None,
         };
 
         let meta2 = VideoMetaData {
@@ -690,6 +723,7 @@ mod merge_metadata_tests {
                 season: 1,
                 episode: 1,
             }),
+            imdb_metadata: None,
         };
 
         let result = merge_metadata(vec![meta1, meta2]);
@@ -712,6 +746,7 @@ mod merge_metadata_tests {
                 season: 1,
                 episode: 1,
             }),
+            imdb_metadata: None,
         };
 
         let meta2 = VideoMetaData {
@@ -723,6 +758,7 @@ mod merge_metadata_tests {
                 season: 1,
                 episode: 2,
             }),
+            imdb_metadata: None,
         };
 
         let result = merge_metadata(vec![meta1, meta2]);
