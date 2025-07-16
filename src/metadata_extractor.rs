@@ -7,13 +7,13 @@ use std::{
 
 use crate::media_scanner;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct SeriesMeta {
     pub season: u32,
     pub episode: u32,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VideoFileData {
     pub title: String,
     pub path: PathBuf,
@@ -23,7 +23,7 @@ pub struct VideoFileData {
     pub is_dubbed: bool,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct VideoMetaData {
     pub name: String,
     pub subtitle_path: Option<PathBuf>,
