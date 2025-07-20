@@ -1,0 +1,347 @@
+use std::path::PathBuf;
+
+use rusqlite::{Connection, Result, params};
+
+use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMetaData};
+
+pub fn create_table() -> Result<()> {
+    let conn = Connection::open("movies.db")?;
+
+    conn.execute_batch(
+        "
+        CREATE TABLE IF NOT EXISTS video_metadata (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            subtitle_path TEXT,
+            year INTEGER,
+            series_id INTEGER,
+            imdb_id TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS series_meta (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            season INTEGER NOT NULL,
+            episode INTEGER NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS video_file_data (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            video_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            path TEXT NOT NULL,
+            quality TEXT,
+            has_hard_sub INTEGER NOT NULL,
+            has_soft_sub INTEGER NOT NULL,
+            is_dubbed INTEGER NOT NULL,
+            FOREIGN KEY(video_id) REFERENCES video_metadata(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_metadata (
+            imdb_id TEXT PRIMARY KEY,
+            title TEXT,
+            year TEXT,
+            rated TEXT,
+            released TEXT,
+            runtime TEXT,
+            plot TEXT,
+            awards TEXT,
+            poster TEXT,
+            imdb_rating TEXT,
+            imdb_votes TEXT,
+            box_office TEXT,
+            total_seasons TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS actors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_actors (
+            imdb_id TEXT,
+            actor_id INTEGER,
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
+            FOREIGN KEY(actor_id) REFERENCES actors(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS directors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_directors (
+            imdb_id TEXT,
+            director_id INTEGER,
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
+            FOREIGN KEY(director_id) REFERENCES directors(id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS writers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_writers (
+            imdb_id TEXT,
+            writer_id INTEGER,
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
+            FOREIGN KEY(writer_id) REFERENCES writers(id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS genres (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_genres (
+            imdb_id TEXT,
+            genre_id INTEGER,
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
+            FOREIGN KEY(genre_id) REFERENCES genres(id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS languages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_languages (
+            imdb_id TEXT,
+            language_id INTEGER,
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
+            FOREIGN KEY(language_id) REFERENCES languages(id)
+        );
+        
+        CREATE TABLE IF NOT EXISTS countries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS imdb_countries (
+            imdb_id TEXT,
+            country_id INTEGER,
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
+            FOREIGN KEY(country_id) REFERENCES countries(id)
+        );
+        ",
+    )?;
+
+    Ok(())
+}
+
+fn insert_series_meta(conn: &Connection, series: &SeriesMeta) -> Result<u32> {
+    conn.execute(
+        "INSERT INTO series_meta (season, episode) VALUES (?1, ?2)",
+        params![series.season, series.episode],
+    )?;
+    Ok(conn.last_insert_rowid() as u32)
+}
+
+fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<()> {
+    conn.execute(
+        "INSERT OR IGNORE INTO imdb_metadata (
+            imdb_id, title, year, rated, released, runtime, plot, awards, poster,
+            imdb_rating, imdb_votes, box_office, total_seasons
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+        params![
+            imdb.imdb_id,
+            imdb.title,
+            imdb.year,
+            imdb.rated,
+            imdb.released,
+            imdb.runtime,
+            imdb.plot,
+            imdb.awards,
+            imdb.poster,
+            imdb.imdb_rating,
+            imdb.imdb_votes,
+            imdb.box_office,
+            imdb.total_seasons
+        ],
+    )?;
+    Ok(())
+}
+
+fn insert_or_get_id(conn: &Connection, table: &str, field: &str, value: &str) -> Result<u32> {
+    let insert_sql = format!("INSERT OR IGNORE INTO {} ({}) VALUES (?1)", table, field);
+    conn.execute(&insert_sql, params![value])?;
+
+    let select_sql = format!("SELECT id FROM {} WHERE {} = ?1", table, field);
+    let mut stmt = conn.prepare(&select_sql)?;
+    let id: u32 = stmt.query_row(params![value], |row| row.get(0))?;
+    Ok(id)
+}
+
+fn insert_join(
+    conn: &Connection,
+    join_table: &str,
+    left_field: &str,
+    right_field: &str,
+    imdb_id: &str,
+    value: &str,
+    entity_table: &str,
+) -> Result<()> {
+    let entity_id = insert_or_get_id(conn, entity_table, "name", value)?;
+    let sql = format!(
+        "INSERT INTO {} ({}, {}) VALUES (?1, ?2)",
+        join_table, left_field, right_field
+    );
+    conn.execute(&sql, params![imdb_id, entity_id])?;
+    Ok(())
+}
+
+fn insert_imdb_lists(conn: &Connection, imdb: &ImdbMetaData) -> Result<()> {
+    for actor in &imdb.actors {
+        insert_join(
+            conn,
+            "imdb_actors",
+            "imdb_id",
+            "actor_id",
+            &imdb.imdb_id,
+            actor,
+            "actors",
+        )?;
+    }
+
+    for genre in &imdb.genre {
+        insert_join(
+            conn,
+            "imdb_genres",
+            "imdb_id",
+            "genre_id",
+            &imdb.imdb_id,
+            genre,
+            "genres",
+        )?;
+    }
+
+    for director in &imdb.directors {
+        insert_join(
+            conn,
+            "imdb_directors",
+            "imdb_id",
+            "director_id",
+            &imdb.imdb_id,
+            director,
+            "directors",
+        )?;
+    }
+
+    for writer in &imdb.writers {
+        insert_join(
+            conn,
+            "imdb_writers",
+            "imdb_id",
+            "writer_id",
+            &imdb.imdb_id,
+            writer,
+            "writers",
+        )?;
+    }
+
+    for lang in &imdb.languages {
+        insert_join(
+            conn,
+            "imdb_languages",
+            "imdb_id",
+            "language_id",
+            &imdb.imdb_id,
+            lang,
+            "languages",
+        )?;
+    }
+
+    for country in &imdb.country {
+        insert_join(
+            conn,
+            "imdb_countries",
+            "imdb_id",
+            "country_id",
+            &imdb.imdb_id,
+            country,
+            "countries",
+        )?;
+    }
+
+    Ok(())
+}
+
+fn insert_video_metadata(
+    conn: &Connection,
+    name: &str,
+    subtitle_path: Option<&PathBuf>,
+    year: Option<u32>,
+    series_id: Option<u32>,
+    imdb_id: Option<&str>,
+) -> Result<u32> {
+    conn.execute(
+        "INSERT INTO video_metadata (name, subtitle_path, year, series_id, imdb_id)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            name,
+            subtitle_path.map(|p| p.to_string_lossy()),
+            year,
+            series_id,
+            imdb_id,
+        ],
+    )?;
+    Ok(conn.last_insert_rowid() as u32)
+}
+
+fn insert_video_file_data(conn: &Connection, video_id: u32, file: &VideoFileData) -> Result<()> {
+    conn.execute(
+        "INSERT INTO video_file_data (
+            video_id, title, path, quality,
+            has_hard_sub, has_soft_sub, is_dubbed
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            video_id,
+            file.title,
+            file.path.to_string_lossy(),
+            file.quality,
+            file.has_hard_sub as i32,
+            file.has_soft_sub as i32,
+            file.is_dubbed as i32,
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn insert(data: &[VideoMetaData]) -> Result<()> {
+    let mut conn = Connection::open("movies.db")?;
+    let tx = conn.transaction()?;
+
+    for video in data {
+        // Insert series if exists
+        let series_id = if let Some(series) = &video.series {
+            Some(insert_series_meta(&tx, series)?)
+        } else {
+            None
+        };
+
+        // Insert IMDb if exists
+        if let Some(imdb) = &video.imdb_metadata {
+            insert_imdb_metadata(&tx, imdb)?;
+            insert_imdb_lists(&tx, imdb)?;
+        }
+
+        // Insert video metadata
+        let video_id = insert_video_metadata(
+            &tx,
+            &video.name,
+            video.subtitle_path.as_ref(),
+            video.year,
+            series_id,
+            video.imdb_metadata.as_ref().map(|x| x.imdb_id.as_str()),
+        )?;
+
+        // Insert file data
+        for file in &video.files_data {
+            insert_video_file_data(&tx, video_id, file)?;
+        }
+    }
+
+    tx.commit()?;
+
+    Ok(())
+}
