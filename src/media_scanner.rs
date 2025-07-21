@@ -1,8 +1,17 @@
 use either::Either;
-use rayon::prelude::*;
+use futures::future::join_all;
+use rayon::{prelude::*, vec};
 use std::path::PathBuf;
-use tokio::task;
+use tokio::{fs, task};
 use walkdir::WalkDir;
+
+use crate::{
+    metadata_extractor::VideoFileData,
+    sqlite::{
+        get_all_video_files_from_db, get_video_file_by_path_from_db,
+        remove_orphaned_video_metadata_from_db, remove_rows_by_paths,
+    },
+};
 
 /// Supported video file extensions.
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi"];
@@ -29,14 +38,17 @@ pub async fn find_movies(root: PathBuf) -> FoundFiles {
     .expect("Failed to scan file system");
 
     // Classify files as videos or subtitles
-    let (videos, subtitles): (Vec<_>, Vec<_>) = all_files
+    let (videos, mut subtitles): (Vec<_>, Vec<_>) = all_files
         .into_par_iter()
         .filter(|path| path.extension().is_some())
         .partition_map(|path| match path.extension().and_then(|ext| ext.to_str()) {
             Some(ext) => {
                 let ext = ext.to_ascii_lowercase();
                 if VIDEO_EXTENSIONS.contains(&ext.as_str()) {
-                    Either::Left(path)
+                    match get_video_file_by_path_from_db(&path) {
+                        Ok(None) => Either::Left(path),
+                        _ => Either::Right(PathBuf::new()),
+                    }
                 } else if ext == "srt" {
                     Either::Right(path)
                 } else {
@@ -47,12 +59,36 @@ pub async fn find_movies(root: PathBuf) -> FoundFiles {
         });
 
     // Filter out placeholder empty paths from ignored extensions
-    let subtitles = subtitles
-        .into_iter()
-        .filter(|p| !p.as_os_str().is_empty())
-        .collect();
+    subtitles.retain(|p| !p.as_os_str().is_empty());
 
     FoundFiles { videos, subtitles }
+}
+
+async fn find_non_existent_paths() -> Vec<VideoFileData> {
+    let files = get_all_video_files_from_db()
+        .unwrap()
+        .into_iter()
+        .map(|video| async move {
+            let exists = fs::try_exists(&video.path).await.unwrap_or(false);
+            if !exists { Some(video) } else { None }
+        });
+
+    join_all(files)
+        .await
+        .into_iter()
+        .filter_map(|x| x)
+        .collect()
+}
+
+pub async fn sync_files() {
+    let paths: Vec<PathBuf> = find_non_existent_paths()
+        .await
+        .iter()
+        .map(|video| video.path.clone())
+        .collect();
+    remove_rows_by_paths(&paths).unwrap();
+
+    remove_orphaned_video_metadata_from_db().unwrap();
 }
 
 #[cfg(test)]

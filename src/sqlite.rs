@@ -1,11 +1,15 @@
 use std::path::PathBuf;
 
-use rusqlite::{Connection, Result, params};
+use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMetaData};
 
+fn create_conn() -> Result<Connection> {
+    Connection::open("movies.db")
+}
+
 pub fn create_table() -> Result<()> {
-    let conn = Connection::open("movies.db")?;
+    let conn = create_conn()?;
 
     conn.execute_batch(
         "
@@ -33,7 +37,7 @@ pub fn create_table() -> Result<()> {
             has_hard_sub INTEGER NOT NULL,
             has_soft_sub INTEGER NOT NULL,
             is_dubbed INTEGER NOT NULL,
-            FOREIGN KEY(video_id) REFERENCES video_metadata(id)
+            FOREIGN KEY(video_id) REFERENCES video_metadata(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS imdb_metadata (
@@ -60,8 +64,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_actors (
             imdb_id TEXT,
             actor_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
-            FOREIGN KEY(actor_id) REFERENCES actors(id)
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            FOREIGN KEY(actor_id) REFERENCES actors(id) ON DELETE CASCADE
         );
 
         CREATE TABLE IF NOT EXISTS directors (
@@ -72,8 +76,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_directors (
             imdb_id TEXT,
             director_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
-            FOREIGN KEY(director_id) REFERENCES directors(id)
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            FOREIGN KEY(director_id) REFERENCES directors(id) ON DELETE CASCADE
         );
         
         CREATE TABLE IF NOT EXISTS writers (
@@ -84,8 +88,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_writers (
             imdb_id TEXT,
             writer_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
-            FOREIGN KEY(writer_id) REFERENCES writers(id)
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            FOREIGN KEY(writer_id) REFERENCES writers(id) ON DELETE CASCADE
         );
         
         CREATE TABLE IF NOT EXISTS genres (
@@ -96,8 +100,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_genres (
             imdb_id TEXT,
             genre_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
-            FOREIGN KEY(genre_id) REFERENCES genres(id)
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            FOREIGN KEY(genre_id) REFERENCES genres(id) ON DELETE CASCADE
         );
         
         CREATE TABLE IF NOT EXISTS languages (
@@ -108,8 +112,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_languages (
             imdb_id TEXT,
             language_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
-            FOREIGN KEY(language_id) REFERENCES languages(id)
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            FOREIGN KEY(language_id) REFERENCES languages(id) ON DELETE CASCADE
         );
         
         CREATE TABLE IF NOT EXISTS countries (
@@ -120,8 +124,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_countries (
             imdb_id TEXT,
             country_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id),
-            FOREIGN KEY(country_id) REFERENCES countries(id)
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            FOREIGN KEY(country_id) REFERENCES countries(id) ON DELETE CASCADE
         );
         ",
     )?;
@@ -308,7 +312,7 @@ fn insert_video_file_data(conn: &Connection, video_id: u32, file: &VideoFileData
 }
 
 pub fn insert(data: &[VideoMetaData]) -> Result<()> {
-    let mut conn = Connection::open("movies.db")?;
+    let mut conn = create_conn()?;
     let tx = conn.transaction()?;
 
     for video in data {
@@ -344,4 +348,83 @@ pub fn insert(data: &[VideoMetaData]) -> Result<()> {
     tx.commit()?;
 
     Ok(())
+}
+
+fn map_row_to_video_file_data(row: &rusqlite::Row) -> Result<VideoFileData> {
+    Ok(VideoFileData {
+        title: row.get(0)?,
+        path: PathBuf::from(row.get::<_, String>(1)?),
+        quality: row.get(2)?,
+        has_hard_sub: row.get::<_, i32>(3)? != 0,
+        has_soft_sub: row.get::<_, i32>(4)? != 0,
+        is_dubbed: row.get::<_, i32>(5)? != 0,
+    })
+}
+
+fn get_video_file_by_path(conn: &Connection, path: &PathBuf) -> Result<Option<VideoFileData>> {
+    let mut stmt = conn.prepare(
+        "SELECT title, path, quality, has_hard_sub, has_soft_sub, is_dubbed
+                FROM video_file_data
+                WHERE path = ?1",
+    )?;
+
+    let path_str = path.to_string_lossy();
+
+    let result = stmt
+        .query_row(params![path_str], map_row_to_video_file_data)
+        .optional()?;
+
+    Ok(result)
+}
+
+fn get_all_video_files(conn: &Connection) -> Result<Vec<VideoFileData>> {
+    let mut stmt = conn.prepare("SELECT title, path, quality, has_hard_sub, has_soft_sub, is_dubbed FROM video_file_data").unwrap();
+    stmt.query_map([], map_row_to_video_file_data)
+        .unwrap()
+        .collect()
+}
+
+fn remove_row_by_path(conn: &Connection, path: &str) -> Result<usize> {
+    conn.execute("DELETE FROM video_file_data WHERE path = ?", &[path])
+}
+
+pub fn remove_rows_by_paths(paths: &[PathBuf]) -> Result<()> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+
+    for path in paths {
+        // Convert PathBuf to &str
+        let path_str = path
+            .to_str()
+            .ok_or_else(|| rusqlite::Error::InvalidPath(path.to_path_buf()))?;
+        remove_row_by_path(&tx, path_str)?;
+    }
+
+    tx.commit()
+}
+
+pub fn get_all_video_files_from_db() -> Result<Vec<VideoFileData>> {
+    let conn = create_conn().unwrap();
+    get_all_video_files(&conn)
+}
+
+pub fn get_video_file_by_path_from_db(path: &PathBuf) -> Result<Option<VideoFileData>> {
+    let conn = create_conn()?;
+    get_video_file_by_path(&conn, path)
+}
+
+fn remove_orphaned_video_metadata(conn: &Connection) -> Result<()> {
+    conn.execute(
+        "DELETE FROM video_metadata
+         WHERE id NOT IN (
+             SELECT DISTINCT video_id FROM video_file_data
+         )",
+        [],
+    )?;
+    Ok(())
+}
+
+pub fn remove_orphaned_video_metadata_from_db() -> Result<()> {
+    let conn = create_conn()?;
+    remove_orphaned_video_metadata(&conn)
 }
