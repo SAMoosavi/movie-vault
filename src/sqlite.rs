@@ -29,10 +29,9 @@ pub fn create_table() -> Result<()> {
         );
 
         CREATE TABLE IF NOT EXISTS video_file_data (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
             video_id INTEGER NOT NULL,
             title TEXT NOT NULL,
-            path TEXT NOT NULL,
+            path TEXT PRIMARY KEY,
             quality TEXT,
             has_hard_sub INTEGER NOT NULL,
             has_soft_sub INTEGER NOT NULL,
@@ -64,7 +63,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_actors (
             imdb_id TEXT,
             actor_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, actor_id),
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id) ON DELETE CASCADE,
             FOREIGN KEY(actor_id) REFERENCES actors(id) ON DELETE CASCADE
         );
 
@@ -76,7 +76,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_directors (
             imdb_id TEXT,
             director_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, director_id),
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id) ON DELETE CASCADE,
             FOREIGN KEY(director_id) REFERENCES directors(id) ON DELETE CASCADE
         );
         
@@ -88,7 +89,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_writers (
             imdb_id TEXT,
             writer_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, writer_id),
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id) ON DELETE CASCADE,
             FOREIGN KEY(writer_id) REFERENCES writers(id) ON DELETE CASCADE
         );
         
@@ -100,7 +102,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_genres (
             imdb_id TEXT,
             genre_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, genre_id),
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id) ON DELETE CASCADE,
             FOREIGN KEY(genre_id) REFERENCES genres(id) ON DELETE CASCADE
         );
         
@@ -112,7 +115,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_languages (
             imdb_id TEXT,
             language_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, language_id),
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id) ON DELETE CASCADE,
             FOREIGN KEY(language_id) REFERENCES languages(id) ON DELETE CASCADE
         );
         
@@ -124,7 +128,8 @@ pub fn create_table() -> Result<()> {
         CREATE TABLE IF NOT EXISTS imdb_countries (
             imdb_id TEXT,
             country_id INTEGER,
-            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id), ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, country_id),
+            FOREIGN KEY(imdb_id) REFERENCES imdb_metadata(imdb_id) ON DELETE CASCADE,
             FOREIGN KEY(country_id) REFERENCES countries(id) ON DELETE CASCADE
         );
         ",
@@ -141,8 +146,8 @@ fn insert_series_meta(conn: &Connection, series: &SeriesMeta) -> Result<u32> {
     Ok(conn.last_insert_rowid() as u32)
 }
 
-fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<()> {
-    conn.execute(
+fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<bool> {
+    let changes = conn.execute(
         "INSERT OR IGNORE INTO imdb_metadata (
             imdb_id, title, year, rated, released, runtime, plot, awards, poster,
             imdb_rating, imdb_votes, box_office, total_seasons
@@ -163,7 +168,7 @@ fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<()> {
             imdb.total_seasons
         ],
     )?;
-    Ok(())
+    Ok(changes > 0)
 }
 
 fn insert_or_get_id(conn: &Connection, table: &str, field: &str, value: &str) -> Result<u32> {
@@ -279,7 +284,7 @@ fn insert_video_metadata(
     imdb_id: Option<&str>,
 ) -> Result<u32> {
     conn.execute(
-        "INSERT INTO video_metadata (name, subtitle_path, year, series_id, imdb_id)
+        "INSERT OR IGNORE INTO video_metadata (name, subtitle_path, year, series_id, imdb_id)
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             name,
@@ -325,8 +330,9 @@ pub fn insert(data: &[VideoMetaData]) -> Result<()> {
 
         // Insert IMDb if exists
         if let Some(imdb) = &video.imdb_metadata {
-            insert_imdb_metadata(&tx, imdb)?;
-            insert_imdb_lists(&tx, imdb)?;
+            if insert_imdb_metadata(&tx, imdb)? {
+                insert_imdb_lists(&tx, imdb)?;
+            }
         }
 
         // Insert video metadata
@@ -427,4 +433,163 @@ fn remove_orphaned_video_metadata(conn: &Connection) -> Result<()> {
 pub fn remove_orphaned_video_metadata_from_db() -> Result<()> {
     let conn = create_conn()?;
     remove_orphaned_video_metadata(&conn)
+}
+
+pub fn get_all_video_metadata_from_db() -> Result<Vec<VideoMetaData>> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+    let re = get_all_video_metadata(&tx)?;
+    tx.commit()?;
+    Ok(re)
+}
+
+fn get_all_video_metadata(conn: &Connection) -> Result<Vec<VideoMetaData>> {
+    let mut stmt = conn
+        .prepare("SELECT id, name, subtitle_path, year, series_id, imdb_id FROM video_metadata")?;
+
+    let video_iter = stmt.query_map([], |row| {
+        let video_id: i64 = row.get(0)?;
+        let name: String = row.get(1)?;
+        let subtitle_path: Option<String> = row.get(2)?;
+        let year: Option<u32> = row.get(3)?;
+        let series_id: Option<i64> = row.get(4)?;
+        let imdb_id: Option<String> = row.get(5)?;
+
+        // --- Load files for this video ---
+        let files_data = get_video_file_data_by_video_id(conn, video_id)?;
+
+        // --- Load series if available ---
+        let series = match series_id {
+            Some(id) => Some(get_series_by_id(conn, id)?),
+            None => None,
+        };
+
+        // --- Load imdb metadata if available ---
+        let imdb_metadata = match imdb_id.clone() {
+            Some(ref imdb_id) => Some(get_imdb_metadata(conn, imdb_id)?),
+            None => None,
+        };
+
+        Ok(VideoMetaData {
+            name,
+            subtitle_path: subtitle_path.map(PathBuf::from),
+            year,
+            files_data,
+            series,
+            imdb_metadata,
+        })
+    })?;
+
+    video_iter.collect()
+}
+
+fn get_video_file_data_by_video_id(conn: &Connection, video_id: i64) -> Result<Vec<VideoFileData>> {
+    let mut stmt = conn.prepare(
+        "SELECT title, path, quality, has_hard_sub, has_soft_sub, is_dubbed 
+         FROM video_file_data WHERE video_id = ?",
+    )?;
+
+    let rows = stmt.query_map(params![video_id], |row| {
+        Ok(VideoFileData {
+            title: row.get(0)?,
+            path: PathBuf::from(row.get::<_, String>(1)?),
+            quality: row.get(2)?,
+            has_hard_sub: row.get::<_, i32>(3)? != 0,
+            has_soft_sub: row.get::<_, i32>(4)? != 0,
+            is_dubbed: row.get::<_, i32>(5)? != 0,
+        })
+    })?;
+
+    rows.collect()
+}
+
+fn get_series_by_id(conn: &Connection, id: i64) -> Result<SeriesMeta> {
+    conn.query_row(
+        "SELECT season, episode FROM series_meta WHERE id = ?",
+        params![id],
+        |row| {
+            Ok(SeriesMeta {
+                season: row.get(0)?,
+                episode: row.get(1)?,
+            })
+        },
+    )
+}
+
+fn get_imdb_metadata(conn: &Connection, imdb_id: &str) -> Result<ImdbMetaData> {
+    let base = conn.query_row(
+        "SELECT title, year, rated, released, runtime, plot, awards, poster, 
+                imdb_rating, imdb_votes, box_office, total_seasons 
+         FROM imdb_metadata WHERE imdb_id = ?",
+        params![imdb_id],
+        |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
+                row.get(7)?,
+                row.get(8)?,
+                row.get(9)?,
+                row.get(10)?,
+                row.get(11)?,
+            ))
+        },
+    )?;
+
+    Ok(ImdbMetaData {
+        title: base.0,
+        year: base.1,
+        rated: base.2,
+        released: base.3,
+        runtime: base.4,
+        plot: base.5,
+        awards: base.6,
+        poster: base.7,
+        imdb_rating: base.8,
+        imdb_votes: base.9,
+        box_office: base.10,
+        total_seasons: base.11,
+        genre: get_imdb_field(conn, imdb_id, "imdb_genres", "genres")?,
+        directors: get_imdb_field(conn, imdb_id, "imdb_directors", "directors")?,
+        writers: get_imdb_field(conn, imdb_id, "imdb_writers", "writers")?,
+        actors: get_imdb_field(conn, imdb_id, "imdb_actors", "actors")?,
+        languages: get_imdb_field(conn, imdb_id, "imdb_languages", "languages")?,
+        country: get_imdb_field(conn, imdb_id, "imdb_countries", "countries")?,
+        imdb_id: imdb_id.to_string(),
+    })
+}
+
+fn get_imdb_field(
+    conn: &Connection,
+    imdb_id: &str,
+    join_table: &str,
+    value_table: &str,
+) -> Result<Vec<String>> {
+    let id_column = match value_table {
+        "countries" => "country_id",
+        "languages" => "language_id",
+        "genres" => "genre_id",
+        "writers" => "writer_id",
+        "directors" => "director_id",
+        "actors" => "actor_id",
+        _ => return Err(rusqlite::Error::InvalidQuery), // or define your own error
+    };
+
+    let query = format!(
+        "SELECT t.name FROM {} j 
+         JOIN {} t ON j.{} = t.id WHERE j.imdb_id = ?",
+        join_table, value_table, id_column
+    );
+
+    let mut stmt = conn.prepare(&query)?;
+    let rows = stmt
+        .query_map(params![imdb_id], |row| row.get::<_, String>(0))?
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(rows)
 }
