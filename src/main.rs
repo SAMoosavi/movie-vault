@@ -23,4 +23,8 @@ async fn main() {
     let data = omdb_meta_data::get_omdb_metadata(&meta_datas, &api_key).await;
 
     sqlite::insert(&data).unwrap();
+
+    let movies = sqlite::get_all_video_metadata_from_db().unwrap();
+
+    println!("{movies:?}");
 }
