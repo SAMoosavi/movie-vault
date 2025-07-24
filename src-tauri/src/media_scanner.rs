@@ -89,13 +89,13 @@ pub async fn sync_files() {
 }
 
 #[cfg(test)]
-mod tests {
+mod find_movies_tests {
     use super::*;
     use std::fs::File;
     use tempfile::tempdir;
 
     #[tokio::test]
-    async fn test_find_movies() {
+    async fn test_find_temp_files() {
         let dir = tempdir().unwrap();
         let root = dir.path();
 
