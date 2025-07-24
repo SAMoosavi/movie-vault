@@ -7,13 +7,13 @@ use std::{
 
 use crate::media_scanner;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct SeriesMeta {
     pub season: u32,
     pub episode: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct VideoFileData {
     pub title: String,
     pub path: PathBuf,
@@ -23,7 +23,7 @@ pub struct VideoFileData {
     pub is_dubbed: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct ImdbMetaData {
     pub title: String,
     pub year: String,
@@ -46,7 +46,7 @@ pub struct ImdbMetaData {
     pub total_seasons: Option<String>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct VideoMetaData {
     pub name: String,
     pub subtitle_path: Option<PathBuf>,
@@ -56,7 +56,7 @@ pub struct VideoMetaData {
     pub imdb_metadata: Option<ImdbMetaData>,
 }
 
-pub fn match_subtitles(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData> {
+pub fn get_metadata(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData> {
     // Build a map of subtitle stems by directory
     let subtitles_by_dir = found_files
         .subtitles

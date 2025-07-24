@@ -1,0 +1,39 @@
+[package]
+name = "movie-vault"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["SA.Moosavi"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "movie_vault_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+walkdir = "2"
+futures = "0.3"
+regex = "1"
+rayon = "1.9"
+either = "1.6"
+tempfile = "3.20.0"
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+rusqlite = { version = "0.37.0", features = ["bundled"] }
+dotenv = "0.15"
+wiremock = "0.6.4"
+tauri-plugin-dialog = "2"

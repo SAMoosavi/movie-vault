@@ -90,20 +90,20 @@ async fn fetch_omdb_metadata(
                     None => format!("{base_url}/?apikey={api_key}&t={name}"),
                 };
 
-                println!("{url}");
+                // println!("{url}");
                 let result = match client.get(&url).send().await {
                     Ok(resp) => match resp.text().await {
                         Ok(body) => {
-                            println!("raw JSON: {body}");
+                            // println!("raw JSON: {body}");
                             serde_json::from_str::<OmdbMovie>(&body).ok()
                         }
                         Err(e) => {
-                            println!("error reading response body: {e:?}");
+                            // println!("error reading response body: {e:?}");
                             None
                         }
                     },
                     Err(e) => {
-                        println!("request error: {e:?}");
+                        // println!("request error: {e:?}");
                         None
                     }
                 };

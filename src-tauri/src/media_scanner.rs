@@ -1,6 +1,6 @@
 use either::Either;
 use futures::future::join_all;
-use rayon::{prelude::*, vec};
+use rayon::prelude::*;
 use std::path::PathBuf;
 use tokio::{fs, task};
 use walkdir::WalkDir;
@@ -80,6 +80,7 @@ async fn find_non_existent_paths() -> Vec<VideoFileData> {
         .collect()
 }
 
+#[tauri::command]
 pub async fn sync_files() {
     let paths: Vec<PathBuf> = find_non_existent_paths()
         .await
