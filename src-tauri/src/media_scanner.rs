@@ -45,7 +45,7 @@ pub async fn find_movies(root: PathBuf) -> FoundFiles {
             Some(ext) => {
                 let ext = ext.to_ascii_lowercase();
                 if VIDEO_EXTENSIONS.contains(&ext.as_str()) {
-                    match get_video_file_by_path_from_db(&path) {
+                    match get_video_file_by_path_from_db(path.clone()) {
                         Ok(None) => Either::Left(path),
                         _ => Either::Right(PathBuf::new()),
                     }
@@ -73,11 +73,7 @@ async fn find_non_existent_paths() -> Vec<VideoFileData> {
             if !exists { Some(video) } else { None }
         });
 
-    join_all(files)
-        .await
-        .into_iter()
-        .filter_map(|x| x)
-        .collect()
+    join_all(files).await.into_iter().flatten().collect()
 }
 
 #[tauri::command]

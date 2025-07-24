@@ -172,10 +172,10 @@ fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<bool> 
 }
 
 fn insert_or_get_id(conn: &Connection, table: &str, field: &str, value: &str) -> Result<u32> {
-    let insert_sql = format!("INSERT OR IGNORE INTO {} ({}) VALUES (?1)", table, field);
+    let insert_sql = format!("INSERT OR IGNORE INTO {table} ({field}) VALUES (?1)");
     conn.execute(&insert_sql, params![value])?;
 
-    let select_sql = format!("SELECT id FROM {} WHERE {} = ?1", table, field);
+    let select_sql = format!("SELECT id FROM {table} WHERE {field} = ?1");
     let mut stmt = conn.prepare(&select_sql)?;
     let id: u32 = stmt.query_row(params![value], |row| row.get(0))?;
     Ok(id)
@@ -191,10 +191,7 @@ fn insert_join(
     entity_table: &str,
 ) -> Result<()> {
     let entity_id = insert_or_get_id(conn, entity_table, "name", value)?;
-    let sql = format!(
-        "INSERT INTO {} ({}, {}) VALUES (?1, ?2)",
-        join_table, left_field, right_field
-    );
+    let sql = format!("INSERT INTO {join_table} ({left_field}, {right_field}) VALUES (?1, ?2)");
     conn.execute(&sql, params![imdb_id, entity_id])?;
     Ok(())
 }
@@ -367,7 +364,7 @@ fn map_row_to_video_file_data(row: &rusqlite::Row) -> Result<VideoFileData> {
     })
 }
 
-fn get_video_file_by_path(conn: &Connection, path: &PathBuf) -> Result<Option<VideoFileData>> {
+fn get_video_file_by_path(conn: &Connection, path: PathBuf) -> Result<Option<VideoFileData>> {
     let mut stmt = conn.prepare(
         "SELECT title, path, quality, has_hard_sub, has_soft_sub, is_dubbed
                 FROM video_file_data
@@ -391,7 +388,7 @@ fn get_all_video_files(conn: &Connection) -> Result<Vec<VideoFileData>> {
 }
 
 fn remove_row_by_path(conn: &Connection, path: &str) -> Result<usize> {
-    conn.execute("DELETE FROM video_file_data WHERE path = ?", &[path])
+    conn.execute("DELETE FROM video_file_data WHERE path = ?", [path])
 }
 
 pub fn remove_rows_by_paths(paths: &[PathBuf]) -> Result<()> {
@@ -414,7 +411,7 @@ pub fn get_all_video_files_from_db() -> Result<Vec<VideoFileData>> {
     get_all_video_files(&conn)
 }
 
-pub fn get_video_file_by_path_from_db(path: &PathBuf) -> Result<Option<VideoFileData>> {
+pub fn get_video_file_by_path_from_db(path: PathBuf) -> Result<Option<VideoFileData>> {
     let conn = create_conn()?;
     get_video_file_by_path(&conn, path)
 }
@@ -580,9 +577,8 @@ fn get_imdb_field(
     };
 
     let query = format!(
-        "SELECT t.name FROM {} j 
-         JOIN {} t ON j.{} = t.id WHERE j.imdb_id = ?",
-        join_table, value_table, id_column
+        "SELECT t.name FROM {join_table} j 
+         JOIN {value_table} t ON j.{id_column} = t.id WHERE j.imdb_id = ?"
     );
 
     let mut stmt = conn.prepare(&query)?;
