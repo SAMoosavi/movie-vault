@@ -23,4 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 
-*.db
+src-tauri/*.db
