@@ -37,14 +37,6 @@
         <Moon class="swap-on h-5 w-5" />
       </label>
 
-      <!-- Search Box -->
-      <div class="form-control">
-        <label class="input input-bordered input-sm w-full max-w-xs">
-          <Search class="h-4" />
-          <input v-model="search_box" type="search" placeholder="Search movie name..." />
-        </label>
-      </div>
-
       <!-- Add Folder Button -->
       <button class="btn btn-primary btn-sm" @click="handleAddDirectory">
         <FolderPlus class="h-4 w-4" />
@@ -56,11 +48,8 @@
 
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-dialog'
-
-import { Search, FolderPlus, Sun, Moon, AlignJustify } from 'lucide-vue-next'
+import { FolderPlus, Sun, Moon, AlignJustify } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-
-const search_box = defineModel<string>()
 
 const emit = defineEmits<{ (e: 'addDir', path: string): void }>()
 

@@ -1,191 +1,37 @@
 <template>
-  <AppNavbar v-model="filterName" @add-dir="addDir" />
+  <AppNavbar @add-dir="addDir" />
 
-  <div class="container mx-auto px-4 py-6">
-    <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5">
-      <div class="card bg-base-200 p-6">
-        <div class="mb-4 flex items-center">
-          <Filter class="text-primary mr-2 h-5 w-5" />
-          <h2 class="text-base-content text-lg font-semibold">Filters</h2>
-        </div>
+  <main class="container mx-auto px-4 py-6">
+    <FilterMovies :countries="countries" :genres="genres" @search="search" />
 
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-          <!-- Type -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Type</span>
-            </label>
-            <select class="select select-bordered" v-model="filters.type">
-              <option value="all">All Types</option>
-              <option value="movie">Movies</option>
-              <option value="series">Series</option>
-            </select>
-          </div>
-
-          <!-- Min Rating -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Min Rating</span>
-            </label>
-            <select class="select select-bordered w-full pr-8" v-model.number="filters.minRating">
-              <option value="0">Any Rating</option>
-              <option value="7">7+ Stars</option>
-              <option value="8">8+ Stars</option>
-              <option value="9">9+ Stars</option>
-            </select>
-          </div>
-
-          <!-- Country -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Country</span>
-            </label>
-            <select class="select select-bordered w-full pr-8" v-model="filters.country">
-              <option value="all">All countries</option>
-              <option v-for="country in countries" :key="country" :value="country">
-                {{ country }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Genre -->
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text">Genre</span>
-            </label>
-            <select class="select select-bordered" v-model="filters.genre">
-              <option value="all">All Genres</option>
-              <option v-for="genre in genres" :key="genre" :value="genre">
-                {{ genre }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Reset Button -->
-          <div class="flex items-end">
-            <button type="reset" class="btn btn-primary btn-block transition-transform" @click="resetFilters">
-              Reset Filters
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
+    <LoadingView v-if="loading" />
     <!-- Movie Grid -->
-    <div v-if="loading">
-      <div class="mb-6 flex items-center justify-between">
-        <div class="skeleton h-8 w-32"></div>
-        <div class="skeleton h-4 w-48"></div>
-      </div>
+    <div v-else>
+      <ResultsInfo :totalMovies="videos_metadata.length" :numberOfSearchedMovies="videos_metadata.length" />
 
-      <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <div v-for="i in 8" :key="i" class="card shadow-md">
-          <div class="skeleton h-96 w-full"></div>
-
-          <div class="card-body p-4">
-            <div class="skeleton mb-2 h-6 rounded"></div>
-
-            <div class="mb-3 flex items-center text-sm">
-              <div class="skeleton mr-1 h-4 w-4 rounded-full"></div>
-              <div class="skeleton mr-2 h-3 w-16 rounded"></div>
-              <div class="skeleton mx-1 h-3 w-3 rounded-full"></div>
-              <div class="skeleton h-3 w-12 rounded"></div>
-            </div>
-
-            <div class="mb-3 flex flex-wrap gap-1">
-              <div class="skeleton h-4 w-12 rounded"></div>
-              <div class="skeleton h-4 w-16 rounded"></div>
-              <div class="skeleton h-4 w-14 rounded"></div>
-            </div>
-
-            <div class="flex items-center text-sm">
-              <div class="skeleton mr-1 h-4 w-4 rounded-full"></div>
-              <div class="skeleton h-3 w-32 rounded"></div>
-            </div>
-          </div>
-        </div>
+      <NotFoundMovies v-if="videos_metadata.length === 0" />
+      <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <MovieCard v-for="(movie, i) in videos_metadata" :key="i" :movie="movie" />
       </div>
     </div>
-    <main v-else>
-      <!-- Results Info -->
-      <div class="mb-6 flex items-center justify-between">
-        <h2 class="text-xl font-bold">
-          {{ videos_metadata.length }} {{ videos_metadata.length === 1 ? 'Result' : 'Results' }}
-        </h2>
-        <div class="text-base-content/50 text-sm">
-          Showing {{ videos_metadata.length }} of {{ videos_metadata.length }} media items
-        </div>
-      </div>
-
-      <div v-if="videos_metadata.length === 0" class="py-12 text-center">
-        <Hash class="text-error/80 mx-auto mb-4 h-16 w-16" />
-        <h3 class="mb-2 text-xl font-semibold">No movies found</h3>
-        <p class="text-base-content">Try adjusting your filters or search terms</p>
-      </div>
-      <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <div v-for="(movie, i) in videos_metadata" :key="i"
-          class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 transition-all duration-200 hover:scale-[1.02]">
-          <div class="card bg-base-100">
-            <figure class="relative">
-              <img :src="movie.imdb_metadata?.poster" :alt="movie.imdb_metadata?.title || movie.name"
-                class="h-96 w-full object-cover" />
-
-              <div v-if="(movie.imdb_metadata?.imdb_rating || NA) !== NA"
-                class="badge badge-neutral absolute bottom-3 left-3 flex items-center">
-                <Star class="text-warning fill-warning mr-1 h-4 w-4" />
-                <span class="font-semibold">{{ movie.imdb_metadata?.imdb_rating }}</span>
-              </div>
-            </figure>
-
-            <div class="card-body p-4">
-              <h3 class="card-title truncate text-lg">
-                {{ movie.imdb_metadata?.title || movie.name }}
-              </h3>
-
-              <div class="text-base-content/70 mb-2 flex items-center text-sm">
-                <Calendar class="mr-1 h-4 w-4" />
-                <span>{{ movie.imdb_metadata?.year || movie.year }}</span>
-                <span class="mx-2">•</span>
-                <span class="capitalize">{{ movie.imdb_metadata?.type }}</span>
-              </div>
-
-              <div class="mb-3 flex flex-wrap gap-1">
-                <span v-for="genre in movie.imdb_metadata?.genre" :key="genre" class="badge badge-outline badge-sm">
-                  {{ genre }}
-                </span>
-              </div>
-
-              <div class="text-base-content/80 flex items-center text-sm">
-                <User class="mr-1 h-4 w-4" />
-                <div class="truncate">
-                  {{ movie.imdb_metadata?.actors?.slice(0, 2).join(', ') }}
-                  <span v-if="(movie.imdb_metadata?.actors?.length || 0) > 2">, ...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </main>
-  </div>
+  </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
-
-import type { VideoMetaData } from './type'
-
-import { Calendar, Filter, Hash, Star, User } from 'lucide-vue-next'
+import type { FilterValues, VideoMetaData } from './type'
 import { toast } from 'vue3-toastify'
-
 import AppNavbar from './component/AppNavbar.vue'
-
-const NA = 'N/A'
+import FilterMovies from './component/FilterMovies.vue'
+import LoadingView from './component/LoadingView.vue'
+import ResultsInfo from './component/ResultsInfo.vue'
+import NotFoundMovies from './component/NotFoundMovies.vue'
+import MovieCard from './component/MovieCard.vue'
 
 const loading = ref(true)
-const countries = ref<string[]>([])
-const genres = ref<string[]>([])
+const countries = ref<[number, string][]>([])
+const genres = ref<[number, string][]>([])
 const videos_metadata = ref<VideoMetaData[]>([])
 const dir_path = ref<string[]>(['/run/media/sam/film/marvel']) // default for test
 
@@ -209,8 +55,8 @@ onMounted(async () => {
     // Fetch all data in parallel for better performance
     const [videos, genresData, countriesData] = await Promise.all([
       invoke<VideoMetaData[]>('get_all_video_metadata_app'),
-      invoke<string[]>('get_genres_app'),
-      invoke<string[]>('get_countries_app'),
+      invoke<[number, string][]>('get_genres_app'),
+      invoke<[number, string][]>('get_countries_app'),
     ])
 
     videos_metadata.value = videos
@@ -258,11 +104,11 @@ async function addDir(selectedDir: string) {
   }
 }
 
-const filters = ref({ type: 'all', minRating: 0, country: 'all', genre: 'all' })
-const searchTerm = ref('')
+const filterName = ref<string>('')
 
-function resetFilters() {
-  searchTerm.value = ''
-  filters.value = { type: 'all', minRating: 0, country: 'all', genre: 'all' }
+watch(filterName, (v) => console.log(v))
+
+function search(filters: FilterValues) {
+  console.table(filters)
 }
 </script>

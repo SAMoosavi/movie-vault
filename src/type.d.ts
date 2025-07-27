@@ -43,3 +43,11 @@ export interface VideoMetaData {
   series?: SeriesMeta
   imdb_metadata?: ImdbMetaData
 }
+
+export interface FilterValues {
+  type: 'all' | 'movie' | 'series'
+  minRating: number
+  country: number
+  genre: number
+  name: string
+}
