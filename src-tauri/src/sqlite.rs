@@ -594,34 +594,38 @@ fn get_imdb_field(
     Ok(rows)
 }
 
-fn get_countries(conn: &Connection) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare("SELECT name FROM countries")?;
+fn get_countries(conn: &Connection) -> Result<Vec<(usize, String)>> {
+    let mut stmt = conn.prepare("SELECT id, name FROM countries")?;
 
     let countries = stmt
-        .query_map([], |row| row.get::<_, String>(0))?
+        .query_map([], |row| {
+            Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(Result::ok)
         .collect();
 
     Ok(countries)
 }
 
-pub fn get_countries_from_db() -> Result<Vec<String>> {
+pub fn get_countries_from_db() -> Result<Vec<(usize, String)>> {
     let conn = create_conn()?;
     get_countries(&conn)
 }
 
-fn get_genres(conn: &Connection) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare("SELECT name FROM genres")?;
+fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
+    let mut stmt = conn.prepare("SELECT id, name FROM genres")?;
 
     let genres = stmt
-        .query_map([], |row| row.get::<_, String>(0))?
+        .query_map([], |row| {
+            Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
+        })?
         .filter_map(Result::ok)
         .collect();
 
     Ok(genres)
 }
 
-pub fn get_genres_from_db() -> Result<Vec<String>> {
+pub fn get_genres_from_db() -> Result<Vec<(usize, String)>> {
     let conn = create_conn()?;
     get_genres(&conn)
 }

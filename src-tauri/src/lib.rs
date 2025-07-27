@@ -26,12 +26,12 @@ fn create_table_app() -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_countries_app() -> Result<Vec<String>, String> {
+fn get_countries_app() -> Result<Vec<(usize, String)>, String> {
     sqlite::get_countries_from_db().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_genres_app() -> Result<Vec<String>, String> {
+fn get_genres_app() -> Result<Vec<(usize, String)>, String> {
     sqlite::get_genres_from_db().map_err(|e| e.to_string())
 }
 
