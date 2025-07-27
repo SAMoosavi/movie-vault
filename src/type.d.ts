@@ -32,6 +32,7 @@ export interface ImdbMetaData {
   imdb_id: string
   box_office?: string
   total_seasons?: string
+  type: string
 }
 
 export interface VideoMetaData {
