@@ -309,10 +309,11 @@ mod test_get_omdb_metadata {
                 awards: "1 win & 11 nominations total".into(),
                 poster: "https://m.media-amazon.com/images/M/MV5BMzIyNDE5ODI1OV5BMl5BanBnXkFtZTcwNTIyNDE0MQ@@._V1_SX300.jpg".into(),
                 imdb_rating: "5.3".into(),
-                imdb_votes: "261,090".into(),
+                imdb_votes: "262,798".into(),
                 imdb_id: "tt0259324".into(),
                 box_office: Some("$115,802,596".into()),
                 total_seasons: None,
+                r#type: "movie".into()
             }),
         };
 

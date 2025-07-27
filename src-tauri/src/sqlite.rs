@@ -625,4 +625,3 @@ pub fn get_genres_from_db() -> Result<Vec<String>> {
     let conn = create_conn()?;
     get_genres(&conn)
 }
-
