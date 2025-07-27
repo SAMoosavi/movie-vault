@@ -28,6 +28,7 @@ struct OmdbMovie {
     imdbID: String,
     BoxOffice: Option<String>,    // Present only for movies
     totalSeasons: Option<String>, // Present only for series
+    r#Type: String,
 }
 
 impl From<OmdbMovie> for ImdbMetaData {
@@ -60,6 +61,7 @@ impl From<OmdbMovie> for ImdbMetaData {
             imdb_id: raw.imdbID,
             box_office: raw.BoxOffice,
             total_seasons: raw.totalSeasons,
+            r#type: raw.Type,
         }
     }
 }

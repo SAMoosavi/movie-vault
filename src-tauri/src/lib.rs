@@ -25,6 +25,16 @@ fn create_table_app() -> Result<(), String> {
     sqlite::create_table().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn get_countries_app() -> Result<Vec<String>, String> {
+    sqlite::get_countries_from_db().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_genres_app() -> Result<Vec<String>, String> {
+    sqlite::get_genres_from_db().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -33,7 +43,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             create_table_app,
             sync_app_files,
-            get_all_video_metadata_app
+            get_all_video_metadata_app,
+            get_countries_app,
+            get_genres_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

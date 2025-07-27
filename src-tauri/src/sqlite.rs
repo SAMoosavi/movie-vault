@@ -52,7 +52,8 @@ pub fn create_table() -> Result<()> {
             imdb_rating TEXT,
             imdb_votes TEXT,
             box_office TEXT,
-            total_seasons TEXT
+            total_seasons TEXT,
+            type TEXT
         );
 
         CREATE TABLE IF NOT EXISTS actors (
@@ -150,8 +151,8 @@ fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<bool> 
     let changes = conn.execute(
         "INSERT OR IGNORE INTO imdb_metadata (
             imdb_id, title, year, rated, released, runtime, plot, awards, poster,
-            imdb_rating, imdb_votes, box_office, total_seasons
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+            imdb_rating, imdb_votes, box_office, total_seasons, type
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
             imdb.imdb_id,
             imdb.title,
@@ -165,7 +166,8 @@ fn insert_imdb_metadata(conn: &Connection, imdb: &ImdbMetaData) -> Result<bool> 
             imdb.imdb_rating,
             imdb.imdb_votes,
             imdb.box_office,
-            imdb.total_seasons
+            imdb.total_seasons,
+            imdb.r#type
         ],
     )?;
     Ok(changes > 0)
@@ -516,7 +518,7 @@ fn get_series_by_id(conn: &Connection, id: i64) -> Result<SeriesMeta> {
 fn get_imdb_metadata(conn: &Connection, imdb_id: &str) -> Result<ImdbMetaData> {
     let base = conn.query_row(
         "SELECT title, year, rated, released, runtime, plot, awards, poster, 
-                imdb_rating, imdb_votes, box_office, total_seasons 
+                imdb_rating, imdb_votes, box_office, total_seasons, type 
          FROM imdb_metadata WHERE imdb_id = ?",
         params![imdb_id],
         |row| {
@@ -533,6 +535,7 @@ fn get_imdb_metadata(conn: &Connection, imdb_id: &str) -> Result<ImdbMetaData> {
                 row.get(9)?,
                 row.get(10)?,
                 row.get(11)?,
+                row.get(12)?,
             ))
         },
     )?;
@@ -557,6 +560,7 @@ fn get_imdb_metadata(conn: &Connection, imdb_id: &str) -> Result<ImdbMetaData> {
         languages: get_imdb_field(conn, imdb_id, "imdb_languages", "languages")?,
         country: get_imdb_field(conn, imdb_id, "imdb_countries", "countries")?,
         imdb_id: imdb_id.to_string(),
+        r#type: base.12,
     })
 }
 
@@ -589,3 +593,36 @@ fn get_imdb_field(
 
     Ok(rows)
 }
+
+fn get_countries(conn: &Connection) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT name FROM countries")?;
+
+    let countries = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(countries)
+}
+
+pub fn get_countries_from_db() -> Result<Vec<String>> {
+    let conn = create_conn()?;
+    get_countries(&conn)
+}
+
+fn get_genres(conn: &Connection) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT name FROM genres")?;
+
+    let genres = stmt
+        .query_map([], |row| row.get::<_, String>(0))?
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(genres)
+}
+
+pub fn get_genres_from_db() -> Result<Vec<String>> {
+    let conn = create_conn()?;
+    get_genres(&conn)
+}
+

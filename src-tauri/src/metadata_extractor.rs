@@ -44,6 +44,7 @@ pub struct ImdbMetaData {
     pub imdb_id: String,
     pub box_office: Option<String>,
     pub total_seasons: Option<String>,
+    pub r#type: String,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
