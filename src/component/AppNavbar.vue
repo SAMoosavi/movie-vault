@@ -41,7 +41,7 @@
       <div class="form-control">
         <label class="input input-bordered input-sm w-full max-w-xs">
           <Search class="h-4" />
-          <input type="search" placeholder="Search movie name..." />
+          <input v-model="search_box" type="search" placeholder="Search movie name..." />
         </label>
       </div>
 
@@ -59,6 +59,8 @@ import { open } from '@tauri-apps/plugin-dialog'
 
 import { Search, FolderPlus, Sun, Moon, AlignJustify } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
+
+const search_box = defineModel<string>()
 
 const emit = defineEmits<{ (e: 'addDir', path: string): void }>()
 

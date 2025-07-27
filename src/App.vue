@@ -1,5 +1,5 @@
 <template>
-  <AppNavbar @add-dir="addDir" />
+  <AppNavbar v-model="filterName" @add-dir="addDir" />
 
   <div class="container mx-auto px-4 py-6">
     <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5">
