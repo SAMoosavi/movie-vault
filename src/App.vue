@@ -107,8 +107,8 @@ async function addDir(selectedDir: string) {
 async function search(filters: FilterValues) {
   loading.value = true
   invoke<VideoMetaData[]>('search_videos_app', { filters })
-    .then(r => videos_metadata.value = r)
-    .catch(e => toast.error(e))
-    .finally(() => loading.value = false)
+    .then((r) => (videos_metadata.value = r))
+    .catch((e) => toast.error(e))
+    .finally(() => (loading.value = false))
 }
 </script>

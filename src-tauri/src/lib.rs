@@ -36,7 +36,9 @@ fn get_genres_app() -> Result<Vec<(usize, String)>, String> {
 }
 
 #[tauri::command]
-fn search_videos_app(filters: sqlite::FilterValues) -> Result<Vec<metadata_extractor::VideoMetaData>, String> {
+fn search_videos_app(
+    filters: sqlite::FilterValues,
+) -> Result<Vec<metadata_extractor::VideoMetaData>, String> {
     sqlite::search_videos_on_db(&filters).map_err(|e| e.to_string())
 }
 
