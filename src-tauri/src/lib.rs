@@ -35,6 +35,16 @@ fn get_genres_app() -> Result<Vec<(usize, String)>, String> {
     sqlite::get_genres_from_db().map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn search_videos_app(filters: sqlite::FilterValues) -> Result<Vec<metadata_extractor::VideoMetaData>, String> {
+    sqlite::search_videos_on_db(&filters).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_video_by_id_app(video_id: i64) -> Result<Option<metadata_extractor::VideoMetaData>, String> {
+    sqlite::get_video_by_id_from_db(video_id).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -45,7 +55,9 @@ pub fn run() {
             sync_app_files,
             get_all_video_metadata_app,
             get_countries_app,
-            get_genres_app
+            get_genres_app,
+            search_videos_app,
+            get_video_by_id_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,6 +4,22 @@ use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMetaData};
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct FilterValues {
+    pub r#type: String,
+    #[serde(rename = "minRating")]
+    pub min_rating: f64,
+    pub country: usize,
+    pub genre: usize,
+    pub name: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SearchResult {
+    pub video_metadata: VideoMetaData,
+    pub matched_reasons: Vec<String>, // For debugging/explaining why item matched
+}
+
 fn create_conn() -> Result<Connection> {
     Connection::open("movies.db")
 }
@@ -393,31 +409,6 @@ fn remove_row_by_path(conn: &Connection, path: &str) -> Result<usize> {
     conn.execute("DELETE FROM video_file_data WHERE path = ?", [path])
 }
 
-pub fn remove_rows_by_paths(paths: &[PathBuf]) -> Result<()> {
-    let mut conn = create_conn()?;
-    let tx = conn.transaction()?;
-
-    for path in paths {
-        // Convert PathBuf to &str
-        let path_str = path
-            .to_str()
-            .ok_or_else(|| rusqlite::Error::InvalidPath(path.to_path_buf()))?;
-        remove_row_by_path(&tx, path_str)?;
-    }
-
-    tx.commit()
-}
-
-pub fn get_all_video_files_from_db() -> Result<Vec<VideoFileData>> {
-    let conn = create_conn().unwrap();
-    get_all_video_files(&conn)
-}
-
-pub fn get_video_file_by_path_from_db(path: PathBuf) -> Result<Option<VideoFileData>> {
-    let conn = create_conn()?;
-    get_video_file_by_path(&conn, path)
-}
-
 fn remove_orphaned_video_metadata(conn: &Connection) -> Result<()> {
     conn.execute(
         "DELETE FROM video_metadata
@@ -427,19 +418,6 @@ fn remove_orphaned_video_metadata(conn: &Connection) -> Result<()> {
         [],
     )?;
     Ok(())
-}
-
-pub fn remove_orphaned_video_metadata_from_db() -> Result<()> {
-    let conn = create_conn()?;
-    remove_orphaned_video_metadata(&conn)
-}
-
-pub fn get_all_video_metadata_from_db() -> Result<Vec<VideoMetaData>> {
-    let mut conn = create_conn()?;
-    let tx = conn.transaction()?;
-    let re = get_all_video_metadata(&tx)?;
-    tx.commit()?;
-    Ok(re)
 }
 
 fn get_all_video_metadata(conn: &Connection) -> Result<Vec<VideoMetaData>> {
@@ -607,11 +585,6 @@ fn get_countries(conn: &Connection) -> Result<Vec<(usize, String)>> {
     Ok(countries)
 }
 
-pub fn get_countries_from_db() -> Result<Vec<(usize, String)>> {
-    let conn = create_conn()?;
-    get_countries(&conn)
-}
-
 fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
     let mut stmt = conn.prepare("SELECT id, name FROM genres")?;
 
@@ -625,7 +598,182 @@ fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
     Ok(genres)
 }
 
+fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoMetaData>> {
+    let mut where_conditions = Vec::new();
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+    // Build the query with proper joins
+    let mut query = r#"
+        SELECT DISTINCT 
+            vm.id,
+            vm.name,
+            vm.subtitle_path,
+            vm.year,
+            vm.series_id,
+            vm.imdb_id
+        FROM video_metadata vm
+        LEFT JOIN imdb_metadata im ON vm.imdb_id = im.imdb_id
+    "#
+    .to_string();
+
+    // Add conditional joins and conditions
+    if filters.r#type != "all" {
+        where_conditions.push("im.type = ?".to_string());
+        params.push(Box::new(&filters.r#type));
+    }
+
+    if filters.min_rating > 0.0 {
+        where_conditions.push("CAST(im.imdb_rating AS REAL) >= ?".to_string());
+        params.push(Box::new(filters.min_rating));
+    }
+
+    if filters.country > 0 {
+        query.push_str(" LEFT JOIN imdb_countries ic ON im.imdb_id = ic.imdb_id\n");
+        where_conditions.push("ic.country_id = ?".to_string());
+        params.push(Box::new(filters.country as i64));
+    }
+
+    if filters.genre > 0 {
+        query.push_str(" LEFT JOIN imdb_genres ig ON im.imdb_id = ig.imdb_id\n");
+        where_conditions.push("ig.genre_id = ?".to_string());
+        params.push(Box::new(filters.genre as i64));
+    }
+
+    if !filters.name.is_empty() {
+        let search_pattern = format!("%{}%", filters.name);
+        where_conditions.push("(vm.name LIKE ? OR im.title LIKE ?)".to_string());
+        params.push(Box::new(search_pattern.clone()));
+        params.push(Box::new(search_pattern));
+    }
+
+    // Add WHERE clause if we have conditions
+    if !where_conditions.is_empty() {
+        query.push_str(&format!(" WHERE {}\n", where_conditions.join(" AND ")));
+    }
+
+    query.push_str(" ORDER BY vm.name");
+
+    let mut stmt = conn.prepare(&query)?;
+    let results: Result<Vec<Option<VideoMetaData>>, _> = stmt
+        .query_map(
+            rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())),
+            |row| {
+                let video_id: i64 = row.get(0)?;
+                get_video_by_id(conn, video_id)
+            },
+        )?
+        .collect();
+
+    // Flatten the Vec<Option<VideoMetaData>> to Vec<VideoMetaData>
+    let videos: Vec<VideoMetaData> = results?.into_iter().flatten().collect();
+
+    Ok(videos)
+}
+
+fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaData>> {
+    let mut stmt = conn.prepare(
+        "SELECT name, subtitle_path, year, series_id, imdb_id FROM video_metadata WHERE id = ?",
+    )?;
+
+    let mut rows = stmt.query_map(params![video_id], |row| {
+        let name: String = row.get(0)?;
+        let subtitle_path: Option<String> = row.get(1)?;
+        let year: Option<u32> = row.get(2)?;
+        let series_id: Option<i64> = row.get(3)?;
+        let imdb_id: Option<String> = row.get(4)?;
+
+        // Load files for this video
+        let files_data = get_video_file_data_by_video_id(conn, video_id)?;
+
+        // Load series if available
+        let series = match series_id {
+            Some(id) => Some(get_series_by_id(conn, id)?),
+            None => None,
+        };
+
+        // Load imdb metadata if available
+        let imdb_metadata = match imdb_id {
+            Some(ref imdb_id) => Some(get_imdb_metadata(conn, imdb_id)?),
+            None => None,
+        };
+
+        Ok(Some(VideoMetaData {
+            name,
+            subtitle_path: subtitle_path.map(PathBuf::from),
+            year,
+            files_data,
+            series,
+            imdb_metadata,
+        }))
+    })?;
+
+    if let Some(row) = rows.next() {
+        row
+    } else {
+        Ok(None)
+    }
+}
+
+pub fn remove_orphaned_video_metadata_from_db() -> Result<()> {
+    let conn = create_conn()?;
+    remove_orphaned_video_metadata(&conn)
+}
+
+pub fn get_all_video_metadata_from_db() -> Result<Vec<VideoMetaData>> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+    let re = get_all_video_metadata(&tx)?;
+    tx.commit()?;
+    Ok(re)
+}
+
 pub fn get_genres_from_db() -> Result<Vec<(usize, String)>> {
     let conn = create_conn()?;
     get_genres(&conn)
+}
+
+pub fn get_countries_from_db() -> Result<Vec<(usize, String)>> {
+    let conn = create_conn()?;
+    get_countries(&conn)
+}
+
+pub fn remove_rows_by_paths(paths: &[PathBuf]) -> Result<()> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+
+    for path in paths {
+        // Convert PathBuf to &str
+        let path_str = path
+            .to_str()
+            .ok_or_else(|| rusqlite::Error::InvalidPath(path.to_path_buf()))?;
+        remove_row_by_path(&tx, path_str)?;
+    }
+
+    tx.commit()
+}
+
+pub fn get_all_video_files_from_db() -> Result<Vec<VideoFileData>> {
+    let conn = create_conn().unwrap();
+    get_all_video_files(&conn)
+}
+
+pub fn get_video_file_by_path_from_db(path: PathBuf) -> Result<Option<VideoFileData>> {
+    let conn = create_conn()?;
+    get_video_file_by_path(&conn, path)
+}
+
+pub fn search_videos_on_db(filters: &FilterValues) -> Result<Vec<VideoMetaData>> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+    let re = search_videos(&tx, filters);
+    tx.commit()?;
+    re
+}
+
+pub fn get_video_by_id_from_db(video_id: i64) -> Result<Option<VideoMetaData>> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+    let re = get_video_by_id(&tx, video_id);
+    tx.commit()?;
+    re
 }

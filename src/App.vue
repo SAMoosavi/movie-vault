@@ -18,7 +18,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onMounted, ref } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import type { FilterValues, VideoMetaData } from './type'
 import { toast } from 'vue3-toastify'
@@ -33,7 +33,7 @@ const loading = ref(true)
 const countries = ref<[number, string][]>([])
 const genres = ref<[number, string][]>([])
 const videos_metadata = ref<VideoMetaData[]>([])
-const dir_path = ref<string[]>(['/run/media/sam/film/marvel']) // default for test
+const dir_path = ref<string[]>([]) // default for test
 
 onMounted(async () => {
   try {
@@ -104,11 +104,11 @@ async function addDir(selectedDir: string) {
   }
 }
 
-const filterName = ref<string>('')
-
-watch(filterName, (v) => console.log(v))
-
-function search(filters: FilterValues) {
-  console.table(filters)
+async function search(filters: FilterValues) {
+  loading.value = true
+  invoke<VideoMetaData[]>('search_videos_app', { filters })
+    .then(r => videos_metadata.value = r)
+    .catch(e => toast.error(e))
+    .finally(() => loading.value = false)
 }
 </script>

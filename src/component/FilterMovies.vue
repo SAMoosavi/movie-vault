@@ -14,7 +14,7 @@
           </label>
           <label class="input input-bordered w-full max-w-xs">
             <Search class="h-4" />
-            <input v-model.lazy="filters.name" type="search" placeholder="Search movie name..." />
+            <input v-model="filters.name" type="search" placeholder="Search movie name..." />
           </label>
         </div>
 
