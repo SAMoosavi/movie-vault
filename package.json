@@ -21,8 +21,10 @@
     "@tauri-apps/plugin-opener": "^2.4.0",
     "daisyui": "^5.0.46",
     "lucide-vue-next": "^0.525.0",
+    "pinia": "^3.0.3",
     "tailwindcss": "^4.1.11",
     "vue": "^3.5.18",
+    "vue-router": "^4.5.1",
     "vue3-toastify": "^0.2.8"
   },
   "devDependencies": {
