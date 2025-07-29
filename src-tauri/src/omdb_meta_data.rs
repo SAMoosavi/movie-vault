@@ -141,6 +141,7 @@ mod test_fetch_omdb_metadata {
     async fn test_get_omdb_metadata() {
         // Mock server for OMDb
         let test_video = VideoMetaData {
+            id: 0,
             name: "3 Days To Kill".into(),
             subtitle_path: None,
             year: None,
@@ -167,6 +168,7 @@ mod test_fetch_omdb_metadata {
     #[tokio::test]
     async fn test_get_omdb_metadata_of_serial() {
         let test_video = VideoMetaData {
+            id: 0,
             name: "Breaking Bad".into(),
             subtitle_path: None,
             year: None,
@@ -276,6 +278,7 @@ mod test_get_omdb_metadata {
     #[tokio::test]
     async fn test_get_omdb_metadata() {
         let test_video = VideoMetaData {
+            id: 0,
             name: "Ghost Rider".into(),
             subtitle_path: None,
             year: Some(2007),
@@ -288,6 +291,7 @@ mod test_get_omdb_metadata {
         let result = get_omdb_metadata(&[test_video.clone()], "4c602a26").await;
 
         let result_video = VideoMetaData {
+            id:0,
             name: "Ghost Rider".into(),
             subtitle_path: None,
             year: Some(2007),

@@ -49,6 +49,7 @@ pub struct ImdbMetaData {
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct VideoMetaData {
+    pub id: i64,
     pub name: String,
     pub subtitle_path: Option<PathBuf>,
     pub year: Option<u32>,
@@ -142,6 +143,7 @@ fn detect_metadata(path: PathBuf) -> VideoMetaData {
     let normalized = video_stem.to_lowercase();
 
     VideoMetaData {
+        id: 0,
         name: detect_name(&normalized),
         subtitle_path: None,
         year: detect_year(&normalized),
@@ -571,6 +573,7 @@ mod detect_metadata_tests {
         assert_eq!(
             detect_metadata("/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()),
             VideoMetaData {
+                id: 0,
                 name: "Loki".into(),
                 subtitle_path: None,
                 year: None,
@@ -593,6 +596,7 @@ mod detect_metadata_tests {
         assert_eq!(
             detect_metadata("/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into()),
             VideoMetaData {
+                id: 0,
                 name: "Who Am I".into(),
                 subtitle_path: None,
                 year: Some(2014,),
@@ -612,6 +616,7 @@ mod detect_metadata_tests {
         assert_eq!(
             detect_metadata("/marvel/avengers/Avengers.2012.720p.Farsi.Dubbed.Film9.mkv".into()),
             VideoMetaData {
+                id: 0,
                 name: "Avengers".into(),
                 subtitle_path: None,
                 year: Some(2012),
@@ -648,6 +653,7 @@ mod merge_metadata_tests {
     #[test]
     fn test_merge_metadata_basic() {
         let meta1 = VideoMetaData {
+            id: 0,
             name: "Sample Movie".into(),
             subtitle_path: Some("subs/sample.srt".into()),
             year: Some(2023),
@@ -657,6 +663,7 @@ mod merge_metadata_tests {
         };
 
         let meta2 = VideoMetaData {
+            id: 0,
             name: "Sample Movie".into(),
             subtitle_path: None,
             year: Some(2023),
@@ -679,6 +686,7 @@ mod merge_metadata_tests {
     #[test]
     fn test_should_not_merge_metadata_different_year() {
         let meta1 = VideoMetaData {
+            id: 0,
             name: "Sample Movie".into(),
             subtitle_path: Some("subs/sample.srt".into()),
             year: Some(2024),
@@ -688,6 +696,7 @@ mod merge_metadata_tests {
         };
 
         let meta2 = VideoMetaData {
+            id: 0,
             name: "Sample Movie".into(),
             subtitle_path: None,
             year: Some(2023),
@@ -704,6 +713,7 @@ mod merge_metadata_tests {
     #[test]
     fn test_merge_with_missing_year() {
         let meta1 = VideoMetaData {
+            id: 0,
             name: "Show".into(),
             subtitle_path: None,
             year: None,
@@ -716,6 +726,7 @@ mod merge_metadata_tests {
         };
 
         let meta2 = VideoMetaData {
+            id: 0,
             name: "Show".into(),
             subtitle_path: Some("subs/show_s01e01.srt".into()),
             year: Some(2021),
@@ -739,6 +750,7 @@ mod merge_metadata_tests {
     #[test]
     fn test_merge_different_series_not_combined() {
         let meta1 = VideoMetaData {
+            id: 0,
             name: "Show".into(),
             subtitle_path: None,
             year: None,
@@ -751,6 +763,7 @@ mod merge_metadata_tests {
         };
 
         let meta2 = VideoMetaData {
+            id: 0,
             name: "Show".into(),
             subtitle_path: None,
             year: None,

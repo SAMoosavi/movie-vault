@@ -425,7 +425,7 @@ fn get_all_video_metadata(conn: &Connection) -> Result<Vec<VideoMetaData>> {
         .prepare("SELECT id, name, subtitle_path, year, series_id, imdb_id FROM video_metadata")?;
 
     let video_iter = stmt.query_map([], |row| {
-        let video_id: i64 = row.get(0)?;
+        let id: i64 = row.get(0)?;
         let name: String = row.get(1)?;
         let subtitle_path: Option<String> = row.get(2)?;
         let year: Option<u32> = row.get(3)?;
@@ -433,7 +433,7 @@ fn get_all_video_metadata(conn: &Connection) -> Result<Vec<VideoMetaData>> {
         let imdb_id: Option<String> = row.get(5)?;
 
         // --- Load files for this video ---
-        let files_data = get_video_file_data_by_video_id(conn, video_id)?;
+        let files_data = get_video_file_data_by_video_id(conn, id)?;
 
         // --- Load series if available ---
         let series = match series_id {
@@ -448,6 +448,7 @@ fn get_all_video_metadata(conn: &Connection) -> Result<Vec<VideoMetaData>> {
         };
 
         Ok(VideoMetaData {
+            id,
             name,
             subtitle_path: subtitle_path.map(PathBuf::from),
             year,
@@ -672,15 +673,16 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
 
 fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaData>> {
     let mut stmt = conn.prepare(
-        "SELECT name, subtitle_path, year, series_id, imdb_id FROM video_metadata WHERE id = ?",
+        "SELECT id, name, subtitle_path, year, series_id, imdb_id FROM video_metadata WHERE id = ?",
     )?;
 
     let mut rows = stmt.query_map(params![video_id], |row| {
-        let name: String = row.get(0)?;
-        let subtitle_path: Option<String> = row.get(1)?;
-        let year: Option<u32> = row.get(2)?;
-        let series_id: Option<i64> = row.get(3)?;
-        let imdb_id: Option<String> = row.get(4)?;
+        let id: i64 = row.get(0)?;
+        let name: String = row.get(1)?;
+        let subtitle_path: Option<String> = row.get(2)?;
+        let year: Option<u32> = row.get(3)?;
+        let series_id: Option<i64> = row.get(4)?;
+        let imdb_id: Option<String> = row.get(5)?;
 
         // Load files for this video
         let files_data = get_video_file_data_by_video_id(conn, video_id)?;
@@ -698,6 +700,7 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
         };
 
         Ok(Some(VideoMetaData {
+            id,
             name,
             subtitle_path: subtitle_path.map(PathBuf::from),
             year,
