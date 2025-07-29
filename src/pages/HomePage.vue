@@ -34,7 +34,7 @@ const countries = ref<[number, string][]>([])
 const genres = ref<[number, string][]>([])
 
 const videos = useVideosStore()
-const { videos_metadata } = storeToRefs(videos);
+const { videos_metadata } = storeToRefs(videos)
 
 const { dir_path } = storeToRefs(useDirsStore())
 
@@ -55,11 +55,7 @@ onMounted(async () => {
 
   try {
     // Fetch all data in parallel for better performance
-    const [genresData, countriesData] = await Promise.all([
-      get_genres(),
-      get_countries(),
-      videos.updata(),
-    ])
+    const [genresData, countriesData] = await Promise.all([get_genres(), get_countries(), videos.updata()])
 
     genres.value = genresData
     countries.value = countriesData
@@ -75,8 +71,9 @@ onMounted(async () => {
 
 async function search(filters: FilterValues) {
   loading.value = true
-  videos.search(filters)
-    .then(() => { })
+  videos
+    .search(filters)
+    .then(() => {})
     .catch((e) => toast.error(e))
     .finally(() => (loading.value = false))
 }

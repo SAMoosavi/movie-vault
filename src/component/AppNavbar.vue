@@ -50,9 +50,9 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderPlus, Sun, Moon, AlignJustify } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-import { useVideosStore } from '../stores/Videos';
-import { useDirsStore } from '../stores/Dirs';
-import { sync_app } from '../functions/invoker';
+import { useVideosStore } from '../stores/Videos'
+import { useDirsStore } from '../stores/Dirs'
+import { sync_app } from '../functions/invoker'
 
 const videos = useVideosStore()
 const dirs = useDirsStore()
