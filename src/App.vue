@@ -1,5 +1,5 @@
 <template>
-  <AppNavbar @add-dir="addDir" />
+  <AppNavbar />
 
   <router-view />
 
@@ -8,7 +8,4 @@
 <script setup lang="ts">
 import AppNavbar from './component/AppNavbar.vue'
 
-function addDir(dir: string) {
-  console.log(dir)
-}
 </script>

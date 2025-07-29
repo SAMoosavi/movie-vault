@@ -50,8 +50,12 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderPlus, Sun, Moon, AlignJustify } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
+import { useVideosStore } from '../stores/Videos';
+import { useDirsStore } from '../stores/Dirs';
+import { sync_app } from '../functions/invoker';
 
-const emit = defineEmits<{ (e: 'addDir', path: string): void }>()
+const videos = useVideosStore()
+const dirs = useDirsStore()
 
 async function handleAddDirectory() {
   try {
@@ -65,14 +69,28 @@ async function handleAddDirectory() {
       return
     }
 
-    if (typeof selectedDir === 'string') {
-      emit('addDir', selectedDir)
-    } else {
-      throw new Error('Invalid directory path returned')
+    // Check if directory already exists
+    if (!dirs.push(selectedDir)) {
+      toast.warning('Directory already added')
+      return
     }
+
+    toast.info('Adding directory and syncing files...')
+
+    // Sync files in the new directory
+    await sync_app(selectedDir)
+
+    // Refresh video metadata
+    const prev_number = videos.number_of_videos
+    await videos.updata()
+
+    toast.success(`Successfully added directory with ${videos.number_of_videos - prev_number} items!`)
   } catch (error) {
-    console.error('Error selecting directory:', error)
-    toast.error(`Failed to select directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    // Remove the directory if sync failed
+    dirs.pop()
+
+    console.error('Error adding directory:', error)
+    toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 </script>

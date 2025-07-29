@@ -27,14 +27,16 @@ import MovieCard from '../component/MovieCard.vue'
 import { create_table, get_countries, get_genres, sync_app } from '../functions/invoker'
 import { useVideosStore } from '../stores/Videos'
 import { storeToRefs } from 'pinia'
+import { useDirsStore } from '../stores/Dirs'
 
 const loading = ref(true)
 const countries = ref<[number, string][]>([])
 const genres = ref<[number, string][]>([])
-const dir_path = ref<string[]>([])
 
 const videos = useVideosStore()
 const { videos_metadata } = storeToRefs(videos);
+
+const { dir_path } = storeToRefs(useDirsStore())
 
 onMounted(async () => {
   try {
@@ -70,38 +72,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-async function addDir(selectedDir: string) {
-  try {
-    // Check if directory already exists
-    if (dir_path.value.includes(selectedDir)) {
-      toast.warning('Directory already added')
-      return
-    }
-
-    toast.info('Adding directory and syncing files...')
-
-    // Add directory to list
-    dir_path.value.push(selectedDir)
-
-    // Sync files in the new directory
-    await sync_app(selectedDir)
-
-    // Refresh video metadata
-    const prev_number = videos.number_of_videos
-    await videos.updata()
-
-    toast.success(`Successfully added directory with ${videos.number_of_videos - prev_number} items!`)
-  } catch (error) {
-    // Remove the directory if sync failed
-    if (dir_path.value.length > 0) {
-      dir_path.value.pop()
-    }
-
-    console.error('Error adding directory:', error)
-    toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
-  }
-}
 
 async function search(filters: FilterValues) {
   loading.value = true
