@@ -4,7 +4,7 @@ mod omdb_meta_data;
 mod sqlite;
 
 #[tauri::command]
-async fn sync_app_files(root: &str, api_key: &str) -> Result<(), String> {
+async fn sync_app_files(root: &str, api_key: &str) -> Result<usize, String> {
     media_scanner::sync_files().await;
 
     let found_files = media_scanner::find_movies(root.into()).await;
@@ -12,7 +12,8 @@ async fn sync_app_files(root: &str, api_key: &str) -> Result<(), String> {
     let metadatas = metadata_extractor::get_metadata(found_files);
     let data = omdb_meta_data::get_omdb_metadata(&metadatas, api_key).await;
 
-    sqlite::insert(&data).map_err(|e| e.to_string())
+    sqlite::insert(&data).map_err(|e| e.to_string())?;
+    Ok(data.len())
 }
 
 #[tauri::command]

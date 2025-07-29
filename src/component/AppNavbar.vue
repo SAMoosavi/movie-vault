@@ -78,13 +78,12 @@ async function handleAddDirectory() {
     toast.info('Adding directory and syncing files...')
 
     // Sync files in the new directory
-    await sync_app(selectedDir)
+    const number_of_added = await sync_app(selectedDir)
 
     // Refresh video metadata
-    const prev_number = videos.number_of_videos
     await videos.updata()
 
-    toast.success(`Successfully added directory with ${videos.number_of_videos - prev_number} items!`)
+    toast.success(`Successfully added directory with ${number_of_added} items!`)
   } catch (error) {
     // Remove the directory if sync failed
     dirs.pop()
