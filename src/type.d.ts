@@ -36,7 +36,7 @@ export interface ImdbMetaData {
 }
 
 export interface VideoMetaData {
-  id: number,
+  id: number
   name: string
   subtitle_path?: string // PathBuf as string
   year?: number
