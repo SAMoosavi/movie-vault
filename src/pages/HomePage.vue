@@ -17,29 +17,32 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
-import type { FilterValues, VideoMetaData } from '../type'
+import type { FilterValues } from '../type'
 import { toast } from 'vue3-toastify'
 import FilterMovies from '../component/FilterMovies.vue'
 import LoadingView from '../component/LoadingView.vue'
 import ResultsInfo from '../component/ResultsInfo.vue'
 import NotFoundMovies from '../component/NotFoundMovies.vue'
 import MovieCard from '../component/MovieCard.vue'
+import { create_table, get_countries, get_genres, sync_app } from '../functions/invoker'
+import { useVideosStore } from '../stores/Videos'
+import { storeToRefs } from 'pinia'
 
 const loading = ref(true)
 const countries = ref<[number, string][]>([])
 const genres = ref<[number, string][]>([])
-const videos_metadata = ref<VideoMetaData[]>([])
-const dir_path = ref<string[]>([]) // default for test
+const dir_path = ref<string[]>([])
+
+const videos = useVideosStore()
+const { videos_metadata } = storeToRefs(videos);
 
 onMounted(async () => {
   try {
     // Initialize database
-    await invoke('create_table_app')
+    await create_table()
 
     // Sync files with better error handling
-    const syncPromises = dir_path.value.map((dir) => invoke('sync_app_files', { root: dir, apiKey: '4c602a26' }))
-
+    const syncPromises = dir_path.value.map(sync_app)
     await Promise.all(syncPromises)
 
     toast.success('Database initialized and files synced successfully!')
@@ -50,13 +53,12 @@ onMounted(async () => {
 
   try {
     // Fetch all data in parallel for better performance
-    const [videos, genresData, countriesData] = await Promise.all([
-      invoke<VideoMetaData[]>('get_all_video_metadata_app'),
-      invoke<[number, string][]>('get_genres_app'),
-      invoke<[number, string][]>('get_countries_app'),
+    const [genresData, countriesData] = await Promise.all([
+      get_genres(),
+      get_countries(),
+      videos.updata(),
     ])
 
-    videos_metadata.value = videos
     genres.value = genresData
     countries.value = countriesData
 
@@ -83,13 +85,13 @@ async function addDir(selectedDir: string) {
     dir_path.value.push(selectedDir)
 
     // Sync files in the new directory
-    await invoke('sync_app_files', { root: selectedDir, apiKey: '4c602a26' })
+    await sync_app(selectedDir)
 
     // Refresh video metadata
-    const prev_number = videos_metadata.value.length
-    videos_metadata.value = await invoke<VideoMetaData[]>('get_all_video_metadata_app')
+    const prev_number = videos.number_of_videos
+    await videos.updata()
 
-    toast.success(`Successfully added directory with ${videos_metadata.value.length - prev_number} items!`)
+    toast.success(`Successfully added directory with ${videos.number_of_videos - prev_number} items!`)
   } catch (error) {
     // Remove the directory if sync failed
     if (dir_path.value.length > 0) {
@@ -103,8 +105,8 @@ async function addDir(selectedDir: string) {
 
 async function search(filters: FilterValues) {
   loading.value = true
-  invoke<VideoMetaData[]>('search_videos_app', { filters })
-    .then((r) => (videos_metadata.value = r))
+  videos.search(filters)
+    .then(() => { })
     .catch((e) => toast.error(e))
     .finally(() => (loading.value = false))
 }
