@@ -7,7 +7,9 @@
           <AlignJustify class="h-5 w-5" />
         </div>
         <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-10 mt-3 w-52 p-2 shadow">
-          <li><a>Home</a></li>
+          <li>
+            <RouterLink to="/">Home</RouterLink>
+          </li>
           <li><a>Movies</a></li>
           <li><a>TV Shows</a></li>
           <li><a>Watchlist</a></li>
@@ -21,7 +23,9 @@
     <!-- Desktop Menu -->
     <div class="navbar-center hidden lg:flex">
       <ul class="menu menu-horizontal px-1">
-        <li><a class="hover:bg-base-200 rounded-lg">Home</a></li>
+        <li>
+          <RouterLink to="/" class="hover:bg-base-200 rounded-lg">Home</RouterLink>
+        </li>
         <li><a class="hover:bg-base-200 rounded-lg">Movies</a></li>
         <li><a class="hover:bg-base-200 rounded-lg">TV Shows</a></li>
         <li><a class="hover:bg-base-200 rounded-lg">Watchlist</a></li>

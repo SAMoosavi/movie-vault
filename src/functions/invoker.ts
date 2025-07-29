@@ -24,3 +24,7 @@ export async function get_countries() {
 export async function search_videos(filters: FilterValues): Promise<VideoMetaData[]> {
   return await invoke<VideoMetaData[]>('search_videos_app', { filters })
 }
+
+export async function get_video_by_id(videoId: number): Promise<VideoMetaData> {
+  return await invoke('get_video_by_id_app', { videoId })
+}

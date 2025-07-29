@@ -1,19 +1,13 @@
 <template>
-  <div
-    class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 transition-all duration-200 hover:scale-[1.02]"
-  >
+  <RouterLink :to="{ name: 'movie_page', params: { id: movie.id.toString() } }"
+    class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 transition-all duration-200 hover:scale-[1.02]">
     <div class="card bg-base-100">
       <figure class="relative">
-        <img
-          :src="movie.imdb_metadata?.poster"
-          :alt="movie.imdb_metadata?.title || movie.name"
-          class="h-96 w-full object-cover"
-        />
+        <img :src="movie.imdb_metadata?.poster" :alt="movie.imdb_metadata?.title || movie.name"
+          class="h-96 w-full object-cover" />
 
-        <div
-          v-if="(movie.imdb_metadata?.imdb_rating || NA) !== NA"
-          class="badge badge-neutral absolute bottom-3 left-3 flex items-center"
-        >
+        <div v-if="(movie.imdb_metadata?.imdb_rating || NA) !== NA"
+          class="badge badge-neutral absolute bottom-3 left-3 flex items-center">
           <Star class="text-warning fill-warning mr-1 h-4 w-4" />
           <span class="font-semibold">{{ movie.imdb_metadata?.imdb_rating }}</span>
         </div>
@@ -46,7 +40,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </RouterLink>
 </template>
 
 <script setup lang="ts">

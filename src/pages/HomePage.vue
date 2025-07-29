@@ -9,7 +9,7 @@
 
       <NotFoundMovies v-if="videos_metadata.length === 0" />
       <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <MovieCard v-for="(movie, i) in videos_metadata" :key="i" :movie="movie" />
+        <MovieCard v-for="movie in videos_metadata" :key="movie.id" :movie="movie" />
       </div>
     </div>
   </main>
