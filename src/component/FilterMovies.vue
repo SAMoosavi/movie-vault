@@ -79,7 +79,7 @@
         <!-- Exist IMDb -->
         <div class="form-control">
           <label class="label"><span class="label-text">Has IMDb</span></label>
-          <select v-model="filters.exist_imdb" class="select select-bordered w-full pr-8">
+          <select v-model="filters.existImdb" class="select select-bordered w-full pr-8">
             <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
               {{ opt.label }}
             </option>
@@ -89,7 +89,7 @@
         <!-- Multiple Files -->
         <div class="form-control">
           <label class="label"><span class="label-text">Multiple Files</span></label>
-          <select v-model="filters.exist_multi_file" class="select select-bordered w-full pr-8">
+          <select v-model="filters.existMultiFile" class="select select-bordered w-full pr-8">
             <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
               {{ opt.label }}
             </option>
@@ -100,7 +100,7 @@
         <div class="form-control">
           <label class="label"><span class="label-text">Actor</span></label>
           <select class="select select-bordered" v-model="filters.actor">
-            <option value="">All Genres</option>
+            <option :value="null">All Actors</option>
             <option v-for="actor in actors" :key="actor[0]" :value="actor[0]">
               {{ actor[1] }}
             </option>

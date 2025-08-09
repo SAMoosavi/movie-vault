@@ -55,8 +55,8 @@ export interface FilterValues {
   country: NullableNumber;
   genre: NullableNumber;
   name: string;
-  exist_imdb: NullableBool;
-  exist_multi_file: NullableBool;
-  actor: string;
+  existImdb: NullableBool;
+  existMultiFile: NullableBool;
+  actor: NullableNumber;
   showed: NullableBool;
 }

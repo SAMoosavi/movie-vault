@@ -9,9 +9,9 @@ export const useFiltersStore = defineStore('filters', () => {
     country: null,
     genre: null,
     name: '',
-    exist_imdb: null,
-    exist_multi_file: null,
-    actor: '',
+    existImdb: null,
+    existMultiFile: null,
+    actor: null,
     showed: null
   }
 

@@ -7,15 +7,15 @@ use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMe
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilterValues {
-    pub r#type: ContentType, // enum instead of String
+    pub r#type: ContentType,
     pub min_rating: Option<f64>,
-    pub country: Option<usize>,
-    pub genre: Option<usize>,
+    pub country: Option<i64>,
+    pub genre: Option<i64>,
     pub name: String,
     pub exist_imdb: Option<bool>,
     pub exist_multi_file: Option<bool>,
-    pub actor: String,
-    pub showed: Option<bool>,
+    pub actor: Option<i64>,
+    pub showed: Option<bool>, //TODO: should be add to db 
 }
 
 #[derive(Debug, Clone, serde::Deserialize, PartialEq)]
@@ -638,7 +638,6 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
     let mut where_conditions = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
-    // Build the query with proper joins
     let mut query = r#"
         SELECT DISTINCT 
             vm.id,
@@ -652,7 +651,6 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
     "#
     .to_string();
 
-    // Add conditional joins and conditions
     if filters.r#type != ContentType::All {
         where_conditions.push("im.type = ?".to_string());
         params.push(Box::new(filters.r#type.to_string()));
@@ -666,13 +664,50 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
     if let Some(country) = filters.country {
         query.push_str(" LEFT JOIN imdb_countries ic ON im.imdb_id = ic.imdb_id\n");
         where_conditions.push("ic.country_id = ?".to_string());
-        params.push(Box::new(country as i64));
+        params.push(Box::new(country));
     }
 
     if let Some(genre) = filters.genre {
         query.push_str(" LEFT JOIN imdb_genres ig ON im.imdb_id = ig.imdb_id\n");
         where_conditions.push("ig.genre_id = ?".to_string());
-        params.push(Box::new(genre as i64));
+        params.push(Box::new(genre));
+    }
+
+    if let Some(actor) = filters.actor {
+        query.push_str(" LEFT JOIN imdb_actors ia ON im.imdb_id = ia.imdb_id\n");
+        where_conditions.push("ia.actor_id = ?".to_string());
+        params.push(Box::new(actor));
+    }
+
+    if let Some(exist_imdb) = filters.exist_imdb {
+        if exist_imdb {
+            where_conditions.push("im.imdb_id IS NOT NULL".to_string());
+        } else {
+            where_conditions.push("im.imdb_id IS NULL".to_string());
+        }
+    }
+
+    if let Some(exist_multi_file) = filters.exist_multi_file {
+        query.push_str(" LEFT JOIN video_file_data vfd ON vm.id = vfd.video_id\n");
+        if exist_multi_file {
+            where_conditions.push(
+                "(
+                SELECT COUNT(*) 
+                FROM video_file_data 
+                WHERE video_id = vm.id
+            ) > 1"
+                    .to_string(),
+            );
+        } else {
+            where_conditions.push(
+                "(
+                SELECT COUNT(*) 
+                FROM video_file_data 
+                WHERE video_id = vm.id
+            ) <= 1"
+                    .to_string(),
+            );
+        }
     }
 
     if !filters.name.is_empty() {
@@ -682,7 +717,6 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         params.push(Box::new(search_pattern));
     }
 
-    // Add WHERE clause if we have conditions
     if !where_conditions.is_empty() {
         query.push_str(&format!(" WHERE {}\n", where_conditions.join(" AND ")));
     }
@@ -700,10 +734,7 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         )?
         .collect();
 
-    // Flatten the Vec<Option<VideoMetaData>> to Vec<VideoMetaData>
-    let videos: Vec<VideoMetaData> = results?.into_iter().flatten().collect();
-
-    Ok(videos)
+    Ok(results?.into_iter().flatten().collect())
 }
 
 fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaData>> {
