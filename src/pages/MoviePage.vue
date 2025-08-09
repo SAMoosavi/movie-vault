@@ -178,28 +178,32 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-
-// Methods
-function playFile(path: string) {
-  // Implement play functionality
-  console.log('Playing file:', path)
-  // You can use Tauri's shell API to open the file with default player
-  // import { open } from '@tauri-apps/api/shell'
-  // open(path)
-}
-
-function openFileLocation(path: string) {
-  // Implement open file location functionality
-  console.log('Opening file location:', path)
-  // You can use Tauri's shell API to open the directory
-  // import { open } from '@tauri-apps/api/shell'
-  // open(dirname(path))
-}
-
 import type { VideoMetaData } from '../type'
 import { useRoute } from 'vue-router'
 import { get_video_by_id } from '../functions/invoker'
 import { ArrowLeft, Star, FileText } from 'lucide-vue-next'
+import { dirname } from '@tauri-apps/api/path'
+import { openPath } from '@tauri-apps/plugin-opener'
+
+function playFile(path: string) {
+  // Implement play functionality
+  console.log('Playing file:', path)
+  // You can use Tauri's shell API to open the file with default player
+  openPath(path).catch((e) => console.log(e))
+}
+
+async function openFileLocation(path: string) {
+  try {
+    // Implement open file location functionality
+    const dir = await dirname(path)
+    console.log('Opening file location:', path)
+    console.log('Opening dir location:', dir)
+    // You can use Tauri's shell API to open the directory
+    await openPath(dir)
+  } catch (e) {
+    console.log(e)
+  }
+}
 
 const movie = ref<VideoMetaData>()
 
