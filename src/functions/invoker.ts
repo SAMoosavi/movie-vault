@@ -9,8 +9,8 @@ export async function sync_app(dir: string): Promise<number> {
   return await invoke<number>('sync_app_files', { root: dir, apiKey: '4c602a26' })
 }
 
-export async function get_all_video_metadata() {
-  return await invoke<VideoMetaData[]>('get_all_video_metadata_app')
+export async function get_actors() {
+  return await invoke<[number, string][]>('get_actors_app')
 }
 
 export async function get_genres() {

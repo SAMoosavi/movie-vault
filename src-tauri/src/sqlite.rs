@@ -1,17 +1,39 @@
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 
 use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMetaData};
 
 #[derive(Debug, Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FilterValues {
-    pub r#type: String,
-    #[serde(rename = "minRating")]
-    pub min_rating: f64,
-    pub country: usize,
-    pub genre: usize,
+    pub r#type: ContentType, // enum instead of String
+    pub min_rating: Option<f64>,
+    pub country: Option<usize>,
+    pub genre: Option<usize>,
     pub name: String,
+    pub exist_imdb: Option<bool>,
+    pub exist_multi_file: Option<bool>,
+    pub actor: String,
+    pub showed: Option<bool>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentType {
+    All,
+    Movie,
+    Series,
+}
+
+impl fmt::Display for ContentType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ContentType::All => write!(f, "all"),
+            ContentType::Movie => write!(f, "movie"),
+            ContentType::Series => write!(f, "series"),
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -586,6 +608,19 @@ fn get_countries(conn: &Connection) -> Result<Vec<(usize, String)>> {
     Ok(countries)
 }
 
+fn get_actors(conn: &Connection) -> Result<Vec<(usize, String)>> {
+    let mut stmt = conn.prepare("SELECT id, name FROM actors")?;
+
+    let countries = stmt
+        .query_map([], |row| {
+            Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
+        })?
+        .filter_map(Result::ok)
+        .collect();
+
+    Ok(countries)
+}
+
 fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
     let mut stmt = conn.prepare("SELECT id, name FROM genres")?;
 
@@ -618,26 +653,26 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
     .to_string();
 
     // Add conditional joins and conditions
-    if filters.r#type != "all" {
+    if filters.r#type != ContentType::All {
         where_conditions.push("im.type = ?".to_string());
-        params.push(Box::new(&filters.r#type));
+        params.push(Box::new(filters.r#type.to_string()));
     }
 
-    if filters.min_rating > 0.0 {
+    if let Some(min_rating) = filters.min_rating {
         where_conditions.push("CAST(im.imdb_rating AS REAL) >= ?".to_string());
-        params.push(Box::new(filters.min_rating));
+        params.push(Box::new(min_rating));
     }
 
-    if filters.country > 0 {
+    if let Some(country) = filters.country {
         query.push_str(" LEFT JOIN imdb_countries ic ON im.imdb_id = ic.imdb_id\n");
         where_conditions.push("ic.country_id = ?".to_string());
-        params.push(Box::new(filters.country as i64));
+        params.push(Box::new(country as i64));
     }
 
-    if filters.genre > 0 {
+    if let Some(genre) = filters.genre {
         query.push_str(" LEFT JOIN imdb_genres ig ON im.imdb_id = ig.imdb_id\n");
         where_conditions.push("ig.genre_id = ?".to_string());
-        params.push(Box::new(filters.genre as i64));
+        params.push(Box::new(genre as i64));
     }
 
     if !filters.name.is_empty() {
@@ -738,6 +773,11 @@ pub fn get_genres_from_db() -> Result<Vec<(usize, String)>> {
 pub fn get_countries_from_db() -> Result<Vec<(usize, String)>> {
     let conn = create_conn()?;
     get_countries(&conn)
+}
+
+pub fn get_actors_from_db() -> Result<Vec<(usize, String)>> {
+    let conn = create_conn()?;
+    get_actors(&conn)
 }
 
 pub fn remove_rows_by_paths(paths: &[PathBuf]) -> Result<()> {

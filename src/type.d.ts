@@ -45,10 +45,18 @@ export interface VideoMetaData {
   imdb_metadata?: ImdbMetaData
 }
 
+type ContentType = 'all' | 'movie' | 'series';
+type NullableBool = boolean | null;
+type NullableNumber = number | null;
+
 export interface FilterValues {
-  type: 'all' | 'movie' | 'series'
-  minRating: number
-  country: number
-  genre: number
-  name: string
+  type: ContentType;
+  minRating: NullableNumber;
+  country: NullableNumber;
+  genre: NullableNumber;
+  name: string;
+  exist_imdb: NullableBool;
+  exist_multi_file: NullableBool;
+  actor: string;
+  showed: NullableBool;
 }

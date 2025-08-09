@@ -1,9 +1,18 @@
 <template>
   <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5">
     <div class="card bg-base-200 p-6">
-      <div class="mb-4 flex items-center">
-        <Filter class="text-primary mr-2 h-5 w-5" />
-        <h2 class="text-base-content text-lg font-semibold">Filters</h2>
+      <!-- Header -->
+      <div class="mb-6 flex items-center justify-between">
+        <div class="flex items-center">
+
+          <Filter class="text-primary mr-2 h-5 w-5" />
+          <h2 class="text-base-content text-lg font-semibold">Advanced Filters</h2>
+        </div>
+
+        <button type="reset" class="btn btn-ghost btn-sm" @click="filtersStore.resetFilters()">
+          <RefreshCcw class="h-4 w-4 mr-1" />
+          Reset Filters
+        </button>
       </div>
 
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
@@ -35,11 +44,9 @@
           <label class="label">
             <span class="label-text">Min Rating</span>
           </label>
-          <select class="select select-bordered w-full pr-8" v-model.number="filters.minRating">
-            <option value="0">Any Rating</option>
-            <option value="7">7+ Stars</option>
-            <option value="8">8+ Stars</option>
-            <option value="9">9+ Stars</option>
+          <select class="select select-bordered w-full pr-8" v-model="filters.minRating">
+            <option :value="null">Any Rating</option>
+            <option v-for="i in 9" :key="i" :value="i">{{ i }}+ Stars</option>
           </select>
         </div>
 
@@ -49,7 +56,7 @@
             <span class="label-text">Country</span>
           </label>
           <select class="select select-bordered w-full pr-8" v-model="filters.country">
-            <option :value="0">All countries</option>
+            <option :value="null">All countries</option>
             <option v-for="country in countries" :key="country[0]" :value="country[0]">
               {{ country[1] }}
             </option>
@@ -62,50 +69,88 @@
             <span class="label-text">Genre</span>
           </label>
           <select class="select select-bordered" v-model="filters.genre">
-            <option :value="0">All Genres</option>
+            <option :value="null">All Genres</option>
             <option v-for="genre in genres" :key="genre[0]" :value="genre[0]">
               {{ genre[1] }}
             </option>
           </select>
         </div>
 
-        <!-- Reset Button -->
-        <div class="flex items-end">
-          <button
-            type="reset"
-            class="btn btn-primary btn-block transition-transform"
-            @click="filtersStore.resetFilters()"
-          >
-            Reset Filters
-          </button>
+        <!-- Exist IMDb -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">Has IMDb</span></label>
+          <select v-model="filters.exist_imdb" class="select select-bordered w-full pr-8">
+            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Multiple Files -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">Multiple Files</span></label>
+          <select v-model="filters.exist_multi_file" class="select select-bordered w-full pr-8">
+            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Actor -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">Actor</span></label>
+          <select class="select select-bordered" v-model="filters.actor">
+            <option value="">All Genres</option>
+            <option v-for="actor in actors" :key="actor[0]" :value="actor[0]">
+              {{ actor[1] }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Showed -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">Showed</span></label>
+          <select v-model="filters.showed" class="select select-bordered w-full pr-8">
+            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
         </div>
       </div>
     </div>
   </div>
 </template>
-
 <script setup lang="ts">
-import { Filter, Search } from 'lucide-vue-next'
+import { Filter, RefreshCcw, Search } from 'lucide-vue-next'
 import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
-import { get_countries, get_genres } from '../functions/invoker'
+import { get_actors, get_countries, get_genres } from '../functions/invoker'
 
 const filtersStore = useFiltersStore()
 const { filters } = storeToRefs(filtersStore)
 
 const countries = ref<[number, string][]>([])
 const genres = ref<[number, string][]>([])
+const actors = ref<[number, string][]>([])
 
 onMounted(async () => {
   try {
-    // Fetch all data in parallel for better performance
-    const [genresData, countriesData] = await Promise.all([get_genres(), get_countries()])
+    const [genresData, countriesData, actorsData] = await Promise.all([get_genres(), get_countries(), get_actors()])
 
     genres.value = genresData
     countries.value = countriesData
+    actors.value = actorsData
+
   } catch (e) {
     console.error('Data fetching error:', e)
   }
 })
+
+const boolOptions = [
+  { label: 'Any', value: null },
+  { label: 'Yes', value: true },
+  { label: 'No', value: false },
+];
+
 </script>

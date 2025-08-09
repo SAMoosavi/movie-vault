@@ -3,13 +3,16 @@ import { ref } from 'vue'
 import type { FilterValues } from '../type'
 
 export const useFiltersStore = defineStore('filters', () => {
-  // Initial state constant
   const defaultFilters: FilterValues = {
     type: 'all',
-    minRating: 0,
-    country: 0,
-    genre: 0,
+    minRating: null,
+    country: null,
+    genre: null,
     name: '',
+    exist_imdb: null,
+    exist_multi_file: null,
+    actor: '',
+    showed: null
   }
 
   const filters = ref<FilterValues>({ ...defaultFilters })

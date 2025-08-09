@@ -37,6 +37,11 @@ fn get_genres_app() -> Result<Vec<(usize, String)>, String> {
 }
 
 #[tauri::command]
+fn get_actors_app() -> Result<Vec<(usize, String)>, String> {
+    sqlite::get_actors_from_db().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn search_videos_app(
     filters: sqlite::FilterValues,
 ) -> Result<Vec<metadata_extractor::VideoMetaData>, String> {
@@ -60,7 +65,8 @@ pub fn run() {
             get_countries_app,
             get_genres_app,
             search_videos_app,
-            get_video_by_id_app
+            get_video_by_id_app,
+            get_actors_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
