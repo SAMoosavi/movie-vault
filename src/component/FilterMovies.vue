@@ -71,7 +71,11 @@
 
         <!-- Reset Button -->
         <div class="flex items-end">
-          <button type="reset" class="btn btn-primary btn-block transition-transform" @click="resetFilters">
+          <button
+            type="reset"
+            class="btn btn-primary btn-block transition-transform"
+            @click="filtersStore.resetFilters()"
+          >
             Reset Filters
           </button>
         </div>
@@ -81,37 +85,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
 import { Filter, Search } from 'lucide-vue-next'
-import type { FilterValues } from '../type'
+import { useFiltersStore } from '../stores/Filters'
+import { storeToRefs } from 'pinia'
+import { onMounted, ref } from 'vue'
+import { get_countries, get_genres } from '../functions/invoker'
 
-// Define prop types
-defineProps<{
-  genres: [number, string][]
-  countries: [number, string][]
-}>()
+const filtersStore = useFiltersStore()
+const { filters } = storeToRefs(filtersStore)
 
-// Emit type-safe event
-const emit = defineEmits<{
-  (e: 'search', filters: FilterValues): void
-}>()
+const countries = ref<[number, string][]>([])
+const genres = ref<[number, string][]>([])
 
-// Initial state constant
-const defaultFilters: FilterValues = {
-  type: 'all',
-  minRating: 0,
-  country: 0,
-  genre: 0,
-  name: '',
-}
+onMounted(async () => {
+  try {
+    // Fetch all data in parallel for better performance
+    const [genresData, countriesData] = await Promise.all([get_genres(), get_countries()])
 
-const filters = ref<FilterValues>({ ...defaultFilters })
-
-// Reset to defaults
-function resetFilters() {
-  filters.value = { ...defaultFilters }
-}
-
-// Watch and emit on change
-watch(filters, (v) => emit('search', v), { deep: true })
+    genres.value = genresData
+    countries.value = countriesData
+  } catch (e) {
+    console.error('Data fetching error:', e)
+  }
+})
 </script>

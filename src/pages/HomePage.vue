@@ -1,6 +1,6 @@
 <template>
   <main class="container mx-auto px-4 py-6">
-    <FilterMovies :countries="countries" :genres="genres" @search="search" />
+    <FilterMovies />
 
     <LoadingView v-if="loading" />
     <!-- Movie Grid -->
@@ -16,22 +16,20 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import type { FilterValues } from '../type'
+import { onMounted, ref, watch } from 'vue'
 import { toast } from 'vue3-toastify'
 import FilterMovies from '../component/FilterMovies.vue'
 import LoadingView from '../component/LoadingView.vue'
 import ResultsInfo from '../component/ResultsInfo.vue'
 import NotFoundMovies from '../component/NotFoundMovies.vue'
 import MovieCard from '../component/MovieCard.vue'
-import { create_table, get_countries, get_genres, sync_app } from '../functions/invoker'
+import { create_table, sync_app } from '../functions/invoker'
 import { useVideosStore } from '../stores/Videos'
 import { storeToRefs } from 'pinia'
 import { useDirsStore } from '../stores/Dirs'
+import { useFiltersStore } from '../stores/Filters'
 
 const loading = ref(true)
-const countries = ref<[number, string][]>([])
-const genres = ref<[number, string][]>([])
 
 const videos = useVideosStore()
 const { videos_metadata } = storeToRefs(videos)
@@ -54,11 +52,7 @@ onMounted(async () => {
   }
 
   try {
-    // Fetch all data in parallel for better performance
-    const [genresData, countriesData] = await Promise.all([get_genres(), get_countries(), videos.updata()])
-
-    genres.value = genresData
-    countries.value = countriesData
+    await videos.updata()
 
     toast.success('Data loaded successfully!')
   } catch (e) {
@@ -69,10 +63,17 @@ onMounted(async () => {
   }
 })
 
-async function search(filters: FilterValues) {
+const filtersStore = useFiltersStore()
+
+const { filters } = storeToRefs(filtersStore)
+
+// Watch and emit on change
+watch(filters, () => search(), { deep: true })
+
+async function search() {
   loading.value = true
   videos
-    .search(filters)
+    .updata()
     .then(() => {})
     .catch((e) => toast.error(e))
     .finally(() => (loading.value = false))
