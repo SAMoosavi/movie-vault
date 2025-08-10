@@ -4,18 +4,20 @@ use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMetaData};
 
+type NumericalString = (i64, String);
+
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilterValues {
+    pub name: String,
     pub r#type: ContentType,
     pub min_rating: Option<f64>,
-    pub country: Option<i64>,
-    pub genre: Option<i64>,
-    pub name: String,
+    pub country: Vec<NumericalString>,
+    pub genre: Vec<NumericalString>,
+    pub actor: Vec<NumericalString>,
     pub exist_imdb: Option<bool>,
     pub exist_multi_file: Option<bool>,
-    pub actor: Option<i64>,
-    pub showed: Option<bool>, //TODO: should be add to db 
+    pub showed: Option<bool>, //TODO: should be add to db
 }
 
 #[derive(Debug, Clone, serde::Deserialize, PartialEq)]
@@ -661,22 +663,35 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         params.push(Box::new(min_rating));
     }
 
-    if let Some(country) = filters.country {
+    // Handle country filter (array of IDs)
+    if !filters.country.is_empty() {
         query.push_str(" LEFT JOIN imdb_countries ic ON im.imdb_id = ic.imdb_id\n");
-        where_conditions.push("ic.country_id = ?".to_string());
-        params.push(Box::new(country));
+        let placeholders: Vec<String> = filters.country.iter().map(|_| "?".to_string()).collect();
+        let in_clause = placeholders.join(",");
+        where_conditions.push(format!("ic.country_id IN ({})", in_clause));
+        for country_id in &filters.country {
+            params.push(Box::new(country_id.0));
+        }
     }
 
-    if let Some(genre) = filters.genre {
+    if !filters.genre.is_empty() {
         query.push_str(" LEFT JOIN imdb_genres ig ON im.imdb_id = ig.imdb_id\n");
-        where_conditions.push("ig.genre_id = ?".to_string());
-        params.push(Box::new(genre));
+        let placeholders: Vec<String> = filters.genre.iter().map(|_| "?".to_string()).collect();
+        let in_clause = placeholders.join(",");
+        where_conditions.push(format!("ig.genre_id IN ({})", in_clause));
+        for genre_id in &filters.genre {
+            params.push(Box::new(genre_id.0));
+        }
     }
 
-    if let Some(actor) = filters.actor {
+    if !filters.actor.is_empty() {
         query.push_str(" LEFT JOIN imdb_actors ia ON im.imdb_id = ia.imdb_id\n");
-        where_conditions.push("ia.actor_id = ?".to_string());
-        params.push(Box::new(actor));
+        let placeholders: Vec<String> = filters.actor.iter().map(|_| "?".to_string()).collect();
+        let in_clause = placeholders.join(",");
+        where_conditions.push(format!("ia.actor_id IN ({})", in_clause));
+        for actor_id in &filters.actor {
+            params.push(Box::new(actor_id.0));
+        }
     }
 
     if let Some(exist_imdb) = filters.exist_imdb {

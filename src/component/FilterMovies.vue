@@ -4,13 +4,12 @@
       <!-- Header -->
       <div class="mb-6 flex items-center justify-between">
         <div class="flex items-center">
-
           <Filter class="text-primary mr-2 h-5 w-5" />
           <h2 class="text-base-content text-lg font-semibold">Advanced Filters</h2>
         </div>
 
         <button type="reset" class="btn btn-ghost btn-sm" @click="filtersStore.resetFilters()">
-          <RefreshCcw class="h-4 w-4 mr-1" />
+          <RefreshCcw class="mr-1 h-4 w-4" />
           Reset Filters
         </button>
       </div>
@@ -55,12 +54,7 @@
           <label class="label">
             <span class="label-text">Country</span>
           </label>
-          <select class="select select-bordered w-full pr-8" v-model="filters.country">
-            <option :value="null">All countries</option>
-            <option v-for="country in countries" :key="country[0]" :value="country[0]">
-              {{ country[1] }}
-            </option>
-          </select>
+          <AutocompleteSelect v-model="filters.country" :items="countries" />
         </div>
 
         <!-- Genre -->
@@ -68,12 +62,13 @@
           <label class="label">
             <span class="label-text">Genre</span>
           </label>
-          <select class="select select-bordered" v-model="filters.genre">
-            <option :value="null">All Genres</option>
-            <option v-for="genre in genres" :key="genre[0]" :value="genre[0]">
-              {{ genre[1] }}
-            </option>
-          </select>
+          <AutocompleteSelect v-model="filters.genre" :items="genres" />
+        </div>
+
+        <!-- Actor -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">Actor</span></label>
+          <AutocompleteSelect v-model="filters.actor" :items="actors" />
         </div>
 
         <!-- Exist IMDb -->
@@ -92,17 +87,6 @@
           <select v-model="filters.existMultiFile" class="select select-bordered w-full pr-8">
             <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
               {{ opt.label }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Actor -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Actor</span></label>
-          <select class="select select-bordered" v-model="filters.actor">
-            <option :value="null">All Actors</option>
-            <option v-for="actor in actors" :key="actor[0]" :value="actor[0]">
-              {{ actor[1] }}
             </option>
           </select>
         </div>
@@ -126,13 +110,15 @@ import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { get_actors, get_countries, get_genres } from '../functions/invoker'
+import AutocompleteSelect from './AutocompleteSelect.vue'
+import type { NumericalString } from '../type'
 
 const filtersStore = useFiltersStore()
 const { filters } = storeToRefs(filtersStore)
 
-const countries = ref<[number, string][]>([])
-const genres = ref<[number, string][]>([])
-const actors = ref<[number, string][]>([])
+const countries = ref<NumericalString[]>([])
+const genres = ref<NumericalString[]>([])
+const actors = ref<NumericalString[]>([])
 
 onMounted(async () => {
   try {
@@ -141,7 +127,6 @@ onMounted(async () => {
     genres.value = genresData
     countries.value = countriesData
     actors.value = actorsData
-
   } catch (e) {
     console.error('Data fetching error:', e)
   }
@@ -151,6 +136,5 @@ const boolOptions = [
   { label: 'Any', value: null },
   { label: 'Yes', value: true },
   { label: 'No', value: false },
-];
-
+]
 </script>

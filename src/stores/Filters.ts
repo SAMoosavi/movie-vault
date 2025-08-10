@@ -4,15 +4,15 @@ import type { FilterValues } from '../type'
 
 export const useFiltersStore = defineStore('filters', () => {
   const defaultFilters: FilterValues = {
-    type: 'all',
-    minRating: null,
-    country: null,
-    genre: null,
     name: '',
+    type: 'all',
+    country: [],
+    genre: [],
+    actor: [],
+    minRating: null,
     existImdb: null,
     existMultiFile: null,
-    actor: null,
-    showed: null
+    showed: null,
   }
 
   const filters = ref<FilterValues>({ ...defaultFilters })

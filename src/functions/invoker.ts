@@ -1,4 +1,4 @@
-import type { FilterValues, VideoMetaData } from '../type'
+import type { FilterValues, NumericalString, VideoMetaData } from '../type'
 import { invoke } from '@tauri-apps/api/core'
 
 export async function create_table() {
@@ -10,15 +10,15 @@ export async function sync_app(dir: string): Promise<number> {
 }
 
 export async function get_actors() {
-  return await invoke<[number, string][]>('get_actors_app')
+  return await invoke<NumericalString[]>('get_actors_app')
 }
 
 export async function get_genres() {
-  return await invoke<[number, string][]>('get_genres_app')
+  return await invoke<NumericalString[]>('get_genres_app')
 }
 
 export async function get_countries() {
-  return await invoke<[number, string][]>('get_countries_app')
+  return await invoke<NumericalString[]>('get_countries_app')
 }
 
 export async function search_videos(filters: FilterValues): Promise<VideoMetaData[]> {
