@@ -28,3 +28,7 @@ export async function search_videos(filters: FilterValues): Promise<VideoMetaDat
 export async function get_video_by_id(videoId: number): Promise<VideoMetaData> {
   return await invoke('get_video_by_id_app', { videoId })
 }
+
+export async function update_video_imdb(videoId: number, imdbId: string): Promise<void> {
+  return await invoke('update_video_imdb_app', { videoId, imdbId, apiKey: '4c602a26' })
+}

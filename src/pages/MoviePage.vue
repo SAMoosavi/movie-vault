@@ -14,7 +14,7 @@
       <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
         <div class="card bg-base-100">
           <div class="card-body">
-            <div v-if="movie.imdb_metadata" class="flex flex-col gap-8 md:flex-row">
+            <div v-if="movie.imdb_metadata && !change" class="flex flex-col gap-8 md:flex-row">
               <!-- Poster -->
               <div class="flex-shrink-0">
                 <div class="w-64 rounded-lg shadow-lg">
@@ -24,11 +24,14 @@
 
               <!-- Movie Info -->
               <div class="flex-grow">
-                <h1 class="mb-2 text-3xl font-bold md:text-4xl">
-                  {{ movie.imdb_metadata?.title }}
-                  <span class="text-base-content/70 text-2xl">({{ movie.imdb_metadata?.year }})</span>
-                </h1>
+                <div class="flex justify-between items-center">
+                  <h1 class="mb-2 text-3xl font-bold md:text-4xl">
+                    {{ movie.imdb_metadata?.title }}
+                    <span class="text-base-content/70 text-2xl">({{ movie.imdb_metadata?.year }})</span>
+                  </h1>
 
+                  <button class="btn btn-primary" @click="() => change = true"> change imdb data</button>
+                </div>
                 <!-- Rating and Meta Info -->
                 <div class="mb-4 flex flex-wrap items-center gap-4">
                   <div class="badge badge-lg badge-warning gap-1">
@@ -97,70 +100,76 @@
               </div>
             </div>
 
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text font-semibold">Search Imdb of {{ movie.name }}</span> <span v-if="movie.year">
-                  ({{ movie.year }})</span>
-              </label>
-              <div>
-                <input v-model="movieName" type="text" placeholder="Enter movie name..."
-                  class="input input-bordered w-full mt-3" />
+            <template v-else>
+              <div class="form-control">
+                <label class="label">
+                  <span class="label-text font-semibold">Search Imdb of {{ movie.name }}</span> <span v-if="movie.year">
+                    ({{ movie.year }})</span>
+                </label>
+                <div class="join w-full mt-3">
+                  <input v-model="movieName" type="text" placeholder="Enter movie name..."
+                    class="join-item input input-bordered w-full" />
+                  <button v-if="change" class=" join-item btn btn-primary" @click="() => change = false">
+                    cancel change
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <!-- Search Results -->
-            <div v-if="loading" class="mt-6">
-              <h3 class="text-xl font-semibold mb-4">Search Results</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div v-for="i in 6" :key="i"
-                  class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
-                  <div class="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
-                    <figure class="h-48 bg-base-200 rounded-t-2xl">
-                      <div class="w-full h-full bg-base-300 rounded-t-2xl skeleton"></div>
-                    </figure>
-                    <div class="card-body">
-                      <div class="h-6 bg-base-300 rounded w-3/4 mb-2 skeleton"></div>
-                      <div class="h-4 bg-base-300 rounded w-1/2 skeleton"></div>
+              <!-- Search Results -->
+              <div v-if="loading" class="mt-6">
+                <h3 class="text-xl font-semibold mb-4">Search Results</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div v-for="i in 6" :key="i"
+                    class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
+                    <div
+                      class="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                      <figure class="h-48 bg-base-200 rounded-t-2xl">
+                        <div class="w-full h-full bg-base-300 rounded-t-2xl skeleton"></div>
+                      </figure>
+                      <div class="card-body">
+                        <div class="h-6 bg-base-300 rounded w-3/4 mb-2 skeleton"></div>
+                        <div class="h-4 bg-base-300 rounded w-1/2 skeleton"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div v-else-if="searchItems.length > 0" class="mt-6">
-              <h3 class="text-xl font-semibold mb-4">Search Results</h3>
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div v-else-if="searchItems.length > 0" class="mt-6">
+                <h3 class="text-xl font-semibold mb-4">Search Results</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
-                <div v-for="item in searchItems" :key="item['#IMDB_ID']"
-                  class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl transition-all duration-200 hover:scale-105">
-                  <div class="card card-compact  bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
-                    @click="selectMovie(item['#IMDB_ID'])">
-                    <figure class="h-48">
-                      <img
-                        :src="item['#IMG_POSTER'] !== 'N/A' ? item['#IMG_POSTER'] : 'https://placehold.co/300x450?text=No+Image'"
-                        :alt="item['#TITLE']" class="object-cover w-full h-full" />
-                    </figure>
-                    <div class="card-body">
-                      <h4 class="card-title text-lg">{{ item['#TITLE'] }}</h4>
-                      <p class="text-sm opacity-70">{{ item["#YEAR"] }}</p>
+                  <div v-for="item in searchItems" :key="item['#IMDB_ID']"
+                    class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl transition-all duration-200 hover:scale-105">
+                    <div
+                      class="card card-compact  bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+                      @click="selectMovie(item['#IMDB_ID'])">
+                      <figure class="h-48">
+                        <img
+                          :src="item['#IMG_POSTER'] !== 'N/A' ? item['#IMG_POSTER'] : 'https://placehold.co/300x450?text=No+Image'"
+                          :alt="item['#TITLE']" class="object-cover w-full h-full" />
+                      </figure>
+                      <div class="card-body">
+                        <h4 class="card-title text-lg">{{ item['#TITLE'] }}</h4>
+                        <p class="text-sm opacity-70">{{ item["#YEAR"] }}</p>
+                      </div>
                     </div>
                   </div>
+
                 </div>
-
               </div>
-            </div>
 
-            <!-- No Results -->
-            <div v-else-if="searchItems.length === 0 && movieName" class="text-center py-8">
-              <i data-lucide="search-x" class="h-16 w-16 mx-auto text-base-content/30 mb-4"></i>
-              <p class="text-base-content/70">No movies found for "{{ movieName }}"</p>
-            </div>
+              <!-- No Results -->
+              <div v-else-if="searchItems.length === 0 && movieName" class="text-center py-8">
+                <i data-lucide="search-x" class="h-16 w-16 mx-auto text-base-content/30 mb-4"></i>
+                <p class="text-base-content/70">No movies found for "{{ movieName }}"</p>
+              </div>
 
-            <!-- Empty State -->
-            <div v-else class="text-center py-12">
-              <i data-lucide="search" class="h-16 w-16 mx-auto text-base-content/30 mb-4"></i>
-              <p class="text-base-content/70">Enter a movie name to search for information</p>
-            </div>
-
+              <!-- Empty State -->
+              <div v-else class="text-center py-12">
+                <i data-lucide="search" class="h-16 w-16 mx-auto text-base-content/30 mb-4"></i>
+                <p class="text-base-content/70">Enter a movie name to search for information</p>
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -229,11 +238,12 @@
 import { ref, onMounted, watch } from 'vue'
 import type { VideoMetaData } from '../type'
 import { useRoute } from 'vue-router'
-import { get_video_by_id } from '../functions/invoker'
+import { get_video_by_id, update_video_imdb } from '../functions/invoker'
 import { ArrowLeft, Star, FileText } from 'lucide-vue-next'
 import { dirname } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { fetch } from '@tauri-apps/plugin-http'
+import { toast } from 'vue3-toastify'
 
 function playFile(path: string) {
   // Implement play functionality
@@ -298,8 +308,20 @@ async function searchMovies(title: string) {
 
 watch(movieName, searchMovies)
 
-function selectMovie(movie: string) {
-  console.log(movie);
+const change = ref(false)
+
+async function selectMovie(imdb_id: string) {
+  try {
+    await update_video_imdb(+route.params.id, imdb_id);
+    movie.value = await get_video_by_id(+route.params.id)
+  }
+  catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Failed to set imdb'
+    toast.error(message)
+  }
+  finally {
+    change.value = false
+  }
 }
 
 </script>

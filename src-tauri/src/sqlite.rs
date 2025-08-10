@@ -355,6 +355,27 @@ fn insert_video_file_data(conn: &Connection, video_id: u32, file: &VideoFileData
     Ok(())
 }
 
+fn update_video_imdb(conn: &Connection, video_id: i64, imdb_id: &str) -> Result<()> {
+    conn.execute(
+        "UPDATE video_metadata SET imdb_id = ? WHERE id = ?",
+        [imdb_id, &video_id.to_string()],
+    )?;
+    Ok(())
+}
+pub fn update_video_imdb_to_db(video_id: i64, imdb_id: &str) -> Result<()> {
+    let conn = create_conn()?;
+    update_video_imdb(&conn, video_id, imdb_id)
+}
+
+pub fn insert_imdb_metadata_to_db(imdb: &ImdbMetaData) -> Result<()> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+    if insert_imdb_metadata(&tx, imdb)? {
+        insert_imdb_lists(&tx, imdb)?;
+    }
+    tx.commit()
+}
+
 pub fn insert(data: &[VideoMetaData]) -> Result<()> {
     let mut conn = create_conn()?;
     let tx = conn.transaction()?;

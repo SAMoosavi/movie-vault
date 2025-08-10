@@ -1,3 +1,5 @@
+use std::os::unix::net::UnixDatagram;
+
 mod media_scanner;
 mod metadata_extractor;
 mod omdb_meta_data;
@@ -53,6 +55,21 @@ fn get_video_by_id_app(video_id: i64) -> Result<Option<metadata_extractor::Video
     sqlite::get_video_by_id_from_db(video_id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn update_video_imdb_app(video_id: i64, imdb_id: &str, api_key: &str) -> Result<(), String> {
+    let imdb = omdb_meta_data::get_omdb_by_id(imdb_id, api_key)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    if let Some(data) = imdb {
+        sqlite::insert_imdb_metadata_to_db(&data).map_err(|e| e.to_string())?;
+        sqlite::update_video_imdb_to_db(video_id, imdb_id).map_err(|e| e.to_string())?;
+        Ok(())
+    } else {
+        Err("omdb can't find movie".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -67,7 +84,8 @@ pub fn run() {
             get_genres_app,
             search_videos_app,
             get_video_by_id_app,
-            get_actors_app
+            get_actors_app,
+            update_video_imdb_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

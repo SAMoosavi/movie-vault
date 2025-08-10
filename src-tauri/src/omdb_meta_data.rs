@@ -1,4 +1,7 @@
-use crate::metadata_extractor::{ImdbMetaData, VideoMetaData};
+use crate::{
+    metadata_extractor::{ImdbMetaData, VideoMetaData},
+    omdb_meta_data,
+};
 
 use futures::future::join_all;
 use rayon::prelude::*;
@@ -109,6 +112,28 @@ async fn fetch_omdb_metadata(
         .into_iter()
         .filter_map(Result::ok)
         .collect()
+}
+
+pub async fn get_omdb_by_id(imdb_id: &str, api_key: &str) -> reqwest::Result<Option<ImdbMetaData>> {
+    let base_url =
+        std::env::var("OMDB_API_URL").unwrap_or_else(|_| "https://www.omdbapi.com".into());
+
+    let url = format!("{base_url}/?apikey={api_key}&i={imdb_id}");
+    let client = Client::new();
+
+    let result = async {
+        let body = client.get(&url).send().await?.text().await?;
+        let parsed = serde_json::from_str::<OmdbMovie>(&body).ok();
+        Ok::<_, reqwest::Error>(parsed)
+    }
+    .await;
+
+    let data = match result? {
+        Some(omdb) => Some(ImdbMetaData::from(omdb)),
+        None => None,
+    };
+
+    Ok(data)
 }
 
 pub async fn get_omdb_metadata(
@@ -322,5 +347,34 @@ mod test_get_omdb_metadata {
         };
 
         assert_eq!(vec![result_video], result);
+    }
+
+    #[tokio::test]
+    async fn test_get_omdb_with_id() {
+        let result = get_omdb_by_id("tt0381849", "4c602a26").await;
+        let ans = Some( ImdbMetaData {
+            title: "3:10 to Yuma".into(),
+            year: "2007".into(),
+            rated: "R".into(),
+            released: "07 Sep 2007".into(),
+            runtime: "122 min".into(),
+            genre: vec!["Action".into(),"Crime".into(),"Drama".into()],
+            directors: vec!["James Mangold".into()],
+            writers: vec!["Halsted Welles".into(),"Michael Brandt".into(),"Derek Haas".into()],
+            actors: vec!["Russell Crowe".into(),"Christian Bale".into(),"Ben Foster".into()],
+            plot: "A small-time rancher agrees to hold a captured outlaw who's awaiting a train to go to court in Yuma. A battle of wills ensues as the outlaw tries to psych out the rancher.".into(),
+            languages: vec!["English".into(),"Chinese".into()],
+            country: vec!["United States".into()],
+            awards: "Nominated for 2 Oscars. 3 wins & 32 nominations total".into(),
+            poster: "https://m.media-amazon.com/images/M/MV5BODE0NTcxNTQzNF5BMl5BanBnXkFtZTcwMzczOTIzMw@@._V1_SX300.jpg".into(),
+            imdb_rating: "7.6".into(),
+            imdb_votes: "342,944".into(),
+            imdb_id: "tt0381849".into(),
+            box_office: Some("$53,606,916".into()),
+            total_seasons: None,
+            r#type: "movie".into()
+        });
+
+        assert_eq!(ans, result.unwrap());
     }
 }
