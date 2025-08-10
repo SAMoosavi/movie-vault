@@ -11,13 +11,35 @@
       "identifier": "opener:allow-open-path",
       "allow": [
         {
-          "path": "/"
+          "path": "/**"
         }
       ]
     },
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://*" }]
+      "allow": [
+        {
+          "url": "https://*"
+        }
+      ]
+    },
+    "fs:default",
+    "fs:allow-unwatch",
+    {
+      "identifier": "fs:allow-watch",
+      "allow": [
+        {
+          "path": "/**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "/**"
+        }
+      ]
     }
   ]
 }

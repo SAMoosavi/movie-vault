@@ -16,6 +16,9 @@ importers:
       '@tauri-apps/plugin-dialog':
         specifier: ~2.3.2
         version: 2.3.2
+      '@tauri-apps/plugin-fs':
+        specifier: ~2.4.1
+        version: 2.4.1
       '@tauri-apps/plugin-http':
         specifier: ~2.5.1
         version: 2.5.1
@@ -31,6 +34,9 @@ importers:
       pinia:
         specifier: ^3.0.3
         version: 3.0.3(typescript@5.8.3)(vue@3.5.18(typescript@5.8.3))
+      pinia-plugin-persistedstate:
+        specifier: ^4.4.1
+        version: 4.4.1(pinia@3.0.3(typescript@5.8.3)(vue@3.5.18(typescript@5.8.3)))
       tailwindcss:
         specifier: ^4.1.11
         version: 4.1.11
@@ -729,6 +735,10 @@ packages:
     resolution:
       { integrity: sha512-cNLo9YeQSC0MF4IgXnotHsqEgJk72MBZLXmQPrLA95qTaaWiiaFQ38hIMdZ6YbGUNkr3oni3EhU+AD5jLHcdUA== }
 
+  '@tauri-apps/plugin-fs@2.4.1':
+    resolution:
+      { integrity: sha512-vJlKZVGF3UAFGoIEVT6Oq5L4HGDCD78WmA4uhzitToqYiBKWAvZR61M6zAyQzHqLs0ADemkE4RSy/5sCmZm6ZQ== }
+
   '@tauri-apps/plugin-http@2.5.1':
     resolution:
       { integrity: sha512-SpQ1azXEdQI0UB2NZTIPljJTDEe0bIaKzHYR/k4UQp6yzRYGLC/ktmIgEfQ2RvKAWus8GcYgGr5K6LJPbo/NZw== }
@@ -1077,6 +1087,18 @@ packages:
   deep-is@0.1.4:
     resolution:
       { integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ== }
+
+  deep-pick-omit@1.2.1:
+    resolution:
+      { integrity: sha512-2J6Kc/m3irCeqVG42T+SaUMesaK7oGWaedGnQQK/+O0gYc+2SP5bKh/KKTE7d7SJ+GCA9UUE1GRzh6oDe0EnGw== }
+
+  defu@6.1.4:
+    resolution:
+      { integrity: sha512-mEQCMmwJu317oSz8CwdIOdwf3xMif1ttiM8LTufzc3g6kR+9Pe236twL8j3IYT1F7GfRgGcW6MWxzZjLIkuHIg== }
+
+  destr@2.0.5:
+    resolution:
+      { integrity: sha512-ugFTXCtDZunbzasqBxrK93Ik/DRYsO6S/fedkWEMKqt04xZ4csmnmwGDBAb07QWNaGMAmnTIemsYZCksjATwsA== }
 
   detect-libc@2.0.4:
     resolution:
@@ -1607,6 +1629,21 @@ packages:
       { integrity: sha512-eG2dWTVw5bzqGRztnHExczNxt5VGsE6OwTeCG3fdUf9KBsZzO3R5OIIIzWR+iZA0NtZ+RDVdaoE2dK1cn6jH4g== }
     engines: { node: '>=0.10' }
     hasBin: true
+
+  pinia-plugin-persistedstate@4.4.1:
+    resolution:
+      { integrity: sha512-lmuMPpXla2zJKjxEq34e1E9P9jxkWEhcVwwioCCE0izG45kkTOvQfCzvwhW3i38cvnaWC7T1eRdkd15Re59ldw== }
+    peerDependencies:
+      '@nuxt/kit': '>=3.0.0'
+      '@pinia/nuxt': '>=0.10.0'
+      pinia: '>=3.0.0'
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+      '@pinia/nuxt':
+        optional: true
+      pinia:
+        optional: true
 
   pinia@3.0.3:
     resolution:
@@ -2361,6 +2398,10 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.7.0
 
+  '@tauri-apps/plugin-fs@2.4.1':
+    dependencies:
+      '@tauri-apps/api': 2.7.0
+
   '@tauri-apps/plugin-http@2.5.1':
     dependencies:
       '@tauri-apps/api': 2.7.0
@@ -2698,6 +2739,12 @@ snapshots:
       ms: 2.1.3
 
   deep-is@0.1.4: {}
+
+  deep-pick-omit@1.2.1: {}
+
+  defu@6.1.4: {}
+
+  destr@2.0.5: {}
 
   detect-libc@2.0.4: {}
 
@@ -3099,6 +3146,14 @@ snapshots:
   picomatch@4.0.3: {}
 
   pidtree@0.6.0: {}
+
+  pinia-plugin-persistedstate@4.4.1(pinia@3.0.3(typescript@5.8.3)(vue@3.5.18(typescript@5.8.3))):
+    dependencies:
+      deep-pick-omit: 1.2.1
+      defu: 6.1.4
+      destr: 2.0.5
+    optionalDependencies:
+      pinia: 3.0.3(typescript@5.8.3)(vue@3.5.18(typescript@5.8.3))
 
   pinia@3.0.3(typescript@5.8.3)(vue@3.5.18(typescript@5.8.3)):
     dependencies:

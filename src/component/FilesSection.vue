@@ -64,19 +64,12 @@ import { openPath } from '@tauri-apps/plugin-opener'
 defineProps<{ movie: VideoMetaData }>()
 
 function playFile(path: string) {
-  // Implement play functionality
-  console.log('Playing file:', path)
-  // You can use Tauri's shell API to open the file with default player
   openPath(path).catch((e) => console.log(e))
 }
 
 async function openFileLocation(path: string) {
   try {
-    // Implement open file location functionality
     const dir = await dirname(path)
-    console.log('Opening file location:', path)
-    console.log('Opening dir location:', dir)
-    // You can use Tauri's shell API to open the directory
     await openPath(dir)
   } catch (e) {
     console.log(e)

@@ -38,3 +38,4 @@ dotenv = "0.15"
 wiremock = "0.6.4"
 tauri-plugin-dialog = "2"
 tauri-plugin-http = "2"
+tauri-plugin-fs = { version = "2", features = ["watch"] }
