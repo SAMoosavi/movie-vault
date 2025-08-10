@@ -48,6 +48,7 @@ export interface VideoMetaData {
 type ContentType = 'all' | 'movie' | 'series';
 type NullableBool = boolean | null;
 type NullableNumber = number | null;
+type NumericalString = [number, string];
 
 export interface FilterValues {
   type: ContentType;
