@@ -596,7 +596,7 @@ fn get_imdb_field(
 }
 
 fn get_countries(conn: &Connection) -> Result<Vec<(usize, String)>> {
-    let mut stmt = conn.prepare("SELECT id, name FROM countries")?;
+    let mut stmt = conn.prepare("SELECT id, name FROM countries ORDER BY name")?;
 
     let countries = stmt
         .query_map([], |row| {
@@ -609,7 +609,7 @@ fn get_countries(conn: &Connection) -> Result<Vec<(usize, String)>> {
 }
 
 fn get_actors(conn: &Connection) -> Result<Vec<(usize, String)>> {
-    let mut stmt = conn.prepare("SELECT id, name FROM actors")?;
+    let mut stmt = conn.prepare("SELECT id, name FROM actors ORDER BY name")?;
 
     let countries = stmt
         .query_map([], |row| {
@@ -622,7 +622,7 @@ fn get_actors(conn: &Connection) -> Result<Vec<(usize, String)>> {
 }
 
 fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
-    let mut stmt = conn.prepare("SELECT id, name FROM genres")?;
+    let mut stmt = conn.prepare("SELECT id, name FROM genres ORDER BY name")?;
 
     let genres = stmt
         .query_map([], |row| {
