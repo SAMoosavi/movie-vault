@@ -1,5 +1,3 @@
-use std::os::unix::net::UnixDatagram;
-
 mod media_scanner;
 mod metadata_extractor;
 mod omdb_meta_data;

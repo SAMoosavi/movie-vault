@@ -689,7 +689,7 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         query.push_str(" LEFT JOIN imdb_countries ic ON im.imdb_id = ic.imdb_id\n");
         let placeholders: Vec<String> = filters.country.iter().map(|_| "?".to_string()).collect();
         let in_clause = placeholders.join(",");
-        where_conditions.push(format!("ic.country_id IN ({})", in_clause));
+        where_conditions.push(format!("ic.country_id IN ({in_clause})"));
         for country_id in &filters.country {
             params.push(Box::new(country_id.0));
         }
@@ -699,7 +699,7 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         query.push_str(" LEFT JOIN imdb_genres ig ON im.imdb_id = ig.imdb_id\n");
         let placeholders: Vec<String> = filters.genre.iter().map(|_| "?".to_string()).collect();
         let in_clause = placeholders.join(",");
-        where_conditions.push(format!("ig.genre_id IN ({})", in_clause));
+        where_conditions.push(format!("ig.genre_id IN ({in_clause})"));
         for genre_id in &filters.genre {
             params.push(Box::new(genre_id.0));
         }
@@ -709,7 +709,7 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         query.push_str(" LEFT JOIN imdb_actors ia ON im.imdb_id = ia.imdb_id\n");
         let placeholders: Vec<String> = filters.actor.iter().map(|_| "?".to_string()).collect();
         let in_clause = placeholders.join(",");
-        where_conditions.push(format!("ia.actor_id IN ({})", in_clause));
+        where_conditions.push(format!("ia.actor_id IN ({in_clause})"));
         for actor_id in &filters.actor {
             params.push(Box::new(actor_id.0));
         }

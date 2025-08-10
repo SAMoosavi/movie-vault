@@ -1,7 +1,4 @@
-use crate::{
-    metadata_extractor::{ImdbMetaData, VideoMetaData},
-    omdb_meta_data,
-};
+use crate::metadata_extractor::{ImdbMetaData, VideoMetaData};
 
 use futures::future::join_all;
 use rayon::prelude::*;
@@ -128,10 +125,7 @@ pub async fn get_omdb_by_id(imdb_id: &str, api_key: &str) -> reqwest::Result<Opt
     }
     .await;
 
-    let data = match result? {
-        Some(omdb) => Some(ImdbMetaData::from(omdb)),
-        None => None,
-    };
+    let data = result?.map(ImdbMetaData::from);
 
     Ok(data)
 }
