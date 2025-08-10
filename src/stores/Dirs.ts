@@ -19,4 +19,10 @@ export const useDirsStore = defineStore('dirs', () => {
   }
 
   return { dir_path, push, pop }
-})
+},
+  {
+    persist: {
+      storage: localStorage,
+      pick: ['dir_path'],
+    }
+  })
