@@ -3,5 +3,21 @@
   "identifier": "default",
   "description": "Capability for the main window",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:default", "opener:default", "opener:allow-open-path"]
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "/"
+        }
+      ]
+    },
+    {
+      "identifier": "http:default",
+      "allow": [{ "url": "https://*" }]
+    }
+  ]
 }

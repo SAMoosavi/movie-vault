@@ -1,5 +1,7 @@
 <template>
-  <div v-if="!movie">loading...</div>
+  <div v-if="!movie" class="flex justify-center items-center h-64">
+    <div class="loading loading-spinner loading-lg"></div>
+  </div>
   <div v-else class="bg-base-200 min-h-screen p-4 md:p-8">
     <div class="mx-auto max-w-6xl">
       <!-- Back Button -->
@@ -12,7 +14,7 @@
       <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
         <div class="card bg-base-100">
           <div class="card-body">
-            <div class="flex flex-col gap-8 md:flex-row">
+            <div v-if="movie.imdb_metadata" class="flex flex-col gap-8 md:flex-row">
               <!-- Poster -->
               <div class="flex-shrink-0">
                 <div class="w-64 rounded-lg shadow-lg">
@@ -94,6 +96,71 @@
                 </div>
               </div>
             </div>
+
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text font-semibold">Search Imdb of {{ movie.name }}</span> <span v-if="movie.year">
+                  ({{ movie.year }})</span>
+              </label>
+              <div>
+                <input v-model="movieName" type="text" placeholder="Enter movie name..."
+                  class="input input-bordered w-full mt-3" />
+              </div>
+            </div>
+
+            <!-- Search Results -->
+            <div v-if="loading" class="mt-6">
+              <h3 class="text-xl font-semibold mb-4">Search Results</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div v-for="i in 6" :key="i"
+                  class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
+                  <div class="card card-compact bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                    <figure class="h-48 bg-base-200 rounded-t-2xl">
+                      <div class="w-full h-full bg-base-300 rounded-t-2xl skeleton"></div>
+                    </figure>
+                    <div class="card-body">
+                      <div class="h-6 bg-base-300 rounded w-3/4 mb-2 skeleton"></div>
+                      <div class="h-4 bg-base-300 rounded w-1/2 skeleton"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="searchItems.length > 0" class="mt-6">
+              <h3 class="text-xl font-semibold mb-4">Search Results</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+                <div v-for="item in searchItems" :key="item['#IMDB_ID']"
+                  class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl transition-all duration-200 hover:scale-105">
+                  <div class="card card-compact  bg-base-100 shadow-lg hover:shadow-xl transition-shadow cursor-pointer"
+                    @click="selectMovie(item['#IMDB_ID'])">
+                    <figure class="h-48">
+                      <img
+                        :src="item['#IMG_POSTER'] !== 'N/A' ? item['#IMG_POSTER'] : 'https://placehold.co/300x450?text=No+Image'"
+                        :alt="item['#TITLE']" class="object-cover w-full h-full" />
+                    </figure>
+                    <div class="card-body">
+                      <h4 class="card-title text-lg">{{ item['#TITLE'] }}</h4>
+                      <p class="text-sm opacity-70">{{ item["#YEAR"] }}</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- No Results -->
+            <div v-else-if="searchItems.length === 0 && movieName" class="text-center py-8">
+              <i data-lucide="search-x" class="h-16 w-16 mx-auto text-base-content/30 mb-4"></i>
+              <p class="text-base-content/70">No movies found for "{{ movieName }}"</p>
+            </div>
+
+            <!-- Empty State -->
+            <div v-else class="text-center py-12">
+              <i data-lucide="search" class="h-16 w-16 mx-auto text-base-content/30 mb-4"></i>
+              <p class="text-base-content/70">Enter a movie name to search for information</p>
+            </div>
+
           </div>
         </div>
       </div>
@@ -125,7 +192,7 @@
                     <div class="text-base-content/70 max-w-xs truncate text-sm">{{ file.path }}</div>
                   </td>
                   <td>
-                    <div class="badge badge-outline">{{ file.quality }}</div>
+                    <div class="badge badge-outline">{{ file.quality || 'N/A' }}</div>
                   </td>
                   <td>
                     <div class="flex gap-1">
@@ -152,24 +219,6 @@
               </tbody>
             </table>
           </div>
-
-          <div v-if="!movie.files_data || movie.files_data.length === 0" class="py-8 text-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="text-base-content/30 mx-auto mb-4 h-12 w-12"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p class="text-base-content/70">No files available for this movie</p>
-          </div>
         </div>
       </div>
     </div>
@@ -177,13 +226,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import type { VideoMetaData } from '../type'
 import { useRoute } from 'vue-router'
 import { get_video_by_id } from '../functions/invoker'
 import { ArrowLeft, Star, FileText } from 'lucide-vue-next'
 import { dirname } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
+import { fetch } from '@tauri-apps/plugin-http'
 
 function playFile(path: string) {
   // Implement play functionality
@@ -211,5 +261,45 @@ const route = useRoute()
 
 onMounted(async () => {
   movie.value = await get_video_by_id(+route.params.id)
+  movieName.value = movie.value?.name
 })
+
+const movieName = ref('');
+
+interface MovieSearchResult {
+  ok: boolean;
+  description: SearchedMovie[];
+  error_code: number;
+}
+
+interface SearchedMovie {
+  "#TITLE": string;
+  "#YEAR": number;
+  "#IMDB_ID": string;
+  "#RANK": number;
+  "#ACTORS": string;
+  "#AKA": string;
+  "#IMDB_URL": string;
+  "#IMDB_IV": string;
+  "#IMG_POSTER"?: string;
+  photo_width?: number;
+  photo_height?: number;
+}
+
+const searchItems = ref<SearchedMovie[]>([])
+const loading = ref(false)
+async function searchMovies(title: string) {
+  loading.value = true
+  const response = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(title)}`);
+  const result: MovieSearchResult = await response.json();
+  searchItems.value = result.description
+  loading.value = false
+}
+
+watch(movieName, searchMovies)
+
+function selectMovie(movie: string) {
+  console.log(movie);
+}
+
 </script>
