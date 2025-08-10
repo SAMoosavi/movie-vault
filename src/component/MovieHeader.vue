@@ -1,6 +1,6 @@
 <template>
   <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
-    <div class="card  lg:card-side bg-base-100">
+    <div class="card lg:card-side bg-base-100">
       <!-- Poster -->
       <figure class="w-full lg:w-1/4">
         <img :src="movie.imdb_metadata?.poster" :alt="movie.imdb_metadata?.title" />
@@ -87,9 +87,8 @@
 </template>
 
 <script setup lang="ts">
-import type { VideoMetaData } from '../type';
+import type { VideoMetaData } from '../type'
 import { Star } from 'lucide-vue-next'
-
 
 defineProps<{ movie: VideoMetaData }>()
 defineEmits(['edit'])

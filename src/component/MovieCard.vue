@@ -3,7 +3,7 @@
     :to="{ name: 'movie_page', params: { id: movie.id.toString() } }"
     class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5 transition-all duration-200 hover:scale-[1.02]"
   >
-    <div class="card bg-base-100">
+    <div class="card bg-base-100 h-full">
       <figure class="relative">
         <img
           :src="movie.imdb_metadata?.poster"

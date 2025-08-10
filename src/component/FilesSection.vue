@@ -29,12 +29,8 @@
               </td>
               <td>
                 <div class="flex gap-1">
-                  <div class="badge badge-sm" :class="file.has_soft_sub ? 'badge-success' : 'badge-ghost'">
-                    Soft
-                  </div>
-                  <div class="badge badge-sm" :class="file.has_hard_sub ? 'badge-success' : 'badge-ghost'">
-                    Hard
-                  </div>
+                  <div class="badge badge-sm" :class="file.has_soft_sub ? 'badge-success' : 'badge-ghost'">Soft</div>
+                  <div class="badge badge-sm" :class="file.has_hard_sub ? 'badge-success' : 'badge-ghost'">Hard</div>
                 </div>
               </td>
               <td>
@@ -65,7 +61,6 @@ import { FileText } from 'lucide-vue-next'
 import { dirname } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
 
-
 defineProps<{ movie: VideoMetaData }>()
 
 function playFile(path: string) {
@@ -87,5 +82,4 @@ async function openFileLocation(path: string) {
     console.log(e)
   }
 }
-
 </script>
