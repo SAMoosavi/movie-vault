@@ -275,7 +275,7 @@ fn detect_quality(input: &str) -> Option<String> {
 
 fn detect_dubbed(input: &str) -> bool {
     // Matches "dub", "dubbed", or "farsi" as whole words, case-insensitive
-    let re = Regex::new(r"(?i)\b(dub|dubbed|farsi)\b").unwrap();
+    let re = Regex::new(r"(?i)\b(dub|dubbed|farsi)\b").unwrap(); // Secret.Invasion.S01E01.720p.WEB-DL.PAHE.Farsi.Sub.Film2Media.mkv -> not be match
     re.is_match(input)
 }
 
@@ -285,7 +285,7 @@ fn detect_hard_sub(input: &str) -> bool {
 }
 
 fn detect_soft_sub(input: &str) -> bool {
-    let re = Regex::new(r"(?i)\bsoft[\s._-]?(sub|subtitle)\b").unwrap();
+    let re = Regex::new(r"(?i)\bsoft[\s._-]?(sub|subtitle)\b").unwrap(); // Secret.Invasion.S01E01.720p.WEB-DL.PAHE.Farsi.Sub.Film2Media.mkv -> be match
     re.is_match(input)
 }
 
