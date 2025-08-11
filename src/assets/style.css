@@ -1,5 +1,10 @@
 @import 'tailwindcss';
-@plugin "daisyui";
+@plugin "daisyui" {
+  themes:
+    dracula --default,
+    winter,
+    lemonade;
+}
 
 :root {
   --toastify-color-light: var(--color-base-300) !important;
@@ -21,10 +26,10 @@
   --toastify-z-index: 9999;
   --toastify-text-color-light: var(--color-base-content) !important;
   --toastify-text-color-dark: var(--color-base-content) !important;
-  --toastify-text-color-info: #fff;
-  --toastify-text-color-success: #fff;
-  --toastify-text-color-warning: #fff;
-  --toastify-text-color-error: #fff;
+  --toastify-text-color-info: var(--color-info-content) !important;
+  --toastify-text-color-success: var(--color-success-content) !important;
+  --toastify-text-color-warning: var(--color-warning-content) !important;
+  --toastify-text-color-error: var(--color-error-content) !important;
   --toastify-spinner-color: #616161;
   --toastify-spinner-color-empty-area: #e0e0e0;
   --toastify-color-progress-light: linear-gradient(90deg, #4cd964, #5ac8fa, #007aff, #34aadc, #5856d6, #ff2d55);

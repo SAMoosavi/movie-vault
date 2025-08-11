@@ -35,11 +35,11 @@
     <!-- Search and Actions -->
     <div class="navbar-end flex items-center gap-2">
       <!-- Theme Toggle -->
-      <label class="swap swap-rotate">
-        <input type="checkbox" class="theme-controller" value="synthwave" />
-        <Sun class="swap-off h-5 w-5" />
-        <Moon class="swap-on h-5 w-5" />
-      </label>
+      <button @click="() => (themNumber = (themNumber + 1) % 3)" class="btn btn-circle btn-ghost">
+        <Sun v-if="themNumber == 0" class="h-5 w-5" />
+        <Moon v-if="themNumber == 1" class="h-5 w-5" />
+        <Coffee v-if="themNumber == 2" class="h-5 w-5" />
+      </button>
 
       <!-- Add Folder Button -->
       <button class="btn btn-primary btn-sm" @click="handleAddDirectory">
@@ -52,11 +52,12 @@
 
 <script setup lang="ts">
 import { open } from '@tauri-apps/plugin-dialog'
-import { FolderPlus, Sun, Moon, AlignJustify } from 'lucide-vue-next'
+import { FolderPlus, Sun, Moon, AlignJustify, Coffee } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { useVideosStore } from '../stores/Videos'
 import { useDirsStore } from '../stores/Dirs'
 import { sync_app } from '../functions/invoker'
+import { onMounted, ref, watch } from 'vue'
 
 const videos = useVideosStore()
 const dirs = useDirsStore()
@@ -96,4 +97,28 @@ async function handleAddDirectory() {
     toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
+
+const thems = ['dracula', 'winter', 'lemonade']
+const themNumber = ref(0)
+
+function setThem(index: number) {
+  document.documentElement.setAttribute('data-theme', thems[index])
+  localStorage.setItem('theme', index.toString())
+}
+
+watch(themNumber, setThem)
+
+onMounted(() => {
+  let savedThemeNumber = 0
+  const savedThemeNumberStr = localStorage.getItem('theme')
+  if (savedThemeNumberStr) {
+    savedThemeNumber = +savedThemeNumberStr
+  } else {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    if (prefersDark) savedThemeNumber = 0
+    else savedThemeNumber = 1
+  }
+  themNumber.value = savedThemeNumber
+  setThem(savedThemeNumber)
+})
 </script>
