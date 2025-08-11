@@ -94,9 +94,9 @@ pub fn get_metadata(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData
             meta.subtitle_path = subtitles_by_dir.get(dir).and_then(|subs| {
                 let name_lower = meta.name.to_lowercase();
 
-                match meta.series {
+                match &meta.series {
                     Some(series) => subs.par_iter().find_any(|(sub_stem, _)| {
-                        detect_series(sub_stem) == Some(series) && sub_stem.contains(&name_lower)
+                        detect_series(sub_stem) == Some(series.clone()) && sub_stem.contains(&name_lower)
                     }),
                     None => subs
                         .par_iter()

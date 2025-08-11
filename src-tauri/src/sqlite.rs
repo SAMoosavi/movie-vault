@@ -322,8 +322,19 @@ fn insert_video_metadata(
     series_id: Option<u32>,
     imdb_id: Option<&str>,
 ) -> Result<u32> {
+    let existing_id = conn.query_row(
+        "SELECT id FROM video_metadata WHERE name = ?1",
+        [&name],
+        |row| row.get(0),
+    ).optional()?;
+
+    if let Some(id) = existing_id {
+        return Ok(id);
+    }
+
+    // If not exists, insert new record
     conn.execute(
-        "INSERT OR IGNORE INTO video_metadata (name, subtitle_path, year, series_id, imdb_id)
+        "INSERT INTO video_metadata (name, subtitle_path, year, series_id, imdb_id)
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             name,
@@ -333,12 +344,13 @@ fn insert_video_metadata(
             imdb_id,
         ],
     )?;
+
     Ok(conn.last_insert_rowid() as u32)
 }
 
-fn insert_video_file_data(conn: &Connection, video_id: u32, file: &VideoFileData) -> Result<()> {
-    conn.execute(
-        "INSERT INTO video_file_data (
+fn insert_video_file_data(conn: &Connection, video_id: u32, file: &VideoFileData) -> Result<bool> {
+    let changes = conn.execute(
+        "INSERT OR IGNORE INTO video_file_data (
             video_id, title, path, quality,
             has_hard_sub, has_soft_sub, is_dubbed
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -352,7 +364,8 @@ fn insert_video_file_data(conn: &Connection, video_id: u32, file: &VideoFileData
             file.is_dubbed as i32,
         ],
     )?;
-    Ok(())
+
+    Ok(changes > 0)
 }
 
 fn update_video_imdb(conn: &Connection, video_id: i64, imdb_id: &str) -> Result<()> {
@@ -361,19 +374,6 @@ fn update_video_imdb(conn: &Connection, video_id: i64, imdb_id: &str) -> Result<
         [imdb_id, &video_id.to_string()],
     )?;
     Ok(())
-}
-pub fn update_video_imdb_to_db(video_id: i64, imdb_id: &str) -> Result<()> {
-    let conn = create_conn()?;
-    update_video_imdb(&conn, video_id, imdb_id)
-}
-
-pub fn insert_imdb_metadata_to_db(imdb: &ImdbMetaData) -> Result<()> {
-    let mut conn = create_conn()?;
-    let tx = conn.transaction()?;
-    if insert_imdb_metadata(&tx, imdb)? {
-        insert_imdb_lists(&tx, imdb)?;
-    }
-    tx.commit()
 }
 
 pub fn insert(data: &[VideoMetaData]) -> Result<()> {
@@ -817,6 +817,20 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
     } else {
         Ok(None)
     }
+}
+
+pub fn update_video_imdb_to_db(video_id: i64, imdb_id: &str) -> Result<()> {
+    let conn = create_conn()?;
+    update_video_imdb(&conn, video_id, imdb_id)
+}
+
+pub fn insert_imdb_metadata_to_db(imdb: &ImdbMetaData) -> Result<()> {
+    let mut conn = create_conn()?;
+    let tx = conn.transaction()?;
+    if insert_imdb_metadata(&tx, imdb)? {
+        insert_imdb_lists(&tx, imdb)?;
+    }
+    tx.commit()
 }
 
 pub fn remove_orphaned_video_metadata_from_db() -> Result<()> {
