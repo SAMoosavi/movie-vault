@@ -93,9 +93,16 @@ pub fn get_metadata(found_files: media_scanner::FoundFiles) -> Vec<VideoMetaData
 
             meta.subtitle_path = subtitles_by_dir.get(dir).and_then(|subs| {
                 let name_lower = meta.name.to_lowercase();
-                subs.par_iter()
-                    .find_any(|(sub_stem, _)| sub_stem.contains(&name_lower))
-                    .map(|(_, path)| path.to_path_buf())
+
+                match meta.series {
+                    Some(series) => subs.par_iter().find_any(|(sub_stem, _)| {
+                        detect_series(sub_stem) == Some(series) && sub_stem.contains(&name_lower)
+                    }),
+                    None => subs
+                        .par_iter()
+                        .find_any(|(sub_stem, _)| sub_stem.contains(&name_lower)),
+                }
+                .map(|(_, path)| path.to_path_buf())
             });
 
             meta
@@ -153,7 +160,7 @@ fn detect_metadata(path: PathBuf) -> VideoMetaData {
             quality: detect_quality(&normalized),
             is_dubbed: detect_dubbed(&normalized),
             has_hard_sub: detect_hard_sub(&normalized),
-            has_soft_sub: detect_soft_sub(&normalized),
+            has_soft_sub: detect_soft_sub(&normalized) && !detect_hard_sub(&normalized),
         }],
         series: detect_series(&normalized),
         imdb_metadata: None,
@@ -274,18 +281,22 @@ fn detect_quality(input: &str) -> Option<String> {
 }
 
 fn detect_dubbed(input: &str) -> bool {
+    if input.contains("sub") || input.contains("subtitle") {
+        return false;
+    }
+
     // Matches "dub", "dubbed", or "farsi" as whole words, case-insensitive
-    let re = Regex::new(r"(?i)\b(dub|dubbed|farsi)\b").unwrap(); // Secret.Invasion.S01E01.720p.WEB-DL.PAHE.Farsi.Sub.Film2Media.mkv -> not be match
+    let re = Regex::new(r"(?i)\b(dub|dubbed|farsi)\b").unwrap();
     re.is_match(input)
 }
 
 fn detect_hard_sub(input: &str) -> bool {
-    let re = Regex::new(r"(?i)\bhard[\s._-]?(sub|subtitle)\b").unwrap();
+    let re = Regex::new(r"(?i)\bhard\s?(hardsub|sub|subtitle)\b").unwrap();
     re.is_match(input)
 }
 
 fn detect_soft_sub(input: &str) -> bool {
-    let re = Regex::new(r"(?i)\bsoft[\s._-]?(sub|subtitle)\b").unwrap(); // Secret.Invasion.S01E01.720p.WEB-DL.PAHE.Farsi.Sub.Film2Media.mkv -> be match
+    let re = Regex::new(r"(?i)\b(softsub|sub|subtitle)\b").unwrap();
     re.is_match(input)
 }
 
@@ -373,10 +384,10 @@ mod detect_sub_tests {
     #[test]
     fn test_detect_hard_sub_cases() {
         let positives = [
-            "movie.hardsub.mkv",
+            "movie hardsub mkv",
             "hard sub release",
-            "hard.sub.version",
-            "this-is-hardsub",
+            "hard sub version",
+            "this is hardsub",
         ];
 
         for case in positives {
@@ -397,11 +408,12 @@ mod detect_sub_tests {
     #[test]
     fn test_detect_soft_sub_cases() {
         let positives = [
-            "movie.softsub.mkv",
+            "movie softsub mkv",
             "soft sub release",
-            "soft.sub.version",
-            "this-is-softsub",
-            "soft.subtitle",
+            "soft sub version",
+            "this is softsub",
+            "soft subtitle",
+            "subtitle",
         ];
 
         for case in positives {
@@ -411,7 +423,7 @@ mod detect_sub_tests {
             );
         }
 
-        let negatives = ["hardsub", "subtitle", "audio.hardtrack"];
+        let negatives = ["hardsub", "audio.hardtrack"];
         for case in negatives {
             assert!(
                 !detect_soft_sub(case),
@@ -451,6 +463,7 @@ mod detect_dubbed_tests {
             "no subtitles",
             "audio track",
             "farsight analysis",
+            "secret invasion s01e01 720p web-dl farsi sub",
         ];
 
         for input in negatives {
