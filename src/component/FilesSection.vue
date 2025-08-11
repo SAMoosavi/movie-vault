@@ -22,7 +22,12 @@
             <tr v-for="file in movie.files_data" :key="file.path">
               <td>
                 <div class="font-medium">{{ file.title }}</div>
-                <div class="text-base-content/70 max-w-xs truncate text-sm">{{ file.path }}</div>
+                <div class="tooltip tooltip-primary">
+                  <div class="tooltip-content">
+                    <div class="text-base-content/70 w-full text-xs wrap-break-word">{{ file.path }}</div>
+                  </div>
+                  <button class="max-w-xs truncate">{{ file.path }}</button>
+                </div>
               </td>
               <td>
                 <div class="badge badge-outline">{{ file.quality || 'N/A' }}</div>
@@ -42,9 +47,9 @@
                 <div class="flex gap-2">
                   <button class="btn btn-xs btn-primary" @click="playFile(file.path)">Play</button>
                   <button class="btn btn-xs btn-secondary" @click="openFileLocation(file.path)">Location</button>
-                  <button class="btn btn-xs btn-primary" @click="openFileLocation(file.path)">Move</button>
-                  <button class="btn btn-xs btn-secondary" @click="openFileLocation(file.path)">Copy</button>
-                  <button class="btn btn-xs btn-primary" @click="openFileLocation(file.path)">Delete</button>
+                  <button class="btn btn-xs btn-primary" @click="MoveFile(file.path)">Move</button>
+                  <button class="btn btn-xs btn-secondary" @click="CopyFile(file.path)">Copy</button>
+                  <button class="btn btn-xs btn-primary" @click="DeleteFile(file.path)">Delete</button>
                 </div>
               </td>
             </tr>
@@ -58,13 +63,17 @@
 <script setup lang="ts">
 import type { VideoMetaData } from '../type'
 import { FileText } from 'lucide-vue-next'
-import { dirname } from '@tauri-apps/api/path'
+import { basename, dirname, join } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
+import { copyFile, rename, remove } from '@tauri-apps/plugin-fs'
+import { open } from '@tauri-apps/plugin-dialog'
+import { toast } from 'vue3-toastify'
 
 defineProps<{ movie: VideoMetaData }>()
+const emit = defineEmits(['reload'])
 
 function playFile(path: string) {
-  openPath(path).catch((e) => console.log(e))
+  openPath(path).catch((e) => console.error('Error playing file:', e))
 }
 
 async function openFileLocation(path: string) {
@@ -72,7 +81,72 @@ async function openFileLocation(path: string) {
     const dir = await dirname(path)
     await openPath(dir)
   } catch (e) {
-    console.log(e)
+    console.error('Error opening location:', e)
+  }
+}
+
+async function MoveFile(path: string) {
+  try {
+    const targetDir = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select target folder',
+    })
+    if (!targetDir) return
+
+    const fileName = await basename(path)
+    const targetPath = await join(targetDir, fileName)
+
+    toast.info('Move started...')
+
+    try {
+      await rename(path, targetPath)
+    } catch (err: unknown) {
+      if (String(err).includes('Invalid cross-device link')) {
+        await copyFile(path, targetPath)
+        await remove(path)
+      } else {
+        throw err
+      }
+    }
+
+    toast.success('File moved successfully')
+    emit('reload')
+  } catch (e) {
+    toast.error('Move failed!')
+    console.error('Error moving file:', e)
+  }
+}
+
+async function CopyFile(path: string) {
+  try {
+    const targetDir = await open({
+      directory: true,
+      multiple: false,
+      title: 'Select target folder',
+    })
+    if (!targetDir) return
+
+    const fileName = await basename(path)
+    const targetPath = await join(targetDir, fileName)
+
+    toast.info('copy started...')
+    await copyFile(path, targetPath)
+    toast.success('File copied successfully')
+  } catch (e) {
+    toast.error('copy Failed!')
+
+    console.error('Error copying file:', e)
+  }
+}
+
+async function DeleteFile(path: string) {
+  try {
+    await remove(path)
+    toast.success('File deleted successfully')
+    emit('reload')
+  } catch (e) {
+    console.error('Error deleting file:', e)
   }
 }
 </script>

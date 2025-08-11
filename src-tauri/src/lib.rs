@@ -49,8 +49,10 @@ fn search_videos_app(
 }
 
 #[tauri::command]
-fn get_video_by_id_app(video_id: i64) -> Result<Option<metadata_extractor::VideoMetaData>, String> {
-    sqlite::get_video_by_id_from_db(video_id).map_err(|e| e.to_string())
+fn get_video_by_id_app(video_id: i64) -> Result<metadata_extractor::VideoMetaData, String> {
+    sqlite::get_video_by_id_from_db(video_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "movie not found".to_string())
 }
 
 #[tauri::command]
