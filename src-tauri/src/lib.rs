@@ -5,7 +5,7 @@ mod sqlite;
 
 #[tauri::command]
 async fn sync_app_files(root: &str, api_key: &str) -> Result<usize, String> {
-    media_scanner::sync_files().await;
+    media_scanner::sync_files().await.map_err(|e| e.to_string())?;
 
     let found_files = media_scanner::find_movies(root.into()).await;
 

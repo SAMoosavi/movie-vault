@@ -5,12 +5,9 @@ use std::path::PathBuf;
 use tokio::{fs, task};
 use walkdir::WalkDir;
 
-use crate::{
-    metadata_extractor::VideoFileData,
-    sqlite::{
-        get_all_video_files_from_db, get_video_file_by_path_from_db,
-        remove_orphaned_video_metadata_from_db, remove_rows_by_paths,
-    },
+use crate::sqlite::{
+    get_all_video_files_from_db, get_video_file_by_path_from_db,
+    remove_orphaned_video_metadata_from_db, remove_rows_by_paths,
 };
 
 /// Supported video file extensions.
@@ -64,28 +61,29 @@ pub async fn find_movies(root: PathBuf) -> FoundFiles {
     FoundFiles { videos, subtitles }
 }
 
-async fn find_non_existent_paths() -> Vec<VideoFileData> {
-    let files = get_all_video_files_from_db()
-        .unwrap()
+async fn find_non_existent_paths() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+    let files = get_all_video_files_from_db()?
         .into_iter()
         .map(|video| async move {
             let exists = fs::try_exists(&video.path).await.unwrap_or(false);
             if !exists { Some(video) } else { None }
         });
 
-    join_all(files).await.into_iter().flatten().collect()
-}
-
-#[tauri::command]
-pub async fn sync_files() {
-    let paths: Vec<PathBuf> = find_non_existent_paths()
+    let paths = join_all(files)
         .await
-        .iter()
+        .into_iter()
+        .flatten()
         .map(|video| video.path.clone())
         .collect();
-    remove_rows_by_paths(&paths).unwrap();
 
-    remove_orphaned_video_metadata_from_db().unwrap();
+    Ok(paths)
+}
+
+pub async fn sync_files() -> Result<(), Box<dyn std::error::Error>> {
+    let paths = find_non_existent_paths().await?;
+    remove_rows_by_paths(&paths)?;
+    remove_orphaned_video_metadata_from_db()?;
+    Ok(())
 }
 
 #[cfg(test)]
