@@ -69,6 +69,18 @@ async fn update_video_imdb_app(video_id: i64, imdb_id: &str, api_key: &str) -> R
     }
 }
 
+#[tauri::command]
+fn update_video_showed_app(video_id: i64, showed: bool) -> Result<(), String> {
+    sqlite::update_video_showed_to_db(video_id, showed).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn update_video_my_ranking_app(video_id: i64, my_ranking: u8) -> Result<(), String> {
+    sqlite::update_video_my_ranking_to_db(video_id, my_ranking).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -85,7 +97,9 @@ pub fn run() {
             search_videos_app,
             get_video_by_id_app,
             get_actors_app,
-            update_video_imdb_app
+            update_video_imdb_app,
+            update_video_showed_app,
+            update_video_my_ranking_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

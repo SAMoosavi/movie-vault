@@ -18,6 +18,33 @@
         </div>
         <!-- Rating and Meta Info -->
         <div class="mb-4 flex flex-wrap items-center gap-4">
+          <button class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-showed')">
+            <div v-if="movie.showed" class="badge badge-lg badge-success gap-1">
+              <Eye class="h-4 w-4" />
+              <span>Watched</span>
+            </div>
+            <div v-else class="badge badge-lg badge-outline gap-1">
+              <EyeOff class="h-4 w-4" />
+              <span>Not Watched</span>
+            </div>
+          </button>
+
+          <!-- Personal Rating -->
+          <div class="flex items-center gap-2">
+            <span class="font-semibold">My Rating:</span>
+            <div class="flex">
+              <Star
+                v-for="i in 5"
+                :key="i"
+                class="text-warning h-5 w-5 cursor-pointer"
+                :class="{
+                  'text-warning fill-warning': i <= movie.my_ranking,
+                }"
+                @click="$emit('set-ranking', i)"
+              />
+            </div>
+          </div>
+
           <div class="badge badge-lg badge-warning gap-1">
             <Star class="h-5 w-5 fill-current" />
             <span class="font-bold">{{ movie.imdb_metadata?.imdb_rating }}</span>
@@ -88,8 +115,8 @@
 
 <script setup lang="ts">
 import type { VideoMetaData } from '../type'
-import { Star } from 'lucide-vue-next'
+import { Star, Eye, EyeOff } from 'lucide-vue-next'
 
 defineProps<{ movie: VideoMetaData }>()
-defineEmits(['edit'])
+defineEmits(['edit', 'toggle-showed', 'set-ranking'])
 </script>

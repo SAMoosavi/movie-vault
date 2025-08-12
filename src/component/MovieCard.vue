@@ -50,7 +50,7 @@
           </div>
         </div>
         <div class="from-primary/50 to-secondary/50 -mb-3 h-0.5 w-full bg-gradient-to-b"></div>
-        <div v-if="movie.my_ranking > 0" class="mt-3 flex items-center justify-between">
+        <div class="mt-3 flex items-center justify-between">
           <span class="mr-2 text-sm">My Rating:</span>
           <div class="flex">
             <Star

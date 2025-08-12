@@ -32,3 +32,11 @@ export async function get_video_by_id(videoId: number): Promise<VideoMetaData> {
 export async function update_video_imdb(videoId: number, imdbId: string): Promise<void> {
   return await invoke('update_video_imdb_app', { videoId, imdbId, apiKey: '4c602a26' })
 }
+
+export async function update_video_showed(videoId: number, showed: boolean) {
+  return await invoke('update_video_showed_app', { videoId, showed })
+}
+
+export async function update_video_my_ranking(videoId: number, myRanking: number) {
+  return await invoke('update_video_my_ranking_app', { videoId, myRanking })
+}

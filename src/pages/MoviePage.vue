@@ -17,7 +17,13 @@
       <FilesSectionSkeleton />
     </template>
     <template v-else>
-      <MovieHeader v-if="movie.imdb_metadata && !change" :movie="movie" @edit="() => (change = true)" />
+      <MovieHeader
+        v-if="movie.imdb_metadata && !change"
+        :movie="movie"
+        @edit="() => (change = true)"
+        @toggle-showed="toggle_showed"
+        @set-ranking="set_ranking"
+      />
       <SearchMovie v-else :movie="movie" :change="change" @cancel="() => (change = false)" @updated="get_movie" />
 
       <FilesSection :movie="movie" />
@@ -29,7 +35,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { VideoMetaData } from '../type'
 import { useRoute } from 'vue-router'
-import { get_video_by_id } from '../functions/invoker'
+import { get_video_by_id, update_video_my_ranking, update_video_showed } from '../functions/invoker'
 import { ArrowLeft, Hash } from 'lucide-vue-next'
 import MovieHeader from '../component/MovieHeader.vue'
 import SearchMovie from '../component/SearchMovie.vue'
@@ -58,4 +64,12 @@ onMounted(() => {
   interval = setInterval(get_movie, 1000)
 })
 onUnmounted(() => clearInterval(interval))
+
+async function toggle_showed() {
+  if (movie.value) await update_video_showed(movie.value.id, !movie.value.showed)
+}
+
+async function set_ranking(rank: number) {
+  if (movie.value) await update_video_my_ranking(movie.value.id, rank)
+}
 </script>

@@ -167,6 +167,8 @@ mod test_fetch_omdb_metadata {
             files_data: vec![],
             series: None,
             imdb_metadata: None,
+            showed: false,
+            my_ranking: 0,
         };
 
         // Override the API URL for testing
@@ -197,6 +199,8 @@ mod test_fetch_omdb_metadata {
                 episode: 1,
             }),
             imdb_metadata: None,
+            showed: false,
+            my_ranking: 0,
         };
 
         // Override the API URL for testing
@@ -264,6 +268,8 @@ mod test_fetch_omdb_metadata {
             files_data: vec![],
             series: None,
             imdb_metadata: None,
+            showed: false,
+            my_ranking: 0,
         };
 
         // Use the mock server URL instead of real OMDb
@@ -304,6 +310,8 @@ mod test_get_omdb_metadata {
             files_data: vec![],
             series: None,
             imdb_metadata: None,
+            showed: false,
+            my_ranking: 0,
         };
 
         // Override the API URL for testing
@@ -338,6 +346,8 @@ mod test_get_omdb_metadata {
                 total_seasons: None,
                 r#type: "movie".into()
             }),
+            showed: false,
+            my_ranking: 0,
         };
 
         assert_eq!(vec![result_video], result);

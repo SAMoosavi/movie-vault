@@ -829,6 +829,31 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
     }
 }
 
+fn update_video_showed(conn: &Connection, video_id: i64, showed: bool) -> Result<usize> {
+    conn.execute(
+        "UPDATE video_metadata SET showed = ?1 WHERE id = ?2",
+        [&(showed as i32).to_string(), &video_id.to_string()],
+    )
+}
+
+fn update_video_my_ranking(conn: &Connection, video_id: i64, my_ranking: u8) -> Result<usize> {
+    conn.execute(
+        "UPDATE video_metadata SET my_ranking = ?1 WHERE id = ?2",
+        [&my_ranking.to_string(), &video_id.to_string()],
+    )
+}
+
+pub fn update_video_my_ranking_to_db(video_id: i64, my_ranking: u8) -> Result<usize> {
+    let conn = create_conn()?;
+    update_video_my_ranking(&conn, video_id, my_ranking)
+}
+
+
+pub fn update_video_showed_to_db(video_id: i64, showed: bool) -> Result<usize> {
+    let conn = create_conn()?;
+    update_video_showed(&conn, video_id, showed)
+}
+
 pub fn update_video_imdb_to_db(video_id: i64, imdb_id: &str) -> Result<()> {
     let conn = create_conn()?;
     update_video_imdb(&conn, video_id, imdb_id)
