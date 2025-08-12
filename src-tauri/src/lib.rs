@@ -5,7 +5,9 @@ mod sqlite;
 
 #[tauri::command]
 async fn sync_app_files(root: &str, api_key: &str) -> Result<usize, String> {
-    media_scanner::sync_files().await.map_err(|e| e.to_string())?;
+    media_scanner::sync_files()
+        .await
+        .map_err(|e| e.to_string())?;
 
     let found_files = media_scanner::find_movies(root.into()).await;
 
@@ -73,6 +75,7 @@ async fn update_video_imdb_app(video_id: i64, imdb_id: &str, api_key: &str) -> R
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())

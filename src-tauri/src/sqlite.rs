@@ -322,11 +322,13 @@ fn insert_video_metadata(
     series_id: Option<u32>,
     imdb_id: Option<&str>,
 ) -> Result<u32> {
-    let existing_id = conn.query_row(
-        "SELECT id FROM video_metadata WHERE name = ?1",
-        [&name],
-        |row| row.get(0),
-    ).optional()?;
+    let existing_id = conn
+        .query_row(
+            "SELECT id FROM video_metadata WHERE name = ?1",
+            [&name],
+            |row| row.get(0),
+        )
+        .optional()?; // TODO: maybe exist same file name but differ year so fix it
 
     if let Some(id) = existing_id {
         return Ok(id);

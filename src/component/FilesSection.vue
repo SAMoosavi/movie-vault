@@ -6,50 +6,91 @@
         Available Files
         <div class="badge badge-secondary">{{ movie.files_data?.length }} files</div>
       </h2>
-
-      <div class="overflow-x-auto">
+      <div class="border-base-200 overflow-x-auto rounded-lg border shadow-sm">
         <table class="table-zebra table">
-          <thead>
+          <!-- Header with improved styling -->
+          <thead class="bg-primary text-primary-content">
             <tr>
-              <th>Title</th>
-              <th>Quality</th>
-              <th>Subtitles</th>
-              <th>Dubbed</th>
-              <th>Actions</th>
+              <th class="text-center">File Details</th>
+              <th class="text-center">Quality</th>
+              <th class="text-center">Type</th>
+              <th class="text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="file in movie.files_data" :key="file.path">
+            <tr v-for="file in movie.files_data" :key="file.path" class="group hover:bg-base-300">
+              <!-- File Details Column -->
               <td>
                 <div class="font-medium">{{ file.title }}</div>
-                <div class="tooltip tooltip-primary">
-                  <div class="tooltip-content">
-                    <div class="text-base-content/70 w-full text-xs wrap-break-word">{{ file.path }}</div>
-                  </div>
-                  <button class="max-w-xs truncate">{{ file.path }}</button>
+                <div class="tooltip tooltip-primary" data-tip="Click to copy path">
+                  <button
+                    class="link link-hover max-w-xs truncate transition-all duration-300 group-hover:max-w-full"
+                    @click="copyToClipboard(file.path)"
+                  >
+                    {{ file.path }}
+                  </button>
                 </div>
               </td>
-              <td>
-                <div class="badge badge-outline">{{ file.quality || 'N/A' }}</div>
-              </td>
-              <td>
-                <div class="flex gap-1">
-                  <div class="badge badge-sm" :class="file.has_soft_sub ? 'badge-success' : 'badge-ghost'">Soft</div>
-                  <div class="badge badge-sm" :class="file.has_hard_sub ? 'badge-success' : 'badge-ghost'">Hard</div>
+
+              <!-- Quality Column -->
+              <td class="text-center">
+                <div class="badge badge-lg badge-outline">
+                  {{ file.quality || 'N/A' }}
                 </div>
               </td>
-              <td>
-                <div class="badge" :class="file.is_dubbed ? 'badge-primary' : 'badge-ghost'">
-                  {{ file.is_dubbed ? 'Yes' : 'No' }}
+
+              <!-- Type Column -->
+              <td class="text-center">
+                <div class="badge badge-md badge-primary gap-1">
+                  <span v-if="file.has_soft_sub"> Soft Sub </span>
+                  <span v-else-if="file.has_hard_sub"> Hard Sub </span>
+                  <span v-else-if="file.is_dubbed"> Dubbed </span>
+                  <span v-else> unknown </span>
                 </div>
               </td>
-              <td>
-                <div class="flex gap-2">
-                  <button class="btn btn-xs btn-primary" @click="playFile(file.path)">Play</button>
-                  <button class="btn btn-xs btn-secondary" @click="openFileLocation(file.path)">Location</button>
-                  <button class="btn btn-xs btn-primary" @click="MoveFile(file.path)">Move</button>
-                  <button class="btn btn-xs btn-secondary" @click="CopyFile(file.path)">Copy</button>
-                  <button class="btn btn-xs btn-primary" @click="DeleteFile(file.path)">Delete</button>
+
+              <!-- Actions Column -->
+              <td class="py-3">
+                <div class="flex flex-wrap items-center justify-center gap-1">
+                  <button
+                    class="btn btn-xs btn-square btn-primary btn-outline tooltip tooltip-top"
+                    data-tip="Play"
+                    @click="playFile(file.path)"
+                  >
+                    <Play class="h-3 w-3" />
+                  </button>
+
+                  <button
+                    class="btn btn-xs btn-square btn-secondary btn-outline tooltip tooltip-top"
+                    data-tip="Open Location"
+                    @click="openFileLocation(file.path)"
+                  >
+                    <FolderOpen class="h-3 w-3" />
+                  </button>
+
+                  <button
+                    class="btn btn-xs btn-square btn-accent btn-outline tooltip tooltip-top"
+                    data-tip="Move"
+                    @click="MoveFile(file.path)"
+                  >
+                    <Scissors class="h-3 w-3" />
+                  </button>
+
+                  <button
+                    class="btn btn-xs btn-square btn-info btn-outline tooltip tooltip-top"
+                    data-tip="Copy"
+                    @click="CopyFile(file.path)"
+                  >
+                    <Files class="h-3 w-3" />
+                  </button>
+
+                  <button
+                    class="btn btn-xs btn-square btn-error btn-outline tooltip tooltip-top"
+                    data-tip="Delete"
+                    @click="DeleteFile(file.path)"
+                  >
+                    <Trash2 class="h-3 w-3" />
+                  </button>
                 </div>
               </td>
             </tr>
@@ -62,12 +103,13 @@
 
 <script setup lang="ts">
 import type { VideoMetaData } from '../type'
-import { FileText } from 'lucide-vue-next'
+import { Files, FileText, FolderOpen, Play, Scissors, Trash2 } from 'lucide-vue-next'
 import { basename, dirname, join } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { copyFile, rename, remove } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from 'vue3-toastify'
+import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
 defineProps<{ movie: VideoMetaData }>()
 const emit = defineEmits(['reload'])
@@ -140,13 +182,18 @@ async function CopyFile(path: string) {
   }
 }
 
-async function DeleteFile(path: string) {
-  try {
-    await remove(path)
-    toast.success('File deleted successfully')
-    emit('reload')
-  } catch (e) {
-    console.error('Error deleting file:', e)
-  }
+function DeleteFile(path: string) {
+  remove(path)
+    .then(() => {
+      toast.success('File deleted successfully')
+      emit('reload')
+    })
+    .catch((e) => toast.error('Error deleting file:', e))
+}
+
+function copyToClipboard(text: string) {
+  writeText(text)
+    .then(() => toast.success('Path copied to clipboard'))
+    .catch((err) => toast.error(`Failed to copy: ${err}`))
 }
 </script>
