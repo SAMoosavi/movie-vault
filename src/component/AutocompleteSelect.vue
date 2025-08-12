@@ -1,6 +1,9 @@
 <template>
   <div class="dropdown dropdown-start w-full">
-    <div tabindex="0" class="bg-base-100 input flex cursor-text flex-row items-center gap-1 rounded-lg border p-2">
+    <div
+      tabindex="0"
+      class="bg-base-100 input flex w-full cursor-text flex-row items-center gap-1 rounded-lg border p-2"
+    >
       <input v-model="searchTerm" type="text" class="" placeholder="Type to search..." />
 
       <div v-if="selectedItemsModel.length > 2" class="badge badge-primary badge-xs z-10 gap-1">

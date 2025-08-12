@@ -13,6 +13,8 @@ export const useFiltersStore = defineStore('filters', () => {
     existImdb: null,
     existMultiFile: null,
     showed: null,
+    sortBy: 'name',
+    sortDirection: 'asc',
   }
 
   const filters = ref<FilterValues>({ ...defaultFilters })

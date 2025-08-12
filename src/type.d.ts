@@ -5,7 +5,7 @@ export interface SeriesMeta {
 
 export interface VideoFileData {
   title: string
-  path: string // PathBuf as string
+  path: string
   quality?: string
   has_hard_sub: boolean
   has_soft_sub: boolean
@@ -38,7 +38,7 @@ export interface ImdbMetaData {
 export interface VideoMetaData {
   id: number
   name: string
-  subtitle_path?: string // PathBuf as string
+  subtitle_path?: string
   year?: number
   files_data: VideoFileData[]
   series?: SeriesMeta
@@ -46,6 +46,8 @@ export interface VideoMetaData {
 }
 
 type ContentType = 'all' | 'movie' | 'series'
+type SortByType = 'name' | 'year' | 'imdb'
+type SortDirectionType = 'asc' | 'desc'
 type NullableBool = boolean | null
 type NullableNumber = number | null
 type NumericalString = [number, string]
@@ -60,4 +62,6 @@ export interface FilterValues {
   existMultiFile: NullableBool
   actor: NumericalString[]
   showed: NullableBool
+  sortBy: SortByType
+  sortDirection: SortDirectionType
 }

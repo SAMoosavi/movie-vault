@@ -100,10 +100,35 @@
             </option>
           </select>
         </div>
+
+        <!-- Sort By -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Sort By</span>
+          </label>
+          <select class="select select-bordered" v-model="filters.sortBy">
+            <option v-for="opt in sortByOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Sort Type -->
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Sort Type</span>
+          </label>
+          <select class="select select-bordered" v-model="filters.sortDirection">
+            <option v-for="opt in sortTypeOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
 <script setup lang="ts">
 import { Filter, RefreshCcw, Search } from 'lucide-vue-next'
 import { useFiltersStore } from '../stores/Filters'
@@ -136,5 +161,16 @@ const boolOptions = [
   { label: 'Any', value: null },
   { label: 'Yes', value: true },
   { label: 'No', value: false },
+]
+
+const sortByOptions = [
+  { label: 'Name', value: 'name' },
+  { label: 'Rating', value: 'imdb' },
+  { label: 'Year', value: 'year' },
+]
+
+const sortTypeOptions = [
+  { label: 'Descending', value: 'desc' },
+  { label: 'Ascending', value: 'asc' },
 ]
 </script>

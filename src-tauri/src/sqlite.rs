@@ -6,20 +6,6 @@ use crate::metadata_extractor::{ImdbMetaData, SeriesMeta, VideoFileData, VideoMe
 
 type NumericalString = (i64, String);
 
-#[derive(Debug, Clone, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FilterValues {
-    pub name: String,
-    pub r#type: ContentType,
-    pub min_rating: Option<f64>,
-    pub country: Vec<NumericalString>,
-    pub genre: Vec<NumericalString>,
-    pub actor: Vec<NumericalString>,
-    pub exist_imdb: Option<bool>,
-    pub exist_multi_file: Option<bool>,
-    pub showed: Option<bool>, //TODO: should be add to db
-}
-
 #[derive(Debug, Clone, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ContentType {
@@ -30,12 +16,54 @@ pub enum ContentType {
 
 impl fmt::Display for ContentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ContentType::All => write!(f, "all"),
-            ContentType::Movie => write!(f, "movie"),
-            ContentType::Series => write!(f, "series"),
-        }
+        let content_type = match self {
+            ContentType::All => "all",
+            ContentType::Movie => "movie",
+            ContentType::Series => "series",
+        };
+        write!(f, "{content_type}")
     }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SortByType {
+    Name,
+    Year,
+    Imdb,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SortDirectionType {
+    Asc,
+    Desc,
+}
+
+impl fmt::Display for SortDirectionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let sort_type = match self {
+            SortDirectionType::Asc => "ASC",
+            SortDirectionType::Desc => "DESC",
+        };
+        write!(f, "{sort_type}")
+    }
+}
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FilterValues {
+    pub name: String,
+    pub r#type: ContentType,
+    pub min_rating: Option<f64>,
+    pub country: Vec<NumericalString>,
+    pub genre: Vec<NumericalString>,
+    pub actor: Vec<NumericalString>,
+    pub exist_imdb: Option<bool>,
+    pub exist_multi_file: Option<bool>,
+    pub showed: Option<bool>,
+    pub sort_by: SortByType,
+    pub sort_direction: SortDirectionType,
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -662,15 +690,8 @@ fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
 fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoMetaData>> {
     let mut where_conditions = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
-
     let mut query = r#"
-        SELECT DISTINCT 
-            vm.id,
-            vm.name,
-            vm.subtitle_path,
-            vm.year,
-            vm.series_id,
-            vm.imdb_id
+        SELECT DISTINCT vm.id
         FROM video_metadata vm
         LEFT JOIN imdb_metadata im ON vm.imdb_id = im.imdb_id
     "#
@@ -748,6 +769,11 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         }
     }
 
+    if let Some(showed) = filters.showed {
+        where_conditions.push("vm.showed = ?".to_string());
+        params.push(Box::new(showed));
+    }
+
     if !filters.name.is_empty() {
         let search_pattern = format!("%{}%", filters.name);
         where_conditions.push("(vm.name LIKE ? OR im.title LIKE ?)".to_string());
@@ -759,7 +785,19 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         query.push_str(&format!(" WHERE {}\n", where_conditions.join(" AND ")));
     }
 
-    query.push_str(" ORDER BY vm.name");
+    let sort_direction = &filters.sort_direction;
+
+    let order_by = match filters.sort_by {
+        SortByType::Name => format!("im.title {sort_direction}, vm.name {sort_direction}"),
+        SortByType::Year => format!(
+            "CAST(NULLIF(im.year, '') AS INTEGER) {sort_direction}, vm.year {sort_direction}, vm.imdb_id {sort_direction}, vm.name {sort_direction}"
+        ),
+        SortByType::Imdb => format!(
+            "CAST(NULLIF(im.imdb_rating, '') AS REAL) {sort_direction}, im.title {sort_direction}, vm.name {sort_direction}"
+        ),
+    };
+
+    query.push_str(&format!(" ORDER BY {order_by}"));
 
     let mut stmt = conn.prepare(&query)?;
     let results: Result<Vec<Option<VideoMetaData>>, _> = stmt
