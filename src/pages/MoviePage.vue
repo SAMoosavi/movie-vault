@@ -21,7 +21,7 @@
         v-if="movie.imdb_metadata && !change"
         :movie="movie"
         @edit="() => (change = true)"
-        @toggle-showed="toggle_showed"
+        @toggle-watched="toggle_watched"
         @set-ranking="set_ranking"
       />
       <SearchMovie v-else :movie="movie" :change="change" @cancel="() => (change = false)" @updated="get_movie" />
@@ -35,7 +35,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { VideoMetaData } from '../type'
 import { useRoute } from 'vue-router'
-import { get_video_by_id, update_video_my_ranking, update_video_showed } from '../functions/invoker'
+import { get_video_by_id, update_video_my_ranking, update_video_watched } from '../functions/invoker'
 import { ArrowLeft, Hash } from 'lucide-vue-next'
 import MovieHeader from '../component/MovieHeader.vue'
 import SearchMovie from '../component/SearchMovie.vue'
@@ -65,8 +65,8 @@ onMounted(() => {
 })
 onUnmounted(() => clearInterval(interval))
 
-async function toggle_showed() {
-  if (movie.value) await update_video_showed(movie.value.id, !movie.value.showed)
+async function toggle_watched() {
+  if (movie.value) await update_video_watched(movie.value.id, !movie.value.watched)
 }
 
 async function set_ranking(rank: number) {

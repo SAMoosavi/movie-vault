@@ -56,7 +56,7 @@ pub struct VideoMetaData {
     pub files_data: Vec<VideoFileData>,
     pub series: Option<SeriesMeta>,
     pub imdb_metadata: Option<ImdbMetaData>,
-    pub showed: bool,
+    pub watched: bool,
     pub my_ranking: u8,
 }
 
@@ -167,7 +167,7 @@ fn detect_metadata(path: PathBuf) -> VideoMetaData {
         }],
         series: detect_series(&normalized),
         imdb_metadata: None,
-        showed: false,
+        watched: false,
         my_ranking: 0,
     }
 }
@@ -608,7 +608,7 @@ mod detect_metadata_tests {
                     episode: 2,
                 }),
                 imdb_metadata: None,
-                showed: false,
+                watched: false,
                 my_ranking: 0,
             }
         );
@@ -630,7 +630,7 @@ mod detect_metadata_tests {
                 }],
                 series: None,
                 imdb_metadata: None,
-                showed: false,
+                watched: false,
                 my_ranking: 0,
             }
         );
@@ -652,7 +652,7 @@ mod detect_metadata_tests {
                 }],
                 series: None,
                 imdb_metadata: None,
-                showed: false,
+                watched: false,
                 my_ranking: 0,
             }
         );
@@ -684,7 +684,7 @@ mod merge_metadata_tests {
             files_data: vec![dummy_file("Sample Movie 1080p", "movies/sample_1080p.mkv")],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -696,7 +696,7 @@ mod merge_metadata_tests {
             files_data: vec![dummy_file("Sample Movie 720p", "movies/sample_720p.mkv")],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -721,7 +721,7 @@ mod merge_metadata_tests {
             files_data: vec![dummy_file("Sample Movie 1080p", "movies/sample_1080p.mkv")],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -733,7 +733,7 @@ mod merge_metadata_tests {
             files_data: vec![dummy_file("Sample Movie 720p", "movies/sample_720p.mkv")],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -755,7 +755,7 @@ mod merge_metadata_tests {
                 episode: 1,
             }),
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -770,7 +770,7 @@ mod merge_metadata_tests {
                 episode: 1,
             }),
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -796,7 +796,7 @@ mod merge_metadata_tests {
                 episode: 1,
             }),
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -811,7 +811,7 @@ mod merge_metadata_tests {
                 episode: 2,
             }),
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 

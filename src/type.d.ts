@@ -43,7 +43,7 @@ export interface VideoMetaData {
   files_data: VideoFileData[]
   series?: SeriesMeta
   imdb_metadata?: ImdbMetaData
-  showed: boolean
+  watched: boolean
   my_ranking: number
 }
 
@@ -63,7 +63,7 @@ export interface FilterValues {
   existImdb: NullableBool
   existMultiFile: NullableBool
   actor: NumericalString[]
-  showed: NullableBool
+  watched: NullableBool
   sortBy: SortByType
   sortDirection: SortDirectionType
 }

@@ -91,10 +91,10 @@
           </select>
         </div>
 
-        <!-- Showed -->
+        <!-- watched -->
         <div class="form-control">
-          <label class="label"><span class="label-text">Showed</span></label>
-          <select v-model="filters.showed" class="select select-bordered w-full pr-8">
+          <label class="label"><span class="label-text">watched</span></label>
+          <select v-model="filters.watched" class="select select-bordered w-full pr-8">
             <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
               {{ opt.label }}
             </option>

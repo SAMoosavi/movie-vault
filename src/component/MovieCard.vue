@@ -18,7 +18,7 @@
           <Star class="text-warning fill-warning mr-1 h-4 w-4" />
           <span class="font-semibold">{{ movie.imdb_metadata?.imdb_rating }}</span>
         </div>
-        <div v-if="movie.showed" class="badge badge-success absolute top-3 right-3 flex items-center">
+        <div v-if="movie.watched" class="badge badge-success absolute top-3 right-3 flex items-center">
           <Eye class="mr-1 h-4 w-4" />
           <span class="font-semibold">Watched</span>
         </div>

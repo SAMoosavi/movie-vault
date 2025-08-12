@@ -61,7 +61,7 @@ pub struct FilterValues {
     pub actor: Vec<NumericalString>,
     pub exist_imdb: Option<bool>,
     pub exist_multi_file: Option<bool>,
-    pub showed: Option<bool>,
+    pub watched: Option<bool>,
     pub sort_by: SortByType,
     pub sort_direction: SortDirectionType,
 }
@@ -88,7 +88,7 @@ pub fn create_table() -> Result<()> {
             year INTEGER,
             series_id INTEGER,
             imdb_id TEXT,
-            showed BOOLEAN NOT NULL DEFAULT FALSE,
+            watched BOOLEAN NOT NULL DEFAULT FALSE,
             my_ranking INTEGER NOT NULL DEFAULT 0
         );
 
@@ -735,9 +735,9 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
         }
     }
 
-    if let Some(showed) = filters.showed {
-        where_conditions.push("vm.showed = ?".to_string());
-        params.push(Box::new(showed));
+    if let Some(watched) = filters.watched {
+        where_conditions.push("vm.watched = ?".to_string());
+        params.push(Box::new(watched));
     }
 
     if !filters.name.is_empty() {
@@ -781,7 +781,7 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
 
 fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaData>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, subtitle_path, year, series_id, imdb_id, showed, my_ranking FROM video_metadata WHERE id = ?",
+        "SELECT id, name, subtitle_path, year, series_id, imdb_id, watched, my_ranking FROM video_metadata WHERE id = ?",
     )?;
 
     let mut rows = stmt.query_map(params![video_id], |row| {
@@ -791,7 +791,7 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
         let year: Option<u32> = row.get(3)?;
         let series_id: Option<i64> = row.get(4)?;
         let imdb_id: Option<String> = row.get(5)?;
-        let showed: bool = row.get(6)?;
+        let watched: bool = row.get(6)?;
         let my_ranking: u8 = row.get(7)?;
 
         // Load files for this video
@@ -817,7 +817,7 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
             files_data,
             series,
             imdb_metadata,
-            showed,
+            watched,
             my_ranking,
         }))
     })?;
@@ -829,10 +829,10 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
     }
 }
 
-fn update_video_showed(conn: &Connection, video_id: i64, showed: bool) -> Result<usize> {
+fn update_video_watched(conn: &Connection, video_id: i64, watched: bool) -> Result<usize> {
     conn.execute(
-        "UPDATE video_metadata SET showed = ?1 WHERE id = ?2",
-        [&(showed as i32).to_string(), &video_id.to_string()],
+        "UPDATE video_metadata SET watched = ?1 WHERE id = ?2",
+        [&(watched as i32).to_string(), &video_id.to_string()],
     )
 }
 
@@ -848,10 +848,9 @@ pub fn update_video_my_ranking_to_db(video_id: i64, my_ranking: u8) -> Result<us
     update_video_my_ranking(&conn, video_id, my_ranking)
 }
 
-
-pub fn update_video_showed_to_db(video_id: i64, showed: bool) -> Result<usize> {
+pub fn update_video_watched_to_db(video_id: i64, watched: bool) -> Result<usize> {
     let conn = create_conn()?;
-    update_video_showed(&conn, video_id, showed)
+    update_video_watched(&conn, video_id, watched)
 }
 
 pub fn update_video_imdb_to_db(video_id: i64, imdb_id: &str) -> Result<()> {

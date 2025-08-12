@@ -70,8 +70,8 @@ async fn update_video_imdb_app(video_id: i64, imdb_id: &str, api_key: &str) -> R
 }
 
 #[tauri::command]
-fn update_video_showed_app(video_id: i64, showed: bool) -> Result<(), String> {
-    sqlite::update_video_showed_to_db(video_id, showed).map_err(|e| e.to_string())?;
+fn update_video_watched_app(video_id: i64, watched: bool) -> Result<(), String> {
+    sqlite::update_video_watched_to_db(video_id, watched).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -98,7 +98,7 @@ pub fn run() {
             get_video_by_id_app,
             get_actors_app,
             update_video_imdb_app,
-            update_video_showed_app,
+            update_video_watched_app,
             update_video_my_ranking_app
         ])
         .run(tauri::generate_context!())

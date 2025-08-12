@@ -18,8 +18,8 @@
         </div>
         <!-- Rating and Meta Info -->
         <div class="mb-4 flex flex-wrap items-center gap-4">
-          <button class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-showed')">
-            <div v-if="movie.showed" class="badge badge-lg badge-success gap-1">
+          <button class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-watched')">
+            <div v-if="movie.watched" class="badge badge-lg badge-success gap-1">
               <Eye class="h-4 w-4" />
               <span>Watched</span>
             </div>
@@ -118,5 +118,5 @@ import type { VideoMetaData } from '../type'
 import { Star, Eye, EyeOff } from 'lucide-vue-next'
 
 defineProps<{ movie: VideoMetaData }>()
-defineEmits(['edit', 'toggle-showed', 'set-ranking'])
+defineEmits(['edit', 'toggle-watched', 'set-ranking'])
 </script>

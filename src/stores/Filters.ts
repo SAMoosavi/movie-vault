@@ -12,7 +12,7 @@ export const useFiltersStore = defineStore('filters', () => {
     minRating: null,
     existImdb: null,
     existMultiFile: null,
-    showed: null,
+    watched: null,
     sortBy: 'name',
     sortDirection: 'asc',
   }

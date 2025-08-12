@@ -167,7 +167,7 @@ mod test_fetch_omdb_metadata {
             files_data: vec![],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -199,7 +199,7 @@ mod test_fetch_omdb_metadata {
                 episode: 1,
             }),
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -268,7 +268,7 @@ mod test_fetch_omdb_metadata {
             files_data: vec![],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -310,7 +310,7 @@ mod test_get_omdb_metadata {
             files_data: vec![],
             series: None,
             imdb_metadata: None,
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
@@ -346,7 +346,7 @@ mod test_get_omdb_metadata {
                 total_seasons: None,
                 r#type: "movie".into()
             }),
-            showed: false,
+            watched: false,
             my_ranking: 0,
         };
 
