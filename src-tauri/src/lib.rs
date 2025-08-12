@@ -19,11 +19,6 @@ async fn sync_app_files(root: &str, api_key: &str) -> Result<usize, String> {
 }
 
 #[tauri::command]
-fn get_all_video_metadata_app() -> Result<Vec<metadata_extractor::VideoMetaData>, String> {
-    sqlite::get_all_video_metadata_from_db().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 fn create_table_app() -> Result<(), String> {
     sqlite::create_table().map_err(|e| e.to_string())
 }
@@ -85,7 +80,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             create_table_app,
             sync_app_files,
-            get_all_video_metadata_app,
             get_countries_app,
             get_genres_app,
             search_videos_app,

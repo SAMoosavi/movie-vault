@@ -87,7 +87,9 @@ pub fn create_table() -> Result<()> {
             subtitle_path TEXT,
             year INTEGER,
             series_id INTEGER,
-            imdb_id TEXT
+            imdb_id TEXT,
+            showed BOOLEAN NOT NULL DEFAULT FALSE,
+            my_ranking INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS series_meta (
@@ -500,47 +502,6 @@ fn remove_orphaned_video_metadata(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn get_all_video_metadata(conn: &Connection) -> Result<Vec<VideoMetaData>> {
-    let mut stmt = conn
-        .prepare("SELECT id, name, subtitle_path, year, series_id, imdb_id FROM video_metadata")?;
-
-    let video_iter = stmt.query_map([], |row| {
-        let id: i64 = row.get(0)?;
-        let name: String = row.get(1)?;
-        let subtitle_path: Option<String> = row.get(2)?;
-        let year: Option<u32> = row.get(3)?;
-        let series_id: Option<i64> = row.get(4)?;
-        let imdb_id: Option<String> = row.get(5)?;
-
-        // --- Load files for this video ---
-        let files_data = get_video_file_data_by_video_id(conn, id)?;
-
-        // --- Load series if available ---
-        let series = match series_id {
-            Some(id) => Some(get_series_by_id(conn, id)?),
-            None => None,
-        };
-
-        // --- Load imdb metadata if available ---
-        let imdb_metadata = match imdb_id.clone() {
-            Some(ref imdb_id) => Some(get_imdb_metadata(conn, imdb_id)?),
-            None => None,
-        };
-
-        Ok(VideoMetaData {
-            id,
-            name,
-            subtitle_path: subtitle_path.map(PathBuf::from),
-            year,
-            files_data,
-            series,
-            imdb_metadata,
-        })
-    })?;
-
-    video_iter.collect()
-}
-
 fn get_video_file_data_by_video_id(conn: &Connection, video_id: i64) -> Result<Vec<VideoFileData>> {
     let mut stmt = conn.prepare(
         "SELECT title, path, quality, has_hard_sub, has_soft_sub, is_dubbed 
@@ -820,7 +781,7 @@ fn search_videos(conn: &Connection, filters: &FilterValues) -> Result<Vec<VideoM
 
 fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaData>> {
     let mut stmt = conn.prepare(
-        "SELECT id, name, subtitle_path, year, series_id, imdb_id FROM video_metadata WHERE id = ?",
+        "SELECT id, name, subtitle_path, year, series_id, imdb_id, showed, my_ranking FROM video_metadata WHERE id = ?",
     )?;
 
     let mut rows = stmt.query_map(params![video_id], |row| {
@@ -830,6 +791,8 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
         let year: Option<u32> = row.get(3)?;
         let series_id: Option<i64> = row.get(4)?;
         let imdb_id: Option<String> = row.get(5)?;
+        let showed: bool = row.get(6)?;
+        let my_ranking: u8 = row.get(7)?;
 
         // Load files for this video
         let files_data = get_video_file_data_by_video_id(conn, video_id)?;
@@ -854,6 +817,8 @@ fn get_video_by_id(conn: &Connection, video_id: i64) -> Result<Option<VideoMetaD
             files_data,
             series,
             imdb_metadata,
+            showed,
+            my_ranking,
         }))
     })?;
 
@@ -881,14 +846,6 @@ pub fn insert_imdb_metadata_to_db(imdb: &ImdbMetaData) -> Result<()> {
 pub fn remove_orphaned_video_metadata_from_db() -> Result<()> {
     let conn = create_conn()?;
     remove_orphaned_video_metadata(&conn)
-}
-
-pub fn get_all_video_metadata_from_db() -> Result<Vec<VideoMetaData>> {
-    let mut conn = create_conn()?;
-    let tx = conn.transaction()?;
-    let re = get_all_video_metadata(&tx)?;
-    tx.commit()?;
-    Ok(re)
 }
 
 pub fn get_genres_from_db() -> Result<Vec<(usize, String)>> {
