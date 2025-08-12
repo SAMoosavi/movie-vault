@@ -42,9 +42,9 @@ export interface VideoMetaData {
   year?: number
   files_data: VideoFileData[]
   series?: SeriesMeta
-  imdb_metadata?: ImdbMetaData,
-  showed: boolean,
-  my_ranking: number,
+  imdb_metadata?: ImdbMetaData
+  showed: boolean
+  my_ranking: number
 }
 
 type ContentType = 'all' | 'movie' | 'series'

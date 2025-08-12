@@ -18,6 +18,10 @@
           <Star class="text-warning fill-warning mr-1 h-4 w-4" />
           <span class="font-semibold">{{ movie.imdb_metadata?.imdb_rating }}</span>
         </div>
+        <div v-if="movie.showed" class="badge badge-success absolute top-3 right-3 flex items-center">
+          <Eye class="mr-1 h-4 w-4" />
+          <span class="font-semibold">Watched</span>
+        </div>
       </figure>
 
       <div class="card-body p-4">
@@ -45,13 +49,24 @@
             <span v-if="(movie.imdb_metadata?.actors?.length || 0) > 2">, ...</span>
           </div>
         </div>
+        <div class="from-primary/50 to-secondary/50 -mb-3 h-0.5 w-full bg-gradient-to-b"></div>
+        <div v-if="movie.my_ranking > 0" class="mt-3 flex items-center justify-between">
+          <span class="mr-2 text-sm">My Rating:</span>
+          <div class="flex">
+            <Star
+              v-for="i in 5"
+              :key="i"
+              :class="['h-4 w-4', i <= movie.my_ranking ? 'text-warning fill-warning' : 'text-warning']"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </RouterLink>
 </template>
 
 <script setup lang="ts">
-import { Calendar, Star, User } from 'lucide-vue-next'
+import { Calendar, Star, User, Eye } from 'lucide-vue-next'
 import type { VideoMetaData } from '../type'
 
 defineProps<{ movie: VideoMetaData }>()
