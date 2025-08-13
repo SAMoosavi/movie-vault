@@ -1,0 +1,149 @@
+use std::path::PathBuf;
+
+use regex::Regex;
+
+use super::episode::Episode;
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+pub struct Season {
+    pub id: i64,
+    pub number: i32,
+    pub watched: bool,
+    pub episodes: Vec<Episode>,
+}
+
+impl TryFrom<PathBuf> for Season {
+    type Error = Box<dyn std::error::Error>;
+
+    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
+        let video_stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+
+        let series = Self::detect_series(&video_stem)?;
+
+        Ok(Self {
+            id: 0,
+            number: series.0,
+            watched: false,
+            episodes: vec![Episode::new(path, series.1)],
+        })
+    }
+}
+
+impl Season {
+    fn detect_series(input: &str) -> Result<(i32, i32), Box<dyn std::error::Error>> {
+        let re = Regex::new(r"(?i)s(\d{1,2})[\s._-]?e(\d{1,2})")?;
+
+        re.captures(input)
+            .and_then(|caps| {
+                let season = caps.get(1)?.as_str().parse().ok()?;
+                let episode = caps.get(2)?.as_str().parse().ok()?;
+                Some(Ok((season, episode)))
+            })
+            .unwrap_or(Err("it's not series".into()))
+    }
+}
+
+#[cfg(test)]
+mod detect_series_tests {
+    use super::*;
+
+    #[test]
+    fn detects_standard_sxxexx_format() {
+        let input = "Breaking.Bad.S02E05.720p.mkv";
+        let expected = (2, 5);
+        assert_eq!(Season::detect_series(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn detects_underscored_format() {
+        let input = "_S03_E10_";
+        let expected = (3, 10);
+        assert_eq!(Season::detect_series(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn detects_mixed_case_and_separator() {
+        let input = "s04-e11.avi";
+        let expected = (4, 11);
+        assert_eq!(Season::detect_series(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn handles_lowercase_with_dot_separator() {
+        let input = "showname.s01.e09.mkv";
+        let expected = (1, 9);
+        assert_eq!(Season::detect_series(input).unwrap(), expected);
+    }
+
+    #[test]
+    fn returns_none_if_no_match() {
+        let input = "Inception.2010.1080p.mkv";
+        assert!(Season::detect_series(input).is_err());
+    }
+
+    #[test]
+    fn handles_partial_match_but_incorrect_format() {
+        let input = "some_show_S05E.avi";
+        assert!(Season::detect_series(input).is_err());
+    }
+
+    #[test]
+    fn accepts_input_with_leading_or_trailing_underscores() {
+        let input = "_S2_E8_.Something.Else.mp4";
+        let expected = (2, 8);
+        assert_eq!(Season::detect_series(input).unwrap(), expected);
+    }
+}
+
+#[cfg(test)]
+mod test_try_from_season {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn valid_path() {
+        let path = PathBuf::from("show.name.s01e01.mkv");
+        let season = Season::try_from(path.clone()).unwrap();
+
+        assert_eq!(season.id, 0);
+        assert_eq!(season.number, 1);
+        assert!(!season.watched);
+        assert_eq!(season.episodes.len(), 1);
+    }
+
+    #[test]
+    fn invalid_filename() {
+        let path = PathBuf::from("invalid_file.mkv");
+        let result = Season::try_from(path);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn no_file_stem() {
+        let path = PathBuf::from("/");
+        let result = Season::try_from(path);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn non_unicode_stem() {
+        let path = PathBuf::from("invalid_stem");
+        let result = Season::try_from(path);
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn lowercase_conversion() {
+        let path = PathBuf::from("Show.Name.S02E03.MKV");
+        let season = Season::try_from(path.clone()).unwrap();
+
+        assert_eq!(season.number, 2);
+    }
+}

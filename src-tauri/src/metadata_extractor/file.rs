@@ -1,0 +1,383 @@
+use std::path::PathBuf;
+
+use regex::Regex;
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+pub enum LanguageFormat {
+    SOFTSUB,
+    HARDSUB,
+    DUBBED,
+    UNKNOWN,
+}
+
+impl std::fmt::Display for LanguageFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let language_format = match &self {
+            LanguageFormat::SOFTSUB => "soft_sub",
+            LanguageFormat::HARDSUB => "hard_sub",
+            LanguageFormat::DUBBED => "dubbed",
+            LanguageFormat::UNKNOWN => "",
+        };
+        write!(f, "{language_format}")
+    }
+}
+
+impl From<&String> for LanguageFormat {
+    fn from(input: &String) -> Self {
+        Self::from(input.as_str())
+    }
+}
+
+impl From<&str> for LanguageFormat {
+    fn from(input: &str) -> Self {
+        if Self::detect_dubbed(input) {
+            Self::DUBBED
+        } else if Self::detect_hard_sub(input) {
+            Self::HARDSUB
+        } else if Self::detect_soft_sub(input) {
+            Self::SOFTSUB
+        } else {
+            Self::UNKNOWN
+        }
+    }
+}
+
+impl LanguageFormat {
+    fn detect_dubbed(input: &str) -> bool {
+        if input.contains("sub") || input.contains("subtitle") {
+            return false;
+        }
+
+        let re = Regex::new(r"(?i)\b(dub|dubbed|farsi)\b").unwrap();
+        re.is_match(input)
+    }
+
+    fn detect_hard_sub(input: &str) -> bool {
+        let re = Regex::new(r"(?i)\bhard\s?(hardsub|sub|subtitle)\b").unwrap();
+        re.is_match(input)
+    }
+
+    fn detect_soft_sub(input: &str) -> bool {
+        let re = Regex::new(r"(?i)\b(softsub|sub|subtitle)\b").unwrap();
+        re.is_match(input)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+pub struct File {
+    pub id: i64,
+    pub file_name: String,
+    pub path: String,
+    pub quality: Option<String>,
+    pub language_format: LanguageFormat,
+}
+
+impl From<PathBuf> for File {
+    fn from(path: PathBuf) -> Self {
+        let video_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
+        let normalized = video_stem.to_lowercase();
+
+        Self {
+            id: 0,
+            file_name: video_stem.into(),
+            path: path.to_str().unwrap().to_string(),
+            quality: Self::detect_quality(&normalized),
+            language_format: LanguageFormat::from(&normalized),
+        }
+    }
+}
+
+impl File {
+    fn detect_quality(input: &str) -> Option<String> {
+        // Case-insensitive regex for common quality tags
+        let re = Regex::new(r"(?i)\b(4k|2160p|1080p|720p|480p|hd|hq)\b").unwrap();
+
+        re.find(input)
+            .map(|m| match m.as_str().to_lowercase().as_str() {
+                "hd" | "hq" => "720p".into(),
+                other => other.into(),
+            })
+    }
+}
+
+#[cfg(test)]
+mod tests_detect_language_format {
+    use super::*;
+
+    #[test]
+    fn test_detect_hard_sub_cases() {
+        let positives = [
+            "movie hardsub mkv",
+            "hard sub release",
+            "hard sub version",
+            "this is hardsub",
+        ];
+
+        for case in positives {
+            assert!(
+                LanguageFormat::detect_hard_sub(case),
+                "Expected detect_hard_sub to return true for {case:?}"
+            );
+        }
+
+        let negatives = ["softsub", "subtitle", "audio.hardtrack"];
+        for case in negatives {
+            assert!(
+                !LanguageFormat::detect_hard_sub(case),
+                "Expected detect_hard_sub to return false for {case:?}"
+            );
+        }
+    }
+    #[test]
+    fn test_detect_soft_sub_cases() {
+        let positives = [
+            "movie softsub mkv",
+            "soft sub release",
+            "soft sub version",
+            "this is softsub",
+            "soft subtitle",
+            "subtitle",
+        ];
+
+        for case in positives {
+            assert!(
+                LanguageFormat::detect_soft_sub(case),
+                "Expected detect_soft_sub to return true for {case:?}"
+            );
+        }
+
+        let negatives = ["hardsub", "audio.hardtrack"];
+        for case in negatives {
+            assert!(
+                !LanguageFormat::detect_soft_sub(case),
+                "Expected detect_hard_sub to return false for {case:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_detect_dubbed_positive() {
+        let positives = [
+            "movie.dub.mkv",
+            "Farsi dubbed version",
+            "farsi audio",
+            "official DUB release",
+            "dubbed film",
+        ];
+
+        for input in positives {
+            assert!(
+                LanguageFormat::detect_dubbed(input),
+                "Expected detect_dubbed to return true for {input:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_detect_dubbed_negative() {
+        let negatives = [
+            "dubious story",
+            "redubbed version",
+            "no subtitles",
+            "audio track",
+            "farsight analysis",
+            "secret invasion s01e01 720p web-dl farsi sub",
+        ];
+
+        for input in negatives {
+            assert!(
+                !LanguageFormat::detect_dubbed(input),
+                "Expected detect_dubbed to return false for {input:?}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_derives_of_language_format {
+    use super::*;
+
+    #[test]
+    fn test_display_soft_sub() {
+        let lang = LanguageFormat::SOFTSUB;
+        assert_eq!(lang.to_string(), "soft_sub");
+    }
+
+    #[test]
+    fn test_display_hard_sub() {
+        let lang = LanguageFormat::HARDSUB;
+        assert_eq!(lang.to_string(), "hard_sub");
+    }
+
+    #[test]
+    fn test_display_dubbed() {
+        let lang = LanguageFormat::DUBBED;
+        assert_eq!(lang.to_string(), "dubbed");
+    }
+
+    #[test]
+    fn test_display_unknown() {
+        let lang = LanguageFormat::UNKNOWN;
+        assert_eq!(lang.to_string(), "");
+    }
+
+    #[test]
+    fn test_debug() {
+        let lang = LanguageFormat::SOFTSUB;
+        assert_eq!(format!("{:?}", lang), "SOFTSUB");
+    }
+
+    #[test]
+    fn test_partial_eq_and_eq() {
+        assert_eq!(LanguageFormat::SOFTSUB, LanguageFormat::SOFTSUB);
+        assert_ne!(LanguageFormat::SOFTSUB, LanguageFormat::HARDSUB);
+        assert_eq!(LanguageFormat::UNKNOWN, LanguageFormat::UNKNOWN);
+    }
+
+    #[test]
+    fn test_clone() {
+        let lang = LanguageFormat::DUBBED;
+        let cloned = lang.clone();
+        assert_eq!(lang, cloned);
+    }
+
+    #[test]
+    fn test_serialize() {
+        let lang = LanguageFormat::HARDSUB;
+        let serialized = serde_json::to_string(&lang).unwrap();
+        assert_eq!(serialized, "\"HARDSUB\""); // Assuming default enum serialization to variant name
+    }
+}
+
+#[cfg(test)]
+mod tests_from_of_language_format {
+    use super::*;
+
+    #[test]
+    fn test_from_dubbed() {
+        let input = "movie.dubbed.eng.mkv";
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::DUBBED);
+    }
+
+    #[test]
+    fn test_from_hard_sub() {
+        let input = "movie.hardsub.eng.mkv";
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::HARDSUB);
+    }
+
+    #[test]
+    fn test_from_soft_sub() {
+        let input = "movie.softsub.eng.mkv";
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::SOFTSUB);
+    }
+
+    #[test]
+    fn test_from_unknown() {
+        let input = "movie.eng.mkv";
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::UNKNOWN);
+    }
+
+    #[test]
+    fn test_from_empty_string() {
+        let input = "";
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::UNKNOWN);
+    }
+
+    #[test]
+    fn test_case_insensitivity() {
+        let input = "Movie.farsi.sub.MKV";
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::SOFTSUB);
+    }
+}
+
+#[cfg(test)]
+mod tests_detect_quality {
+    use super::*;
+
+    #[test]
+    fn test_detect_quality_matches() {
+        let cases = vec![
+            ("Movie.1080p.mkv", Some("1080p".into())),
+            ("Show.4K.UltraHD", Some("4k".into())),
+            ("Clip.HD.version", Some("720p".into())),
+            ("Video.hq.release", Some("720p".into())),
+            ("OldMovie.480p.avi", Some("480p".into())),
+            ("UnknownQuality.mkv", None),
+        ];
+
+        for (input, expected) in cases {
+            assert_eq!(
+                File::detect_quality(input),
+                expected,
+                "Failed on input: {input:?}"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_file_from_path_buf {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn from_valid_path_with_quality_and_language() {
+        let path = PathBuf::from("/path/to/movie.1080p.dubbed.mkv");
+        let file = File::from(path.clone());
+
+        assert_eq!(file.id, 0);
+        assert_eq!(file.file_name, "movie.1080p.dubbed");
+        assert_eq!(file.path, "/path/to/movie.1080p.dubbed.mkv");
+        assert_eq!(file.quality, Some("1080p".to_string()));
+        assert_eq!(file.language_format, LanguageFormat::DUBBED);
+    }
+
+    #[test]
+    fn from_path_with_uppercase() {
+        let path = PathBuf::from("/path/to/Movie.1080P.HARDSUB.MKV");
+        let file = File::from(path.clone());
+
+        assert_eq!(file.id, 0);
+        assert_eq!(file.file_name, "Movie.1080P.HARDSUB");
+        assert_eq!(file.path, "/path/to/Movie.1080P.HARDSUB.MKV");
+        assert_eq!(file.quality, Some("1080p".to_string()));
+        assert_eq!(file.language_format, LanguageFormat::HARDSUB);
+    }
+
+    #[test]
+    fn from_path_no_quality_no_language() {
+        let path = PathBuf::from("/path/to/movie.mkv");
+        let file = File::from(path.clone());
+
+        assert_eq!(file.id, 0);
+        assert_eq!(file.file_name, "movie");
+        assert_eq!(file.path, "/path/to/movie.mkv");
+        assert_eq!(file.quality, None);
+        assert_eq!(file.language_format, LanguageFormat::UNKNOWN);
+    }
+
+    #[test]
+    fn from_path_no_file_stem() {
+        let path = PathBuf::from("/");
+        let file = File::from(path.clone());
+
+        assert_eq!(file.id, 0);
+        assert_eq!(file.file_name, "");
+        assert_eq!(file.path, "/");
+        assert_eq!(file.quality, None);
+        assert_eq!(file.language_format, LanguageFormat::UNKNOWN);
+    }
+
+    #[test]
+    fn from_path_with_extension_only() {
+        let path = PathBuf::from("/path/to/.hidden.mkv");
+        let file = File::from(path.clone());
+
+        assert_eq!(file.id, 0);
+        assert_eq!(file.file_name, ".hidden");
+        assert_eq!(file.path, "/path/to/.hidden.mkv");
+        assert_eq!(file.quality, None);
+        assert_eq!(file.language_format, LanguageFormat::UNKNOWN);
+    }
+}

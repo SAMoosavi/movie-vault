@@ -1,0 +1,23 @@
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Imdb {
+    pub title: String,
+    pub year: String,
+    pub rated: String,
+    pub released: String,
+    pub runtime: String,
+    pub genre: Vec<String>,
+    pub directors: Vec<String>,
+    pub writers: Vec<String>,
+    pub actors: Vec<String>,
+    pub plot: String,
+    pub languages: Vec<String>,
+    pub country: Vec<String>,
+    pub awards: String,
+    pub poster: String,
+    pub imdb_rating: String,
+    pub imdb_votes: String,
+    pub imdb_id: String,
+    pub box_office: Option<String>,
+    pub total_seasons: Option<String>,
+    pub r#type: String,
+}
