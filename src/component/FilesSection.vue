@@ -13,7 +13,7 @@
             <tr>
               <th class="text-center">File Details</th>
               <th class="text-center">Quality</th>
-              <th class="text-center">Type</th>
+              <th class="text-center">Language Format</th>
               <th class="text-center">Actions</th>
             </tr>
           </thead>
