@@ -19,6 +19,10 @@ impl Episode {
             files: vec![File::from(path)],
         }
     }
+
+    pub fn merge(&mut self, other: &Self) {
+        self.files.extend(other.files.iter().cloned());
+    }
 }
 
 #[cfg(test)]
@@ -44,5 +48,82 @@ mod tests_episode {
             1,
             "Files vector should contain exactly one file"
         );
+    }
+
+    #[test]
+    fn merge_adds_files() {
+        let file1 = File::generate_random_file(1);
+        let file2 = File::generate_random_file(2);
+        let file3 = File::generate_random_file(3);
+        let file4 = File::generate_random_file(4);
+
+        let mut episode1 = Episode {
+            id: 0,
+            number: 0,
+            watched: false,
+            files: vec![file1.clone(), file2.clone()],
+        };
+
+        let episode2 = Episode {
+            id: 0,
+            number: 0,
+            watched: false,
+            files: vec![file3.clone(), file4.clone()],
+        };
+
+        episode1.merge(&episode2);
+
+        assert_eq!(episode1.files.len(), 4);
+        assert_eq!(episode1.files[0], file1);
+        assert_eq!(episode1.files[1], file2);
+        assert_eq!(episode1.files[2], file3);
+        assert_eq!(episode1.files[3], file4);
+    }
+
+    #[test]
+    fn test_episode_merge_with_empty_other() {
+        let file1 = File::generate_random_file(1);
+
+        let mut episode = Episode {
+            id: 0,
+            number: 0,
+            watched: false,
+            files: vec![file1.clone()],
+        };
+
+        let empty_other = Episode {
+            id: 0,
+            number: 0,
+            watched: false,
+            files: vec![],
+        };
+
+        episode.merge(&empty_other);
+
+        assert_eq!(episode.files.len(), 1);
+        assert_eq!(episode.files[0], file1);
+    }
+
+    #[test]
+    fn test_episode_merge_into_empty() {
+        let file1 = File::generate_random_file(1);
+        let mut empty_episode = Episode {
+            id: 0,
+            number: 0,
+            watched: false,
+            files: vec![],
+        };
+
+        let other = Episode {
+            id: 0,
+            number: 0,
+            watched: false,
+            files: vec![file1.clone()],
+        };
+
+        empty_episode.merge(&other);
+
+        assert_eq!(empty_episode.files.len(), 1);
+        assert_eq!(empty_episode.files[0], file1);
     }
 }

@@ -34,6 +34,24 @@ impl TryFrom<PathBuf> for Season {
 }
 
 impl Season {
+    pub fn merge(&mut self, other: &Self) {
+        for new_episodes in &other.episodes {
+            if let Some(old_episodes) = self
+                .episodes
+                .iter_mut()
+                .find(|s| s.number == new_episodes.number)
+            {
+                old_episodes.merge(new_episodes);
+            } else {
+                self.episodes.push(new_episodes.clone());
+            }
+        }
+
+        self.episodes.sort_by_key(|s| s.number);
+    }
+}
+
+impl Season {
     fn detect_series(input: &str) -> Result<(i32, i32), Box<dyn std::error::Error>> {
         let re = Regex::new(r"(?i)s(\d{1,2})[\s._-]?e(\d{1,2})")?;
 
@@ -145,5 +163,111 @@ mod test_try_from_season {
         let season = Season::try_from(path.clone()).unwrap();
 
         assert_eq!(season.number, 2);
+    }
+}
+
+#[cfg(test)]
+mod tests_merge {
+    use super::*;
+
+    #[test]
+    fn no_overlap() {
+        let mut season1 = Season {
+            id: 0,
+            watched: false,
+            number: 1,
+            episodes: vec![
+                Episode {
+                    id: 1,
+                    number: 1,
+                    watched: false,
+                    files: vec![],
+                },
+                Episode {
+                    id: 2,
+                    number: 3,
+                    watched: false,
+                    files: vec![],
+                },
+            ],
+        };
+
+        let season2 = Season {
+            id: 0,
+            number: 1,
+            watched: false,
+            episodes: vec![
+                Episode {
+                    id: 3,
+                    number: 2,
+                    watched: false,
+                    files: vec![],
+                },
+                Episode {
+                    id: 4,
+                    number: 4,
+                    watched: false,
+                    files: vec![],
+                },
+            ],
+        };
+
+        season1.merge(&season2);
+
+        assert_eq!(season1.episodes.len(), 4);
+        assert_eq!(season1.episodes[0].number, 1);
+        assert_eq!(season1.episodes[1].number, 2);
+        assert_eq!(season1.episodes[2].number, 3);
+        assert_eq!(season1.episodes[3].number, 4);
+    }
+
+    #[test]
+    fn with_overlap() {
+        let mut season1 = Season {
+            id: 0,
+            watched: false,
+            number: 1,
+            episodes: vec![
+                Episode {
+                    id: 1,
+                    number: 1,
+                    watched: false,
+                    files: vec![],
+                },
+                Episode {
+                    id: 2,
+                    number: 2,
+                    watched: false,
+                    files: vec![],
+                },
+            ],
+        };
+
+        let season2 = Season {
+            id: 0,
+            watched: false,
+            number: 1,
+            episodes: vec![
+                Episode {
+                    id: 3,
+                    number: 2,
+                    watched: false,
+                    files: vec![],
+                },
+                Episode {
+                    id: 4,
+                    number: 3,
+                    watched: false,
+                    files: vec![],
+                },
+            ],
+        };
+
+        season1.merge(&season2);
+
+        assert_eq!(season1.episodes.len(), 3);
+        assert_eq!(season1.episodes[0].number, 1);
+        assert_eq!(season1.episodes[1].number, 2);
+        assert_eq!(season1.episodes[2].number, 3);
     }
 }

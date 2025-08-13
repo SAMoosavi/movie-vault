@@ -5,7 +5,7 @@ use super::file::File;
 use super::imdb::Imdb;
 use super::season::Season;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Media {
     pub id: i64,
     pub name: String,
@@ -46,6 +46,38 @@ impl From<PathBuf> for Media {
 impl From<&PathBuf> for Media {
     fn from(path: &PathBuf) -> Self {
         Self::from(path.clone())
+    }
+}
+
+impl Media {
+    pub fn is_series(&self) -> bool {
+        self.season.len() > 0
+    }
+
+    pub fn merge(&mut self, other: &Self) {
+        if self.year.is_none() {
+            self.year = other.year;
+        }
+
+        if self.imdb.is_none() {
+            self.imdb = other.imdb.clone();
+        }
+
+        self.files.extend(other.files.iter().cloned());
+
+        for new_season in &other.season {
+            if let Some(old_season) = self
+                .season
+                .iter_mut()
+                .find(|s| s.number == new_season.number)
+            {
+                old_season.merge(new_season);
+            } else {
+                self.season.push(new_season.clone());
+            }
+        }
+
+        self.season.sort_by_key(|s| s.number);
     }
 }
 
@@ -105,24 +137,12 @@ impl Media {
         .expect("Regex compilation failed");
 
         // Apply regex and extract the first capturing group or fallback to full cleaned string.
-        let raw_name = re
-            .captures(&cleaned)
+        re.captures(&cleaned)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str())
-            .unwrap_or(&cleaned);
-
-        // Step 4: Capitalize each word's first character, preserving rest lowercase.
-        raw_name
-            .split_whitespace()
-            .map(|word| {
-                let mut chars = word.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
+            .unwrap_or(&cleaned)
+            .trim()
+            .to_string()
     }
 
     fn detect_year(input: &str) -> Option<u32> {
@@ -192,38 +212,38 @@ mod detect_name_tests {
         let cases = [
             (
                 "3.days.to.kill.2014.extended.720p.farsi.dubbed.film2media",
-                "3 Days To Kill",
+                "3 days to kill",
             ),
-            ("coco.2017.720p.bluray.dubbed.digimoviez", "Coco"),
-            ("in.time.2011.720p.film2media", "In Time"),
-            ("who.am.i.2014.720p.bluray.hardsub.digimoviez", "Who Am I"),
+            ("coco.2017.720p.bluray.dubbed.digimoviez", "coco"),
+            ("in.time.2011.720p.film2media", "in time"),
+            ("who.am.i.2014.720p.bluray.hardsub.digimoviez", "who am i"),
             (
                 "radhe.2021.hindi.720p.web-dl.x264.farsi.dubbed.zardfilm.net",
-                "Radhe",
+                "radhe",
             ),
-            ("tenet.dubbed", "Tenet"),
-            ("civil.war.2024.720p.web-dl.softsub.digimoviez", "Civil War"),
-            ("godfather_2022_dubbed_hd720", "Godfather"),
+            ("tenet.dubbed", "tenet"),
+            ("civil.war.2024.720p.web-dl.softsub.digimoviez", "civil war"),
+            ("godfather_2022_dubbed_hd720", "godfather"),
             (
                 "freelance.2023.10bit.1080p.x265.web-dl.6ch.psa.farsi.sub.film2media",
-                "Freelance",
+                "freelance",
             ),
             (
                 "ralph.breaks.the.internet.2018.720p.farsi.dub",
-                "Ralph Breaks The Internet",
+                "ralph breaks the internet",
             ),
-            ("black.mirror.s01.e01.480p.web-dl.x264", "Black Mirror"),
+            ("black.mirror.s01.e01.480p.web-dl.x264", "black mirror"),
             (
                 "breaking.bad.s02e13.720p.bluray.farsi.dubbed",
-                "Breaking Bad",
+                "breaking bad",
             ),
             (
                 "emperor_of_the_sea_2004_s01e04_farsi_dubbed_(mer30download.com)",
-                "Emperor Of The Sea",
+                "emperor of the sea",
             ),
             (
                 "197863_harry_potter_and_the_halfblood_prince_2009_dubbed_1080p_brrip_anoxmous_salamdl",
-                "197863 Harry Potter And The Halfblood Prince",
+                "197863 harry potter and the halfblood prince",
             ),
         ];
 
@@ -245,7 +265,7 @@ mod tests_media_from {
         let media = Media::from(path);
 
         assert_eq!(media.id, 0);
-        assert_eq!(media.name, "Movie");
+        assert_eq!(media.name, "movie");
         assert_eq!(media.year, Some(2020));
         assert!(!media.watched);
         assert_eq!(media.my_ranking, 0);
@@ -260,7 +280,7 @@ mod tests_media_from {
         let media = Media::from(path);
 
         assert_eq!(media.id, 0);
-        assert_eq!(media.name, "Movie");
+        assert_eq!(media.name, "movie");
         assert_eq!(media.year, None);
         assert!(!media.watched);
         assert_eq!(media.my_ranking, 0);
@@ -274,7 +294,7 @@ mod tests_media_from {
         let path = PathBuf::from("/path/to/MOVIE.2021.MP4");
         let media = Media::from(path);
 
-        assert_eq!(media.name, "Movie");
+        assert_eq!(media.name, "movie");
         assert_eq!(media.year, Some(2021));
     }
 
@@ -292,5 +312,159 @@ mod tests_media_from {
         assert_eq!(media_from_ref.season.len(), media_from_owned.season.len());
         assert_eq!(media_from_ref.files.len(), media_from_owned.files.len());
         assert_eq!(media_from_ref.imdb, media_from_owned.imdb);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn default_media() -> Media {
+        let mut m = Media::default();
+        m.name = "test".into();
+        m
+    }
+
+    #[test]
+    fn test_merge_year_none_to_some() {
+        let mut media1 = default_media();
+        let media2 = Media {
+            year: Some(2020),
+            ..default_media()
+        };
+
+        media1.merge(&media2);
+        assert_eq!(media1.year, Some(2020));
+    }
+
+    #[test]
+    fn test_merge_year_other_none() {
+        let mut media1 = Media {
+            year: Some(2019),
+            ..default_media()
+        };
+        let media2 = default_media();
+
+        media1.merge(&media2);
+        assert_eq!(media1.year, Some(2019));
+    }
+
+    #[test]
+    fn test_merge_files() {
+        let file1 = File::generate_random_file(1);
+        let file2 = File::generate_random_file(2);
+        let file3 = File::generate_random_file(3);
+
+        let mut media1 = Media {
+            files: vec![file1.clone()],
+            ..default_media()
+        };
+        let media2 = Media {
+            files: vec![file2.clone(), file3.clone()],
+            ..default_media()
+        };
+
+        media1.merge(&media2);
+        assert_eq!(media1.files.len(), 3);
+        assert_eq!(media1.files[0], file1);
+        assert_eq!(media1.files[1], file2);
+        assert_eq!(media1.files[2], file3);
+    }
+
+    #[test]
+    fn test_merge_seasons_no_overlap() {
+        let mut media1 = Media {
+            season: vec![Season {
+                id: 0,
+                watched: false,
+                number: 1,
+                episodes: vec![],
+            }],
+            ..default_media()
+        };
+        let media2 = Media {
+            season: vec![Season {
+                number: 2,
+                id: 0,
+                watched: false,
+                episodes: vec![],
+            }],
+            ..default_media()
+        };
+
+        media1.merge(&media2);
+        assert_eq!(media1.season.len(), 2);
+        assert_eq!(media1.season[0].number, 1);
+        assert_eq!(media1.season[1].number, 2);
+    }
+
+    #[test]
+    fn test_merge_seasons_with_overlap_calls_merge() {
+        let mut media1 = Media {
+            season: vec![Season {
+                id: 0,
+                watched: false,
+                number: 1,
+                episodes: vec![],
+            }],
+            ..default_media()
+        };
+        let media2 = Media {
+            season: vec![Season {
+                id: 0,
+                watched: false,
+                number: 1,
+                episodes: vec![],
+            }],
+            ..default_media()
+        };
+
+        media1.merge(&media2);
+        assert_eq!(media1.season.len(), 1);
+    }
+
+    #[test]
+    fn test_merge_seasons_adds_new_and_sorts() {
+        let mut media1 = Media {
+            season: vec![
+                Season {
+                    id: 0,
+                    watched: false,
+                    number: 3,
+                    episodes: vec![],
+                },
+                Season {
+                    id: 0,
+                    watched: false,
+                    number: 1,
+                    episodes: vec![],
+                },
+            ],
+            ..default_media()
+        };
+        let media2 = Media {
+            season: vec![Season {
+                id: 0,
+                watched: false,
+                number: 2,
+                episodes: vec![],
+            }],
+            ..default_media()
+        };
+
+        media1.merge(&media2);
+        assert_eq!(media1.season.len(), 3);
+        assert_eq!(media1.season[0].number, 1);
+        assert_eq!(media1.season[1].number, 2);
+        assert_eq!(media1.season[2].number, 3);
+    }
+
+    #[test]
+    fn test_merge_empty_seasons() {
+        let mut media1 = default_media();
+        let media2 = default_media();
+
+        media1.merge(&media2);
+        assert_eq!(media1.season.len(), 0);
     }
 }

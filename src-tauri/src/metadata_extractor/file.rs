@@ -102,6 +102,25 @@ impl File {
 }
 
 #[cfg(test)]
+impl File {
+    pub fn generate_random_file(random_number: u8) -> Self {
+        let random_number = if random_number > 4 {
+            0
+        } else {
+            ((random_number as i8) - 1) as usize
+        };
+
+        let random_path: Vec<PathBuf> = vec![
+            "/path/to/movie.1080p.dubbed.mkv".into(),
+            "/path/to/Movie.1080P.HARDSUB.MKV".into(),
+            "/path/to/Movie.1080P.SUFTSUB.MKV".into(),
+            "/path/to/Movie.720P.HARDSUB.MKV".into(),
+        ];
+        Self::from(random_path[random_number].clone())
+    }
+}
+
+#[cfg(test)]
 mod tests_detect_language_format {
     use super::*;
 
