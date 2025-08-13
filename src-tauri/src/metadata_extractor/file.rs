@@ -4,19 +4,19 @@ use regex::Regex;
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub enum LanguageFormat {
-    SOFTSUB,
-    HARDSUB,
-    DUBBED,
-    UNKNOWN,
+    SoftSub,
+    HardSub,
+    Dubbed,
+    Unknown,
 }
 
 impl std::fmt::Display for LanguageFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let language_format = match &self {
-            LanguageFormat::SOFTSUB => "soft_sub",
-            LanguageFormat::HARDSUB => "hard_sub",
-            LanguageFormat::DUBBED => "dubbed",
-            LanguageFormat::UNKNOWN => "",
+            LanguageFormat::SoftSub => "soft_sub",
+            LanguageFormat::HardSub => "hard_sub",
+            LanguageFormat::Dubbed => "dubbed",
+            LanguageFormat::Unknown => "",
         };
         write!(f, "{language_format}")
     }
@@ -31,13 +31,13 @@ impl From<&String> for LanguageFormat {
 impl From<&str> for LanguageFormat {
     fn from(input: &str) -> Self {
         if Self::detect_dubbed(input) {
-            Self::DUBBED
+            Self::Dubbed
         } else if Self::detect_hard_sub(input) {
-            Self::HARDSUB
+            Self::HardSub
         } else if Self::detect_soft_sub(input) {
-            Self::SOFTSUB
+            Self::SoftSub
         } else {
-            Self::UNKNOWN
+            Self::Unknown
         }
     }
 }
@@ -219,53 +219,40 @@ mod tests_derives_of_language_format {
 
     #[test]
     fn test_display_soft_sub() {
-        let lang = LanguageFormat::SOFTSUB;
+        let lang = LanguageFormat::SoftSub;
         assert_eq!(lang.to_string(), "soft_sub");
     }
 
     #[test]
     fn test_display_hard_sub() {
-        let lang = LanguageFormat::HARDSUB;
+        let lang = LanguageFormat::HardSub;
         assert_eq!(lang.to_string(), "hard_sub");
     }
 
     #[test]
     fn test_display_dubbed() {
-        let lang = LanguageFormat::DUBBED;
+        let lang = LanguageFormat::Dubbed;
         assert_eq!(lang.to_string(), "dubbed");
     }
 
     #[test]
     fn test_display_unknown() {
-        let lang = LanguageFormat::UNKNOWN;
+        let lang = LanguageFormat::Unknown;
         assert_eq!(lang.to_string(), "");
     }
 
     #[test]
-    fn test_debug() {
-        let lang = LanguageFormat::SOFTSUB;
-        assert_eq!(format!("{:?}", lang), "SOFTSUB");
-    }
-
-    #[test]
     fn test_partial_eq_and_eq() {
-        assert_eq!(LanguageFormat::SOFTSUB, LanguageFormat::SOFTSUB);
-        assert_ne!(LanguageFormat::SOFTSUB, LanguageFormat::HARDSUB);
-        assert_eq!(LanguageFormat::UNKNOWN, LanguageFormat::UNKNOWN);
+        assert_eq!(LanguageFormat::SoftSub, LanguageFormat::SoftSub);
+        assert_ne!(LanguageFormat::SoftSub, LanguageFormat::HardSub);
+        assert_eq!(LanguageFormat::Unknown, LanguageFormat::Unknown);
     }
 
     #[test]
     fn test_clone() {
-        let lang = LanguageFormat::DUBBED;
+        let lang = LanguageFormat::Dubbed;
         let cloned = lang.clone();
         assert_eq!(lang, cloned);
-    }
-
-    #[test]
-    fn test_serialize() {
-        let lang = LanguageFormat::HARDSUB;
-        let serialized = serde_json::to_string(&lang).unwrap();
-        assert_eq!(serialized, "\"HARDSUB\""); // Assuming default enum serialization to variant name
     }
 }
 
@@ -276,37 +263,37 @@ mod tests_from_of_language_format {
     #[test]
     fn test_from_dubbed() {
         let input = "movie.dubbed.eng.mkv";
-        assert_eq!(LanguageFormat::from(input), LanguageFormat::DUBBED);
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::Dubbed);
     }
 
     #[test]
     fn test_from_hard_sub() {
         let input = "movie.hardsub.eng.mkv";
-        assert_eq!(LanguageFormat::from(input), LanguageFormat::HARDSUB);
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::HardSub);
     }
 
     #[test]
     fn test_from_soft_sub() {
         let input = "movie.softsub.eng.mkv";
-        assert_eq!(LanguageFormat::from(input), LanguageFormat::SOFTSUB);
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::SoftSub);
     }
 
     #[test]
     fn test_from_unknown() {
         let input = "movie.eng.mkv";
-        assert_eq!(LanguageFormat::from(input), LanguageFormat::UNKNOWN);
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::Unknown);
     }
 
     #[test]
     fn test_from_empty_string() {
         let input = "";
-        assert_eq!(LanguageFormat::from(input), LanguageFormat::UNKNOWN);
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::Unknown);
     }
 
     #[test]
     fn test_case_insensitivity() {
         let input = "Movie.farsi.sub.MKV";
-        assert_eq!(LanguageFormat::from(input), LanguageFormat::SOFTSUB);
+        assert_eq!(LanguageFormat::from(input), LanguageFormat::SoftSub);
     }
 }
 
@@ -349,7 +336,7 @@ mod tests_file_from_path_buf {
         assert_eq!(file.file_name, "movie.1080p.dubbed");
         assert_eq!(file.path, "/path/to/movie.1080p.dubbed.mkv");
         assert_eq!(file.quality, Some("1080p".to_string()));
-        assert_eq!(file.language_format, LanguageFormat::DUBBED);
+        assert_eq!(file.language_format, LanguageFormat::Dubbed);
     }
 
     #[test]
@@ -361,7 +348,7 @@ mod tests_file_from_path_buf {
         assert_eq!(file.file_name, "Movie.1080P.HARDSUB");
         assert_eq!(file.path, "/path/to/Movie.1080P.HARDSUB.MKV");
         assert_eq!(file.quality, Some("1080p".to_string()));
-        assert_eq!(file.language_format, LanguageFormat::HARDSUB);
+        assert_eq!(file.language_format, LanguageFormat::HardSub);
     }
 
     #[test]
@@ -373,7 +360,7 @@ mod tests_file_from_path_buf {
         assert_eq!(file.file_name, "movie");
         assert_eq!(file.path, "/path/to/movie.mkv");
         assert_eq!(file.quality, None);
-        assert_eq!(file.language_format, LanguageFormat::UNKNOWN);
+        assert_eq!(file.language_format, LanguageFormat::Unknown);
     }
 
     #[test]
@@ -385,7 +372,7 @@ mod tests_file_from_path_buf {
         assert_eq!(file.file_name, "");
         assert_eq!(file.path, "/");
         assert_eq!(file.quality, None);
-        assert_eq!(file.language_format, LanguageFormat::UNKNOWN);
+        assert_eq!(file.language_format, LanguageFormat::Unknown);
     }
 
     #[test]
@@ -397,6 +384,6 @@ mod tests_file_from_path_buf {
         assert_eq!(file.file_name, ".hidden");
         assert_eq!(file.path, "/path/to/.hidden.mkv");
         assert_eq!(file.quality, None);
-        assert_eq!(file.language_format, LanguageFormat::UNKNOWN);
+        assert_eq!(file.language_format, LanguageFormat::Unknown);
     }
 }

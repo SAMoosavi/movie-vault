@@ -5,7 +5,7 @@ use super::file::File;
 use super::imdb::Imdb;
 use super::season::Season;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Media {
     pub id: i64,
     pub name: String,
@@ -51,7 +51,7 @@ impl From<&PathBuf> for Media {
 
 impl Media {
     pub fn is_series(&self) -> bool {
-        self.season.len() > 0
+        !self.season.is_empty()
     }
 
     pub fn merge(&mut self, other: &Self) {
