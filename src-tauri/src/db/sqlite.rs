@@ -42,7 +42,7 @@ impl Sqlite {
         value: &str,
     ) -> Result<()> {
         let entity_id = Self::insert_or_get_id(conn, table, value)?;
-        let sql = format!("INSERT INTO imdb_{table} (imdb_id, {field}) VALUES (?1, ?2)");
+        let sql = format!("INSERT OR IGNORE INTO imdb_{table} (imdb_id, {field}) VALUES (?1, ?2)");
         conn.execute(&sql, params![imdb_id, entity_id])?;
         Ok(())
     }
@@ -52,11 +52,12 @@ impl Sqlite {
         name_table: &str,
         relation_table: &str,
         imdb_id: &str,
+        field: &str,
     ) -> Result<Vec<String>> {
         let query = format!(
             "
             SELECT {name_table}.name FROM {name_table}
-            JOIN {relation_table} ON {name_table}.id = {relation_table}.{name_table}_id
+            JOIN {relation_table} ON {name_table}.id = {relation_table}.{field}_id
             WHERE {relation_table}.imdb_id = ?1
             ORDER BY {name_table}.name
             "
@@ -158,13 +159,12 @@ impl Sqlite {
 
         let mut stmt = conn.prepare_cached(
             "
-                INSERT INTO medias (name, year, watched, my_ranking, imdb_id)
+                INSERT OR IGNORE INTO medias (name, year, watched, my_ranking, imdb_id)
                 VALUES (?1, ?2, ?3, ?4, ?5)
-                RETURNING id
-            ",
+                RETURNING id",
         )?;
 
-        let media_id = stmt.query_row(
+        let result = stmt.query_row(
             params![
                 &media.name,
                 media.year,
@@ -173,7 +173,17 @@ impl Sqlite {
                 imdb_id
             ],
             |row| row.get(0),
-        )?;
+        );
+
+        let media_id = match result {
+            Ok(id) => id,
+            Err(rusqlite::Error::QueryReturnedNoRows) => conn.query_row(
+                "SELECT id FROM medias WHERE name = ?1 AND year = ?2",
+                params![&media.name, media.year],
+                |row| row.get(0),
+            )?,
+            Err(e) => return Err(e.into()),
+        };
 
         for season in &media.seasons {
             Self::insert_season(conn, media_id, season)?;
@@ -286,6 +296,7 @@ impl Sqlite {
 
     fn get_imdb(conn: &Connection, imdb_id: &str) -> Result<Option<Imdb>> {
         // Get basic metadata
+
         let mut stmt = conn.prepare_cached(
             "
         SELECT title, year, rated, released, runtime, plot, awards,
@@ -304,12 +315,15 @@ impl Sqlite {
         };
 
         // Get all related data
-        imdb.genres = Self::get_related_names(conn, "genres", "imdb_genres", imdb_id)?;
-        imdb.directors = Self::get_related_names(conn, "directors", "imdb_directors", imdb_id)?;
-        imdb.writers = Self::get_related_names(conn, "writers", "imdb_writers", imdb_id)?;
-        imdb.actors = Self::get_related_names(conn, "actors", "imdb_actors", imdb_id)?;
-        imdb.languages = Self::get_related_names(conn, "languages", "imdb_languages", imdb_id)?;
-        imdb.countries = Self::get_related_names(conn, "countries", "imdb_countries", imdb_id)?;
+        imdb.genres = Self::get_related_names(conn, "genres", "imdb_genres", imdb_id, "genre")?;
+        imdb.directors =
+            Self::get_related_names(conn, "directors", "imdb_directors", imdb_id, "director")?;
+        imdb.writers = Self::get_related_names(conn, "writers", "imdb_writers", imdb_id, "writer")?;
+        imdb.actors = Self::get_related_names(conn, "actors", "imdb_actors", imdb_id, "actor")?;
+        imdb.languages =
+            Self::get_related_names(conn, "languages", "imdb_languages", imdb_id, "language")?;
+        imdb.countries =
+            Self::get_related_names(conn, "countries", "imdb_countries", imdb_id, "country")?;
 
         Ok(Some(imdb))
     }
@@ -539,35 +553,34 @@ impl Sqlite {
             }
         }
 
-        /*
-            if let Some(exist_multi_file) = filters.exist_multi_file {
-                    query.push_str(" LEFT JOIN files vfd ON vm.id = vfd.media_id\n");
-                    if exist_multi_file {
-                        where_conditions.push(
-                            "(
+        if let Some(exist_multi_file) = filters.exist_multi_file {
+            query.push_str(" LEFT JOIN files vfd ON vm.id = vfd.media_id\n");
+            if exist_multi_file {
+                where_conditions.push(
+                    "(
                 SELECT COUNT(*) 
                 FROM files 
                 WHERE media_id = vm.id
             ) > 1"
-                                .to_string(),
-                        );
-                    } else {
-                        where_conditions.push(
-                            "(
+                        .to_string(),
+                );
+            } else {
+                where_conditions.push(
+                    "(
                 SELECT COUNT(*) 
                 FROM files 
                 WHERE media_id = vm.id
             ) <= 1"
-                                .to_string(),
-                        );
-                    }
-                }
-        */
+                        .to_string(),
+                );
+            }
+        }
 
+        /*
         if let Some(exist_multi_file) = filters.exist_multi_file {
             query.push_str(" LEFT JOIN files vfd ON vm.id = vfd.media_id\n");
             query.push_str(" LEFT JOIN seasons vs ON vm.id = vs.media_id\n");
-            query.push_str(" LEFT JOIN episode ve ON vs.id = ve.season_id\n");
+            query.push_str(" LEFT JOIN episodes ve ON vs.id = ve.season_id\n");
             query.push_str(" LEFT JOIN files vfe ON ve.id = vfe.episode_id\n");
 
             if exist_multi_file {
@@ -575,7 +588,7 @@ impl Sqlite {
                     "(
                 (SELECT COUNT(*) FROM files WHERE media_id = vm.id) > 1
                 OR EXISTS (
-                    SELECT 1 FROM episode e
+                    SELECT 1 FROM episodes e
                     JOIN files f ON e.id = f.episode_id
                     WHERE e.media_id = vm.id
                     GROUP BY e.id
@@ -589,7 +602,7 @@ impl Sqlite {
                     "(
                 (SELECT COUNT(*) FROM files WHERE media_id = vm.id) <= 1
                 AND NOT EXISTS (
-                    SELECT 1 FROM episode e
+                    SELECT 1 FROM episodes e
                     JOIN files f ON e.id = f.episode_id
                     WHERE e.media_id = vm.id
                     GROUP BY e.id
@@ -600,6 +613,7 @@ impl Sqlite {
                 );
             }
         }
+        */
 
         if let Some(watched) = filters.watched {
             where_conditions.push("vm.watched = ?".to_string());
@@ -636,12 +650,11 @@ impl Sqlite {
             .query_map(
                 rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())),
                 |row| {
-                    let media_id: i64 = row.get(0)?;
+                    let media_id = row.get(0)?;
                     Self::get_media_and_imdb_by_media_id(conn, media_id)
                 },
             )?
-            .filter_map(Result::ok)
-            .collect();
+            .collect::<Result<_>>()?;
 
         Ok(results)
     }
