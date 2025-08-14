@@ -1,13 +1,23 @@
-export interface SeriesMeta {
-  season: number
-  episode: number
-}
-
-export interface VideoFileData {
+export interface File {
+  id: number
   title: string
   path: string
   quality?: string
   language_format: string
+}
+
+export interface Episode {
+  id: number,
+  number: number,
+  watched: boolean,
+  files: File[],
+}
+
+export interface Season {
+  id: number,
+  number: number,
+  watched: boolean,
+  episodes: Episode[],
 }
 
 export interface Imdb {
@@ -36,10 +46,9 @@ export interface Imdb {
 export interface Media {
   id: number
   name: string
-  subtitle_path?: string
   year?: number
-  files: VideoFileData[]
-  series?: SeriesMeta
+  files: File[]
+  seasons: Season[]
   imdb?: Imdb
   watched: boolean
   my_ranking: number
