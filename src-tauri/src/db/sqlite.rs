@@ -866,166 +866,142 @@ impl DB for Sqlite {
     }
 
     fn create_table(&self) -> Result<()> {
-        let conn = self.get_conn()?;
+        let mut conn = self.get_conn()?;
+        let tx = conn.transaction()?;
 
-        let sql = "
-            CREATE TABLE
-                IF NOT EXISTS medias (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT NOT NULL,
-                    year INTEGER,
-                    watched BOOLEAN DEFAULT 0,
-                    my_ranking INTEGER DEFAULT 0,
-                    imdb_id TEXT UNIQUE,
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE UNIQUE (name, year),
-                );
+        let stmts = [
+            r#"CREATE TABLE IF NOT EXISTS imdb_metadata (
+            imdb_id TEXT PRIMARY KEY,
+            title TEXT,
+            year TEXT,
+            rated TEXT,
+            released TEXT,
+            runtime TEXT,
+            plot TEXT,
+            awards TEXT,
+            poster TEXT,
+            imdb_rating TEXT,
+            imdb_votes TEXT,
+            box_office TEXT,
+            total_seasons TEXT,
+            type TEXT
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS medias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            year INTEGER,
+            watched BOOLEAN DEFAULT 0,
+            my_ranking INTEGER DEFAULT 0,
+            imdb_id TEXT UNIQUE,
+            UNIQUE (name, year),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS seasons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            media_id INTEGER NOT NULL,
+            season_number INTEGER NOT NULL,
+            watched BOOLEAN DEFAULT 0,
+            FOREIGN KEY (media_id) REFERENCES medias (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS episodes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            season_id INTEGER NOT NULL,
+            episode_number INTEGER NOT NULL,
+            watched BOOLEAN DEFAULT 0,
+            FOREIGN KEY (season_id) REFERENCES seasons (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            media_id INTEGER,
+            episode_id INTEGER,
+            file_name TEXT NOT NULL,
+            path TEXT NOT NULL UNIQUE,
+            quality TEXT,
+            language_format TEXT,
+            CHECK (
+                language_format IN ('soft_sub', 'hard_sub', 'dubbed', '')
+            ),
+            FOREIGN KEY (media_id) REFERENCES medias (id) ON DELETE CASCADE,
+            FOREIGN KEY (episode_id) REFERENCES episodes (id) ON DELETE CASCADE,
+            CHECK (
+                media_id IS NOT NULL
+                OR episode_id IS NOT NULL
+            )
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS actors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS imdb_actors (
+            imdb_id TEXT,
+            actor_id INTEGER,
+            PRIMARY KEY (imdb_id, actor_id),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (actor_id) REFERENCES actors (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS directors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS imdb_directors (
+            imdb_id TEXT,
+            director_id INTEGER,
+            PRIMARY KEY (imdb_id, director_id),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (director_id) REFERENCES directors (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS writers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS imdb_writers (
+            imdb_id TEXT,
+            writer_id INTEGER,
+            PRIMARY KEY (imdb_id, writer_id),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (writer_id) REFERENCES writers (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS genres (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS imdb_genres (
+            imdb_id TEXT,
+            genre_id INTEGER,
+            PRIMARY KEY (imdb_id, genre_id),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS languages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS imdb_languages (
+            imdb_id TEXT,
+            language_id INTEGER,
+            PRIMARY KEY (imdb_id, language_id),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (language_id) REFERENCES languages (id) ON DELETE CASCADE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS countries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS imdb_countries (
+            imdb_id TEXT,
+            country_id INTEGER,
+            PRIMARY KEY (imdb_id, country_id),
+            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
+        );"#,
+        ];
 
-            CREATE TABLE
-                IF NOT EXISTS seasons (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    media_id INTEGER NOT NULL,
-                    season_number INTEGER NOT NULL,
-                    watched BOOLEAN DEFAULT 0,
-                    FOREIGN KEY (media_id) REFERENCES medias (id) ON DELETE CASCADE
-                );
+        for stmt in stmts {
+            tx.execute(stmt, [])?;
+        }
 
-            CREATE TABLE
-                IF NOT EXISTS episodes (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    season_id INTEGER NOT NULL,
-                    episode_number INTEGER NOT NULL,
-                    watched BOOLEAN DEFAULT 0,
-                    FOREIGN KEY (season_id) REFERENCES seasons (id) ON DELETE CASCADE
-                );
+        tx.commit()?;
 
-            CREATE TABLE
-                IF NOT EXISTS files (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    media_id INTEGER,
-                    episode_id INTEGER,
-                    file_name TEXT NOT NULL,
-                    path TEXT NOT NULL UNIQUE,
-                    quality TEXT,
-                    language_format TEXT CHECK (
-                        language_format IN ('soft_sub', 'hard_sub', 'dubbed', '')
-                    ) FOREIGN KEY (media_id) REFERENCES medias (media_id) ON DELETE CASCADE,
-                    FOREIGN KEY (episode_id) REFERENCES episodes (episode_id) ON DELETE CASCADE,
-                    CHECK (
-                        media_id IS NOT NULL
-                        OR episode_id IS NOT NULL
-                    )
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_metadata (
-                    imdb_id TEXT PRIMARY KEY,
-                    title TEXT,
-                    year TEXT,
-                    rated TEXT,
-                    released TEXT,
-                    runtime TEXT,
-                    plot TEXT,
-                    awards TEXT,
-                    poster TEXT,
-                    imdb_rating TEXT,
-                    imdb_votes TEXT,
-                    box_office TEXT,
-                    total_seasons TEXT,
-                    type TEXT
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS actors (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_actors (
-                    imdb_id TEXT,
-                    actor_id INTEGER,
-                    PRIMARY KEY (imdb_id, actor_id),
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
-                    FOREIGN KEY (actor_id) REFERENCES actors (id) ON DELETE CASCADE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS directors (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_directors (
-                    imdb_id TEXT,
-                    director_id INTEGER,
-                    PRIMARY KEY (imdb_id, director_id),
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
-                    FOREIGN KEY (director_id) REFERENCES directors (id) ON DELETE CASCADE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS writers (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_writers (
-                    imdb_id TEXT,
-                    writer_id INTEGER,
-                    PRIMARY KEY (imdb_id, writer_id),
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
-                    FOREIGN KEY (writer_id) REFERENCES writers (id) ON DELETE CASCADE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS genres (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_genres (
-                    imdb_id TEXT,
-                    genre_id INTEGER,
-                    PRIMARY KEY (imdb_id, genre_id),
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
-                    FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS languages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_languages (
-                    imdb_id TEXT,
-                    language_id INTEGER,
-                    PRIMARY KEY (imdb_id, language_id),
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
-                    FOREIGN KEY (language_id) REFERENCES languages (id) ON DELETE CASCADE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS countries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT UNIQUE
-                );
-
-            CREATE TABLE
-                IF NOT EXISTS imdb_countries (
-                    imdb_id TEXT,
-                    country_id INTEGER,
-                    PRIMARY KEY (imdb_id, country_id),
-                    FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
-                    FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
-                );
-        ";
-
-        conn.execute(sql, [])?;
         Ok(())
     }
 
@@ -1132,5 +1108,82 @@ impl DB for Sqlite {
         let re = Self::get_media_by_id(&tx, media_id);
         tx.commit()?;
         re
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn drop_all_tables() -> Result<()> {
+        let db = Sqlite::default();
+
+        let conn = db.get_conn()?;
+
+        conn.execute("PRAGMA foreign_keys = OFF;", [])?;
+
+        let mut stmt = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        )?;
+        let table_iter = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let tables: Vec<String> = table_iter.collect::<Result<Vec<_>>>()?;
+
+        for table in tables {
+            let sql = format!("DROP TABLE IF EXISTS {};", table);
+            conn.execute(&sql, [])?;
+        }
+
+        conn.execute("PRAGMA foreign_keys = ON;", [])?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_create_table() -> Result<()> {
+        drop_all_tables()?;
+
+        let db = Sqlite::default();
+        db.create_table()?;
+
+        let conn = db.get_conn()?;
+
+        // Retrieve all table names
+        let mut stmt = conn.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+        )?;
+        let table_iter = stmt.query_map([], |row| row.get(0))?;
+
+        let mut tables: Vec<String> = table_iter.collect::<Result<Vec<_>>>()?;
+
+        tables.sort();
+
+        let expected_tables = vec![
+            "actors",
+            "countries",
+            "directors",
+            "episodes",
+            "files",
+            "genres",
+            "imdb_actors",
+            "imdb_countries",
+            "imdb_directors",
+            "imdb_genres",
+            "imdb_languages",
+            "imdb_metadata",
+            "imdb_writers",
+            "languages",
+            "medias",
+            "seasons",
+            "writers",
+        ];
+
+        let mut expected = expected_tables
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>();
+        expected.sort();
+
+        assert_eq!(tables, expected);
+
+        Ok(())
     }
 }
