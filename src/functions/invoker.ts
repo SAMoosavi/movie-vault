@@ -21,22 +21,30 @@ export async function get_countries() {
   return await invoke<NumericalString[]>('get_countries_app')
 }
 
-export async function search_videos(filters: FilterValues): Promise<VideoMetaData[]> {
-  return await invoke<VideoMetaData[]>('search_videos_app', { filters })
+export async function filter_medias(filters: FilterValues): Promise<VideoMetaData[]> {
+  return await invoke<VideoMetaData[]>('filter_medias_app', { filters })
 }
 
-export async function get_video_by_id(videoId: number): Promise<VideoMetaData> {
-  return await invoke('get_video_by_id_app', { videoId })
+export async function get_media_by_id(mediaId: number): Promise<VideoMetaData> {
+  return await invoke('get_media_by_id_app', { mediaId })
 }
 
-export async function update_video_imdb(videoId: number, imdbId: string): Promise<void> {
-  return await invoke('update_video_imdb_app', { videoId, imdbId, apiKey: '4c602a26' })
+export async function update_media_imdb(mediaId: number, imdbId: string): Promise<void> {
+  return await invoke('update_media_imdb_app', { mediaId, imdbId, apiKey: '4c602a26' })
 }
 
-export async function update_video_watched(videoId: number, watched: boolean) {
-  return await invoke('update_video_watched_app', { videoId, watched })
+export async function update_media_watched(mediaId: number, watched: boolean) {
+  return await invoke('update_media_watched_app', { mediaId, watched })
 }
 
-export async function update_video_my_ranking(videoId: number, myRanking: number) {
-  return await invoke('update_video_my_ranking_app', { videoId, myRanking })
+export async function update_season_watched(seasonId: number, watched: boolean) {
+  return await invoke('update_season_watched_app', { seasonId, watched })
+}
+
+export async function update_episode_watched(episodeId: number, watched: boolean) {
+  return await invoke('update_episode_watched_app', { episodeId, watched })
+}
+
+export async function update_media_my_ranking(mediaId: number, myRanking: number) {
+  return await invoke('update_media_my_ranking_app', { mediaId, myRanking })
 }
