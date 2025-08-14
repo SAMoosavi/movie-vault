@@ -10,8 +10,9 @@ import AppNavbar from './component/AppNavbar.vue'
 import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
 import { useDirsStore } from './stores/Dirs'
 import { storeToRefs } from 'pinia'
-import { sync_app } from './functions/invoker'
+import { create_table, sync_app } from './functions/invoker'
 import { useVideosStore } from './stores/Videos'
+import { toast } from 'vue3-toastify'
 
 const videos = useVideosStore()
 const dir = useDirsStore()
@@ -53,7 +54,21 @@ const startWatching = async (paths: string[]) => {
 }
 
 onMounted(async () => {
-  await startWatching(dir_path.value)
+  try {
+    // Initialize database
+    await create_table()
+
+    // Sync files with better error handling
+    const syncPromises = dir_path.value.map(sync_app)
+    await Promise.all(syncPromises)
+
+    await startWatching(dir_path.value)
+
+    toast.success('initialized successfully!')
+  } catch (e) {
+    console.error('Initialization error:', e)
+    toast.error(`Failed to initialize: ${e instanceof Error ? e.message : 'Unknown error'}`)
+  }
 })
 
 watch(
