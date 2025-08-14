@@ -3,7 +3,7 @@ use crate::metadata_extractor::{Imdb, Media};
 use futures::future::join_all;
 use serde::Deserialize;
 
-use tauri_plugin_http::reqwest::Client;
+use tauri_plugin_http::reqwest::{self, Client};
 
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize, Clone)]
