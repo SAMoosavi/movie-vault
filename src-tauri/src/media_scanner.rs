@@ -1,68 +1,49 @@
-use either::Either;
 use futures::future::join_all;
-use rayon::prelude::*;
 use std::path::PathBuf;
 use tokio::{fs, task};
 use walkdir::WalkDir;
 
-use crate::sqlite::{
-    get_all_video_files_from_db, get_video_file_by_path_from_db,
-    remove_orphaned_video_metadata_from_db, remove_rows_by_paths,
-};
+use crate::db::DB;
 
 /// Supported video file extensions.
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi"];
 
-/// Holds separated lists of video and subtitle file paths.
-#[derive(Debug)]
-pub struct FoundFiles {
-    pub videos: Vec<PathBuf>,
-    pub subtitles: Vec<PathBuf>,
-}
+/// Recursively scan a directory to find video
+pub async fn find_movies<T: DB + Clone + 'static>(
+    db: &T,
+    root: PathBuf,
+) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+    let db = db.clone();
 
-/// Recursively scan a directory to find video and subtitle files.
-pub async fn find_movies(root: PathBuf) -> FoundFiles {
-    // Scan the file system in a blocking thread
-    let all_files = task::spawn_blocking(move || {
+    if !root.exists() {
+        return Err(format!("Directory does not exist: {}", root.display()).into());
+    }
+
+    let videos = task::spawn_blocking(move || {
         WalkDir::new(root)
             .into_iter()
             .filter_map(Result::ok)
             .filter(|e| e.file_type().is_file())
             .map(|e| e.into_path())
+            .filter(|path| {
+                path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .map(|ext| VIDEO_EXTENSIONS.contains(&ext.to_ascii_lowercase().as_str()))
+                    .unwrap_or(false)
+            })
+            .filter(|path| !db.exist_file_by_path_from_db(path).ok().unwrap_or(true))
             .collect::<Vec<_>>()
     })
-    .await
-    .expect("Failed to scan file system");
+    .await?;
 
-    // Classify files as videos or subtitles
-    let (videos, mut subtitles): (Vec<_>, Vec<_>) = all_files
-        .into_par_iter()
-        .filter(|path| path.extension().is_some())
-        .partition_map(|path| match path.extension().and_then(|ext| ext.to_str()) {
-            Some(ext) => {
-                let ext = ext.to_ascii_lowercase();
-                if VIDEO_EXTENSIONS.contains(&ext.as_str()) {
-                    match get_video_file_by_path_from_db(path.clone()) {
-                        Ok(None) => Either::Left(path),
-                        _ => Either::Right(PathBuf::new()),
-                    }
-                } else if ext == "srt" {
-                    Either::Right(path)
-                } else {
-                    Either::Right(PathBuf::new())
-                }
-            }
-            None => Either::Right(PathBuf::new()),
-        });
-
-    // Filter out placeholder empty paths from ignored extensions
-    subtitles.retain(|p| !p.as_os_str().is_empty());
-
-    FoundFiles { videos, subtitles }
+    Ok(videos)
 }
 
-async fn find_non_existent_paths() -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
-    let files = get_all_video_files_from_db()?
+async fn find_non_existent_paths<T: DB>(
+    db: &T,
+) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+    let files = db
+        .get_all_files_from_db()?
         .into_iter()
         .map(|video| async move {
             let exists = fs::try_exists(&video.path).await.unwrap_or(false);
@@ -73,49 +54,124 @@ async fn find_non_existent_paths() -> Result<Vec<PathBuf>, Box<dyn std::error::E
         .await
         .into_iter()
         .flatten()
-        .map(|video| video.path.clone())
+        .map(|video| video.path.into())
         .collect();
 
     Ok(paths)
 }
 
-pub async fn sync_files() -> Result<(), Box<dyn std::error::Error>> {
-    let paths = find_non_existent_paths().await?;
-    remove_rows_by_paths(&paths)?;
-    remove_orphaned_video_metadata_from_db()?;
+pub async fn sync_files<T: DB>(db: &T) -> Result<(), Box<dyn std::error::Error>> {
+    let paths = find_non_existent_paths(db).await?;
+    db.remove_file_by_path_from_db(&paths)?;
+    db.clear_empty_data_from_db()?;
     Ok(())
 }
 
 #[cfg(test)]
 mod find_movies_tests {
     use super::*;
-    use std::fs::File;
-    use tempfile::tempdir;
+    use crate::db::MokeDB;
+    use std::fs::{self, File};
+    use std::io::Write;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    // Helper to create a temporary directory with test files
+    fn setup_temp_dir() -> TempDir {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+
+        // Create some test files
+        let files = vec![
+            ("valid_movie.mp4", true),
+            ("invalid_movie.txt", false),
+            ("other_valid.mkv", true),
+            ("db_existing.avi", false),
+            ("no_extension", false),
+        ];
+
+        for (name, _is_valid) in files {
+            let path = temp_dir.path().join(name);
+            File::create(path)
+                .expect("Failed to create file")
+                .write_all(b"test")
+                .expect("Failed to write");
+        }
+
+        // Create a subdirectory with a file
+        fs::create_dir(temp_dir.path().join("subdir")).expect("Failed to create subdir");
+        File::create(temp_dir.path().join("subdir").join("subdir_movie.mp4"))
+            .expect("Failed to create subdir file")
+            .write_all(b"test")
+            .expect("Failed to write");
+
+        temp_dir
+    }
+    #[tokio::test]
+    async fn valid_files() {
+        let temp_dir = setup_temp_dir();
+        let root = temp_dir.path().to_path_buf();
+
+        let db = MokeDB::default();
+        let videos = find_movies(&db, root).await.expect("Function failed");
+
+        let video_paths: Vec<String> = videos
+            .iter()
+            .map(|p| p.file_name().unwrap().to_str().unwrap().to_string())
+            .collect();
+
+        assert_eq!(videos.len(), 2, "Should find exactly 2 valid video files");
+        assert!(video_paths.contains(&"valid_movie.mp4".to_string()));
+        assert!(video_paths.contains(&"other_valid.mkv".to_string()));
+    }
 
     #[tokio::test]
-    async fn test_find_temp_files() {
-        let dir = tempdir().unwrap();
-        let root = dir.path();
+    async fn no_valid_files() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        File::create(temp_dir.path().join("invalid.txt"))
+            .expect("Failed to create file")
+            .write_all(b"test")
+            .expect("Failed to write");
 
-        // Create test files
-        let video1 = root.join("movie1.mkv");
-        let video2 = root.join("movie2.mp4");
-        let subtitle1 = root.join("movie1.srt");
-        let ignore_file = root.join("notes.txt");
+        let db = MokeDB::default();
+        let videos = find_movies(&db, temp_dir.path().to_path_buf())
+            .await
+            .expect("Function failed");
 
-        File::create(&video1).unwrap();
-        File::create(&video2).unwrap();
-        File::create(&subtitle1).unwrap();
-        File::create(&ignore_file).unwrap();
+        assert_eq!(videos.len(), 0, "Should find no valid video files");
+    }
 
-        let result = find_movies(root.to_path_buf()).await;
+    #[tokio::test]
+    async fn non_existent_dir() {
+        let db = MokeDB::default();
+        let root = PathBuf::from("/non/existent/path");
+        let videos = find_movies(&db, root).await;
+        assert!(videos.is_err(), "Should fail for non-existent directory");
+    }
 
-        assert_eq!(result.videos.len(), 2, "Should detect two video files");
-        assert_eq!(result.subtitles.len(), 1, "Should detect one subtitle file");
+    #[tokio::test]
+    async fn empty_dir() {
+        let db = MokeDB::default();
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let videos = find_movies(&db, temp_dir.path().to_path_buf())
+            .await
+            .expect("Function failed");
 
-        assert!(result.videos.contains(&video1));
-        assert!(result.videos.contains(&video2));
-        assert!(result.subtitles.contains(&subtitle1));
-        assert!(!result.videos.contains(&ignore_file));
+        assert_eq!(videos.len(), 0, "Should find no files in empty directory");
+    }
+
+    #[tokio::test]
+    async fn db_existing_files() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        File::create(temp_dir.path().join("db_existing.avi"))
+            .expect("Failed to create file")
+            .write_all(b"test")
+            .expect("Failed to write");
+
+        let db = MokeDB::default();
+        let videos = find_movies(&db, temp_dir.path().to_path_buf())
+            .await
+            .expect("Function failed");
+
+        assert_eq!(videos.len(), 0, "Should exclude files existing in DB");
     }
 }

@@ -1,83 +1,118 @@
+use crate::db::{DB, FilterValues};
+
+mod db;
 mod media_scanner;
 mod metadata_extractor;
 mod omdb_meta_data;
-mod sqlite;
+
+fn get_db() -> impl DB {
+    db::Sqlite::default()
+}
 
 #[tauri::command]
 async fn sync_app_files(root: &str, api_key: &str) -> Result<usize, String> {
-    media_scanner::sync_files()
+    let db = get_db();
+
+    media_scanner::sync_files(&db)
         .await
         .map_err(|e| e.to_string())?;
 
-    let found_files = media_scanner::find_movies(root.into()).await;
+    let found_files = media_scanner::find_movies(&db, root.into())
+        .await
+        .map_err(|e| e.to_string())?;
 
-    let metadatas = metadata_extractor::get_metadata(found_files);
-    let data = omdb_meta_data::get_omdb_metadata(&metadatas, api_key).await;
+    let metadatas = metadata_extractor::get_metadata(&found_files);
+    let data = omdb_meta_data::get_omdb_of_medias(&metadatas, api_key).await;
 
-    sqlite::insert(&data).map_err(|e| e.to_string())?;
+    db.insert_medias(&data).map_err(|e| e.to_string())?;
     Ok(data.len())
 }
 
 #[tauri::command]
-fn create_table_app() -> Result<(), String> {
-    sqlite::create_table().map_err(|e| e.to_string())
+async fn create_table_app() -> Result<(), String> {
+    let db = get_db();
+
+    db.create_table().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
 fn get_countries_app() -> Result<Vec<(usize, String)>, String> {
-    sqlite::get_countries_from_db().map_err(|e| e.to_string())
+    let db = get_db();
+    db.get_countries_from_db().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn get_genres_app() -> Result<Vec<(usize, String)>, String> {
-    sqlite::get_genres_from_db().map_err(|e| e.to_string())
+    let db = get_db();
+
+    db.get_genres_from_db().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn get_actors_app() -> Result<Vec<(usize, String)>, String> {
-    sqlite::get_actors_from_db().map_err(|e| e.to_string())
+    let db = get_db();
+
+    db.get_actors_from_db().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn search_videos_app(
-    filters: sqlite::FilterValues,
-) -> Result<Vec<metadata_extractor::VideoMetaData>, String> {
-    println!("0");
-
-    sqlite::search_videos_on_db(&filters).map_err(|e| e.to_string())
+fn filter_medias_app(filters: FilterValues) -> Result<Vec<metadata_extractor::Media>, String> {
+    let db = get_db();
+    db.filter_medias_on_db(&filters).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_video_by_id_app(video_id: i64) -> Result<metadata_extractor::VideoMetaData, String> {
-    sqlite::get_video_by_id_from_db(video_id)
+fn get_media_by_id_app(media_id: i64) -> Result<metadata_extractor::Media, String> {
+    let db = get_db();
+    db.get_media_by_id_from_db(media_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "movie not found".to_string())
 }
 
 #[tauri::command]
-async fn update_video_imdb_app(video_id: i64, imdb_id: &str, api_key: &str) -> Result<(), String> {
+async fn update_media_imdb_app(media_id: i64, imdb_id: &str, api_key: &str) -> Result<(), String> {
+    let db = get_db();
     let imdb = omdb_meta_data::get_omdb_by_id(imdb_id, api_key)
         .await
         .map_err(|e| e.to_string())?;
 
-    if let Some(data) = imdb {
-        sqlite::insert_imdb_metadata_to_db(&data).map_err(|e| e.to_string())?;
-        sqlite::update_video_imdb_to_db(video_id, imdb_id).map_err(|e| e.to_string())?;
-        Ok(())
-    } else {
-        Err("omdb can't find movie".to_string())
-    }
-}
-
-#[tauri::command]
-fn update_video_watched_app(video_id: i64, watched: bool) -> Result<(), String> {
-    sqlite::update_video_watched_to_db(video_id, watched).map_err(|e| e.to_string())?;
+    db.insert_imdb_metadata_to_db(&imdb)
+        .map_err(|e| e.to_string())?;
+    db.update_media_imdb_to_db(media_id, imdb_id)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-fn update_video_my_ranking_app(video_id: i64, my_ranking: u8) -> Result<(), String> {
-    sqlite::update_video_my_ranking_to_db(video_id, my_ranking).map_err(|e| e.to_string())?;
+fn update_media_watched_app(media_id: i64, watched: bool) -> Result<(), String> {
+    let db = get_db();
+    db.update_media_watched_to_db(media_id, watched)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn update_season_watched_app(season_id: i64, watched: bool) -> Result<(), String> {
+    let db = get_db();
+    db.update_season_watched_to_db(season_id, watched)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn update_episode_watched_app(episode_id: i64, watched: bool) -> Result<(), String> {
+    let db = get_db();
+    db.update_episode_watched_to_db(episode_id, watched)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+fn update_media_my_ranking_app(media_id: i64, my_ranking: u8) -> Result<(), String> {
+    let db = get_db();
+    db.update_media_my_ranking_to_db(media_id, my_ranking)
+        .map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -94,12 +129,14 @@ pub fn run() {
             sync_app_files,
             get_countries_app,
             get_genres_app,
-            search_videos_app,
-            get_video_by_id_app,
+            filter_medias_app,
+            get_media_by_id_app,
             get_actors_app,
-            update_video_imdb_app,
-            update_video_watched_app,
-            update_video_my_ranking_app
+            update_media_imdb_app,
+            update_media_watched_app,
+            update_season_watched_app,
+            update_episode_watched_app,
+            update_media_my_ranking_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

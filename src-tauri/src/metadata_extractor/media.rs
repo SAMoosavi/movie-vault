@@ -1,19 +1,19 @@
 use regex::Regex;
 use std::path::PathBuf;
 
-use super::file::File;
 use super::imdb::Imdb;
+use super::media_file::MediaFile;
 use super::season::Season;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct Media {
     pub id: i64,
     pub name: String,
     pub year: Option<u32>,
     pub watched: bool,
     pub my_ranking: u8,
-    pub season: Vec<Season>,
-    pub files: Vec<File>,
+    pub seasons: Vec<Season>,
+    pub files: Vec<MediaFile>,
     pub imdb: Option<Imdb>,
 }
 
@@ -27,7 +27,7 @@ impl From<PathBuf> for Media {
 
         let (season, files) = match Season::try_from(path.clone()) {
             Ok(x) => (vec![x], vec![]),
-            Err(_) => (vec![], vec![File::from(path)]),
+            Err(_) => (vec![], vec![MediaFile::from(path)]),
         };
 
         Self {
@@ -35,7 +35,7 @@ impl From<PathBuf> for Media {
             name: Self::detect_name(&video_stem),
             year: Self::detect_year(&video_stem),
             files,
-            season,
+            seasons: season,
             imdb: None,
             watched: false,
             my_ranking: 0,
@@ -51,7 +51,7 @@ impl From<&PathBuf> for Media {
 
 impl Media {
     pub fn is_series(&self) -> bool {
-        !self.season.is_empty()
+        !self.seasons.is_empty()
     }
 
     pub fn merge(&mut self, other: &Self) {
@@ -65,19 +65,19 @@ impl Media {
 
         self.files.extend(other.files.iter().cloned());
 
-        for new_season in &other.season {
+        for new_season in &other.seasons {
             if let Some(old_season) = self
-                .season
+                .seasons
                 .iter_mut()
                 .find(|s| s.number == new_season.number)
             {
                 old_season.merge(new_season);
             } else {
-                self.season.push(new_season.clone());
+                self.seasons.push(new_season.clone());
             }
         }
 
-        self.season.sort_by_key(|s| s.number);
+        self.seasons.sort_by_key(|s| s.number);
     }
 }
 
@@ -269,7 +269,7 @@ mod tests_media_from {
         assert_eq!(media.year, Some(2020));
         assert!(!media.watched);
         assert_eq!(media.my_ranking, 0);
-        assert_eq!(media.season.len(), 0);
+        assert_eq!(media.seasons.len(), 0);
         assert_eq!(media.files.len(), 1);
         assert_eq!(media.imdb, None);
     }
@@ -284,7 +284,7 @@ mod tests_media_from {
         assert_eq!(media.year, None);
         assert!(!media.watched);
         assert_eq!(media.my_ranking, 0);
-        assert_eq!(media.season.len(), 1);
+        assert_eq!(media.seasons.len(), 1);
         assert_eq!(media.files.len(), 0);
         assert_eq!(media.imdb, None);
     }
@@ -309,7 +309,7 @@ mod tests_media_from {
         assert_eq!(media_from_ref.year, media_from_owned.year);
         assert_eq!(media_from_ref.watched, media_from_owned.watched);
         assert_eq!(media_from_ref.my_ranking, media_from_owned.my_ranking);
-        assert_eq!(media_from_ref.season.len(), media_from_owned.season.len());
+        assert_eq!(media_from_ref.seasons.len(), media_from_owned.seasons.len());
         assert_eq!(media_from_ref.files.len(), media_from_owned.files.len());
         assert_eq!(media_from_ref.imdb, media_from_owned.imdb);
     }
@@ -351,9 +351,9 @@ mod tests {
 
     #[test]
     fn test_merge_files() {
-        let file1 = File::generate_random_file(1);
-        let file2 = File::generate_random_file(2);
-        let file3 = File::generate_random_file(3);
+        let file1 = MediaFile::generate_random_file(1);
+        let file2 = MediaFile::generate_random_file(2);
+        let file3 = MediaFile::generate_random_file(3);
 
         let mut media1 = Media {
             files: vec![file1.clone()],
@@ -374,7 +374,7 @@ mod tests {
     #[test]
     fn test_merge_seasons_no_overlap() {
         let mut media1 = Media {
-            season: vec![Season {
+            seasons: vec![Season {
                 id: 0,
                 watched: false,
                 number: 1,
@@ -383,7 +383,7 @@ mod tests {
             ..default_media()
         };
         let media2 = Media {
-            season: vec![Season {
+            seasons: vec![Season {
                 number: 2,
                 id: 0,
                 watched: false,
@@ -393,15 +393,15 @@ mod tests {
         };
 
         media1.merge(&media2);
-        assert_eq!(media1.season.len(), 2);
-        assert_eq!(media1.season[0].number, 1);
-        assert_eq!(media1.season[1].number, 2);
+        assert_eq!(media1.seasons.len(), 2);
+        assert_eq!(media1.seasons[0].number, 1);
+        assert_eq!(media1.seasons[1].number, 2);
     }
 
     #[test]
     fn test_merge_seasons_with_overlap_calls_merge() {
         let mut media1 = Media {
-            season: vec![Season {
+            seasons: vec![Season {
                 id: 0,
                 watched: false,
                 number: 1,
@@ -410,7 +410,7 @@ mod tests {
             ..default_media()
         };
         let media2 = Media {
-            season: vec![Season {
+            seasons: vec![Season {
                 id: 0,
                 watched: false,
                 number: 1,
@@ -420,13 +420,13 @@ mod tests {
         };
 
         media1.merge(&media2);
-        assert_eq!(media1.season.len(), 1);
+        assert_eq!(media1.seasons.len(), 1);
     }
 
     #[test]
     fn test_merge_seasons_adds_new_and_sorts() {
         let mut media1 = Media {
-            season: vec![
+            seasons: vec![
                 Season {
                     id: 0,
                     watched: false,
@@ -443,7 +443,7 @@ mod tests {
             ..default_media()
         };
         let media2 = Media {
-            season: vec![Season {
+            seasons: vec![Season {
                 id: 0,
                 watched: false,
                 number: 2,
@@ -453,10 +453,10 @@ mod tests {
         };
 
         media1.merge(&media2);
-        assert_eq!(media1.season.len(), 3);
-        assert_eq!(media1.season[0].number, 1);
-        assert_eq!(media1.season[1].number, 2);
-        assert_eq!(media1.season[2].number, 3);
+        assert_eq!(media1.seasons.len(), 3);
+        assert_eq!(media1.seasons[0].number, 1);
+        assert_eq!(media1.seasons[1].number, 2);
+        assert_eq!(media1.seasons[2].number, 3);
     }
 
     #[test]
@@ -465,6 +465,6 @@ mod tests {
         let media2 = default_media();
 
         media1.merge(&media2);
-        assert_eq!(media1.season.len(), 0);
+        assert_eq!(media1.seasons.len(), 0);
     }
 }

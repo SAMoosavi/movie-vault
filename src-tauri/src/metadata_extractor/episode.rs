@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use super::file::File;
+use super::media_file::MediaFile;
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct Episode {
     pub id: i64,
     pub number: i32,
     pub watched: bool,
-    pub files: Vec<File>,
+    pub files: Vec<MediaFile>,
 }
 
 impl Episode {
@@ -16,7 +16,7 @@ impl Episode {
             id: 0,
             number,
             watched: false,
-            files: vec![File::from(path)],
+            files: vec![MediaFile::from(path)],
         }
     }
 
@@ -52,10 +52,10 @@ mod tests_episode {
 
     #[test]
     fn merge_adds_files() {
-        let file1 = File::generate_random_file(1);
-        let file2 = File::generate_random_file(2);
-        let file3 = File::generate_random_file(3);
-        let file4 = File::generate_random_file(4);
+        let file1 = MediaFile::generate_random_file(1);
+        let file2 = MediaFile::generate_random_file(2);
+        let file3 = MediaFile::generate_random_file(3);
+        let file4 = MediaFile::generate_random_file(4);
 
         let mut episode1 = Episode {
             id: 0,
@@ -82,7 +82,7 @@ mod tests_episode {
 
     #[test]
     fn test_episode_merge_with_empty_other() {
-        let file1 = File::generate_random_file(1);
+        let file1 = MediaFile::generate_random_file(1);
 
         let mut episode = Episode {
             id: 0,
@@ -106,7 +106,7 @@ mod tests_episode {
 
     #[test]
     fn test_episode_merge_into_empty() {
-        let file1 = File::generate_random_file(1);
+        let file1 = MediaFile::generate_random_file(1);
         let mut empty_episode = Episode {
             id: 0,
             number: 0,

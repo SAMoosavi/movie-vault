@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 use regex::Regex;
+use rusqlite::Result as RusqliteResult;
+use rusqlite::types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub enum LanguageFormat {
@@ -22,6 +24,18 @@ impl std::fmt::Display for LanguageFormat {
     }
 }
 
+impl ToSql for LanguageFormat {
+    fn to_sql(&self) -> RusqliteResult<ToSqlOutput<'_>> {
+        Ok(ToSqlOutput::from(self.to_string()))
+    }
+}
+
+impl FromSql for LanguageFormat {
+    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
+        value.as_str().map(|s| s.into())
+    }
+}
+
 impl From<&String> for LanguageFormat {
     fn from(input: &String) -> Self {
         Self::from(input.as_str())
@@ -39,6 +53,12 @@ impl From<&str> for LanguageFormat {
         } else {
             Self::Unknown
         }
+    }
+}
+
+impl Default for LanguageFormat {
+    fn default() -> Self {
+        Self::Unknown
     }
 }
 
@@ -64,7 +84,7 @@ impl LanguageFormat {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
-pub struct File {
+pub struct MediaFile {
     pub id: i64,
     pub file_name: String,
     pub path: String,
@@ -72,7 +92,7 @@ pub struct File {
     pub language_format: LanguageFormat,
 }
 
-impl From<PathBuf> for File {
+impl From<PathBuf> for MediaFile {
     fn from(path: PathBuf) -> Self {
         let video_stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
 
@@ -88,7 +108,7 @@ impl From<PathBuf> for File {
     }
 }
 
-impl File {
+impl MediaFile {
     fn detect_quality(input: &str) -> Option<String> {
         // Case-insensitive regex for common quality tags
         let re = Regex::new(r"(?i)\b(4k|2160p|1080p|720p|480p|hd|hq)\b").unwrap();
@@ -102,7 +122,7 @@ impl File {
 }
 
 #[cfg(test)]
-impl File {
+impl MediaFile {
     pub fn generate_random_file(random_number: u8) -> Self {
         let random_number = if random_number > 4 {
             0
@@ -314,7 +334,7 @@ mod tests_detect_quality {
 
         for (input, expected) in cases {
             assert_eq!(
-                File::detect_quality(input),
+                MediaFile::detect_quality(input),
                 expected,
                 "Failed on input: {input:?}"
             );
@@ -330,7 +350,7 @@ mod tests_file_from_path_buf {
     #[test]
     fn from_valid_path_with_quality_and_language() {
         let path = PathBuf::from("/path/to/movie.1080p.dubbed.mkv");
-        let file = File::from(path.clone());
+        let file = MediaFile::from(path.clone());
 
         assert_eq!(file.id, 0);
         assert_eq!(file.file_name, "movie.1080p.dubbed");
@@ -342,7 +362,7 @@ mod tests_file_from_path_buf {
     #[test]
     fn from_path_with_uppercase() {
         let path = PathBuf::from("/path/to/Movie.1080P.HARDSUB.MKV");
-        let file = File::from(path.clone());
+        let file = MediaFile::from(path.clone());
 
         assert_eq!(file.id, 0);
         assert_eq!(file.file_name, "Movie.1080P.HARDSUB");
@@ -354,7 +374,7 @@ mod tests_file_from_path_buf {
     #[test]
     fn from_path_no_quality_no_language() {
         let path = PathBuf::from("/path/to/movie.mkv");
-        let file = File::from(path.clone());
+        let file = MediaFile::from(path.clone());
 
         assert_eq!(file.id, 0);
         assert_eq!(file.file_name, "movie");
@@ -366,7 +386,7 @@ mod tests_file_from_path_buf {
     #[test]
     fn from_path_no_file_stem() {
         let path = PathBuf::from("/");
-        let file = File::from(path.clone());
+        let file = MediaFile::from(path.clone());
 
         assert_eq!(file.id, 0);
         assert_eq!(file.file_name, "");
@@ -378,7 +398,7 @@ mod tests_file_from_path_buf {
     #[test]
     fn from_path_with_extension_only() {
         let path = PathBuf::from("/path/to/.hidden.mkv");
-        let file = File::from(path.clone());
+        let file = MediaFile::from(path.clone());
 
         assert_eq!(file.id, 0);
         assert_eq!(file.file_name, ".hidden");

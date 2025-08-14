@@ -1,10 +1,9 @@
-use crate::metadata_extractor::{ImdbMetaData, VideoMetaData};
+use crate::metadata_extractor::{Imdb, Media};
 
 use futures::future::join_all;
-use rayon::prelude::*;
-use reqwest::Client;
 use serde::Deserialize;
-use std::collections::HashSet;
+
+use tauri_plugin_http::reqwest::Client;
 
 #[allow(non_snake_case)]
 #[derive(Debug, Deserialize, Clone)]
@@ -26,12 +25,12 @@ struct OmdbMovie {
     imdbRating: String,
     imdbVotes: String,
     imdbID: String,
-    BoxOffice: Option<String>,    // Present only for movies
-    totalSeasons: Option<String>, // Present only for series
+    BoxOffice: Option<String>,
+    totalSeasons: Option<String>,
     r#Type: String,
 }
 
-impl From<OmdbMovie> for ImdbMetaData {
+impl From<OmdbMovie> for Imdb {
     fn from(raw: OmdbMovie) -> Self {
         fn split_csv_field(field: &str) -> Vec<String> {
             field
@@ -41,19 +40,19 @@ impl From<OmdbMovie> for ImdbMetaData {
                 .collect()
         }
 
-        ImdbMetaData {
+        Imdb {
             title: raw.Title,
             year: raw.Year,
             rated: raw.Rated,
             released: raw.Released,
             runtime: raw.Runtime,
-            genre: split_csv_field(&raw.Genre),
+            genres: split_csv_field(&raw.Genre),
             directors: split_csv_field(&raw.Director),
             writers: split_csv_field(&raw.Writer),
             actors: split_csv_field(&raw.Actors),
             plot: raw.Plot,
             languages: split_csv_field(&raw.Language),
-            country: split_csv_field(&raw.Country),
+            countries: split_csv_field(&raw.Country),
             awards: raw.Awards,
             poster: raw.Poster,
             imdb_rating: raw.imdbRating,
@@ -66,309 +65,123 @@ impl From<OmdbMovie> for ImdbMetaData {
     }
 }
 
-async fn fetch_omdb_metadata(
-    videos_metadata: &[VideoMetaData],
-    api_key: &str,
-) -> Vec<(VideoMetaData, Option<OmdbMovie>)> {
+pub async fn get_omdb_of_medias(medias: &[Media], api_key: &str) -> Vec<Media> {
     let client = Client::new();
-    let mut seen_titles = HashSet::new();
 
-    let tasks = videos_metadata
-        .iter()
-        .filter(|meta| seen_titles.insert((meta.name.clone(), meta.year)))
-        .cloned()
-        .map(|meta| {
-            let client = client.clone();
-            let api_key = api_key.to_string();
-            let name = meta.name.replace(' ', "+");
-            let year = meta.year;
+    let tasks = medias.iter().map(|media| {
+        let client = client.clone();
+        let mut media = media.clone();
+        let api_key = api_key.to_string();
 
-            tokio::spawn(async move {
-                let base_url = std::env::var("OMDB_API_URL")
-                    .unwrap_or_else(|_| "https://www.omdbapi.com".into());
+        tokio::spawn(async move {
+            let mut builder = client
+                .get("https://www.omdbapi.com/")
+                .query(&[("apikey", &api_key), ("t", &media.name)]);
 
-                let url = match year {
-                    Some(year) => format!("{base_url}/?apikey={api_key}&t={name}&y={year}"),
-                    None => format!("{base_url}/?apikey={api_key}&t={name}"),
-                };
+            if let Some(year) = media.year {
+                builder = builder.query(&[("y", &year.to_string())]);
+            }
 
-                let result = async {
-                    let body = client.get(&url).send().await?.text().await?;
-                    let parsed = serde_json::from_str::<OmdbMovie>(&body).ok();
-                    Ok::<_, reqwest::Error>((meta.clone(), parsed))
-                }
-                .await;
+            let parsed = builder.send().await?.json::<OmdbMovie>().await?.into();
 
-                // If error, return (meta, None)
-                result.unwrap_or((meta, None))
-            })
-        });
+            media.imdb = Some(parsed);
+
+            Ok::<Media, reqwest::Error>(media)
+        })
+    });
 
     join_all(tasks)
         .await
         .into_iter()
         .filter_map(Result::ok)
+        .filter_map(Result::ok)
         .collect()
 }
 
-pub async fn get_omdb_by_id(imdb_id: &str, api_key: &str) -> reqwest::Result<Option<ImdbMetaData>> {
-    let base_url =
-        std::env::var("OMDB_API_URL").unwrap_or_else(|_| "https://www.omdbapi.com".into());
-
-    let url = format!("{base_url}/?apikey={api_key}&i={imdb_id}");
+pub async fn get_omdb_by_id(imdb_id: &str, api_key: &str) -> reqwest::Result<Imdb> {
     let client = Client::new();
+    let builder = client
+        .get("https://www.omdbapi.com/")
+        .query(&[("apikey", &api_key), ("i", &imdb_id)]);
 
-    let result = async {
-        let body = client.get(&url).send().await?.text().await?;
-        let parsed = serde_json::from_str::<OmdbMovie>(&body).ok();
-        Ok::<_, reqwest::Error>(parsed)
-    }
-    .await;
+    let imdb = builder.send().await?.json::<OmdbMovie>().await?.into();
 
-    let data = result?.map(ImdbMetaData::from);
-
-    Ok(data)
-}
-
-pub async fn get_omdb_metadata(
-    videos_metadata: &[VideoMetaData],
-    api_key: &str,
-) -> Vec<VideoMetaData> {
-    let fetched_map = fetch_omdb_metadata(videos_metadata, api_key).await;
-
-    videos_metadata
-        .par_iter()
-        .cloned()
-        .map(|mut meta| {
-            let matched = fetched_map
-                .iter()
-                .find(|(f_meta, _)| f_meta.name == meta.name && f_meta.year == meta.year)
-                .and_then(|(_, omdb)| omdb.clone().map(ImdbMetaData::from));
-
-            meta.imdb_metadata = matched;
-            meta
-        })
-        .collect()
+    Ok(imdb)
 }
 
 #[cfg(test)]
-mod test_fetch_omdb_metadata {
+mod test_get_omdb_of_medias {
     use super::*;
-    use crate::metadata_extractor::{SeriesMeta, VideoMetaData};
 
     #[tokio::test]
     async fn test_get_omdb_metadata() {
-        // Mock server for OMDb
-        let test_video = VideoMetaData {
+        let test_video = Media {
             id: 0,
             name: "3 Days To Kill".into(),
-            subtitle_path: None,
             year: None,
-            files_data: vec![],
-            series: None,
-            imdb_metadata: None,
+            files: vec![],
+            seasons: vec![],
+            imdb: None,
             watched: false,
             my_ranking: 0,
         };
 
-        // Override the API URL for testing
-        let result = fetch_omdb_metadata(&[test_video.clone()], "4c602a26").await;
+        let result = get_omdb_of_medias(&[test_video.clone()], "4c602a26").await;
 
         assert_eq!(result.len(), 1);
-        let (input, movie) = &result[0];
-        let movie = movie.as_ref().unwrap();
-        assert_eq!(*input, test_video);
+        let imdb = result[0].imdb.clone().unwrap();
 
-        assert_eq!(movie.Title, "3 Days to Kill");
-        assert_eq!(movie.Year, "2014");
-        assert_eq!(movie.imdbID, "tt2172934");
-        assert_eq!(movie.BoxOffice.as_ref().unwrap(), "$30,697,999");
-        assert!(movie.totalSeasons.is_none());
+        assert_eq!(imdb.title, "3 Days to Kill");
+        assert_eq!(imdb.year, "2014");
+        assert_eq!(imdb.imdb_id, "tt2172934");
+        assert_eq!(imdb.box_office.unwrap(), "$30,697,999");
     }
 
     #[tokio::test]
     async fn test_get_omdb_metadata_of_serial() {
-        let test_video = VideoMetaData {
+        let test_video = Media {
             id: 0,
             name: "Breaking Bad".into(),
-            subtitle_path: None,
             year: None,
-            files_data: vec![],
-            series: Some(SeriesMeta {
-                season: 1,
-                episode: 1,
-            }),
-            imdb_metadata: None,
+            files: vec![],
+            seasons: vec![],
+            imdb: None,
             watched: false,
             my_ranking: 0,
         };
 
-        // Override the API URL for testing
-        let result = fetch_omdb_metadata(&[test_video.clone()], "4c602a26").await;
+        let result = get_omdb_of_medias(&[test_video.clone()], "4c602a26").await;
 
         assert_eq!(result.len(), 1);
-        let (input, movie) = &result[0];
-        let movie = movie.as_ref().unwrap();
-        assert_eq!(*input, test_video);
+        let imdb = result[0].imdb.clone().unwrap();
 
-        assert_eq!(movie.Title, "Breaking Bad");
-        assert_eq!(movie.Year, "2008–2013");
-        assert_eq!(movie.imdbID, "tt0903747");
-        assert_eq!(movie.totalSeasons.as_ref().unwrap(), "5");
-    }
-
-    #[tokio::test]
-    async fn test_get_omdb_metadata_with_mock() {
-        /*  use wiremock::matchers::{method, path, query_param};
-        use wiremock::{Mock, MockServer, ResponseTemplate};
-
-        // Start a local mock server
-        let mock_server = MockServer::start().await;
-
-        // Set up a mock response
-        let omdb_response = serde_json::json!({
-            "Title": "3 Days to Kill",
-            "Year": "2014",
-            "Rated": "PG-13",
-            "Released": "2014-02-21",
-            "Runtime": "117 min",
-            "Genre": "Action, Drama, Thriller",
-            "Director": "McG",
-            "Writer": "Adi Hasak, Luc Besson",
-            "Actors": "Kevin Costner, Hailee Steinfeld, Connie Nielsen",
-            "Plot": "A dying CIA agent trying to reconnect with his estranged daughter is offered an experimental drug that could save his life in exchange for one last assignment.",
-            "Language": "English",
-            "Country": "United States",
-            "Awards": "1 win & 1 nomination",
-            "Poster": "https://example.com/poster.jpg",
-            "imdbRating": "6.2",
-            "imdbVotes": "83,000",
-            "imdbID": "tt2172934",
-            "Type": "movie",
-            "BoxOffice": "$30,697,999",
-            "Response": "True"
-        });
-
-        // Count how many times the endpoint is called
-        let response = ResponseTemplate::new(200).set_body_json(omdb_response);
-        Mock::given(method("GET"))
-            .and(path("/"))
-            .and(query_param("t", "3+Days+to+Kill"))
-            .and(query_param("apikey", "testkey"))
-            .respond_with(response)
-            .expect(1)
-            .mount(&mock_server)
-            .await;
-
-        // Provide test input
-        let test_video = VideoMetaData {
-            name: "3 Days to Kill".into(),
-            subtitle_path: None,
-            year: None,
-            files_data: vec![],
-            series: None,
-            imdb_metadata: None,
-            watched: false,
-            my_ranking: 0,
-        };
-
-        // Use the mock server URL instead of real OMDb
-        let api_key = "testkey";
-        unsafe {
-            std::env::set_var("OMDB_API_URL", mock_server.uri());
-        }
-
-        // Call the function
-        let result = fetch_omdb_metadata(&[test_video.clone()], api_key).await;
-
-        assert_eq!(result.len(), 1);
-        let (input, movie) = &result[0];
-        let movie = movie.as_ref().unwrap();
-        assert_eq!(*input, test_video);
-        assert_eq!(movie.Title, "3 Days to Kill");
-        assert_eq!(movie.Year, "2014");
-        assert_eq!(movie.imdbID, "tt2172934");
-        assert_eq!(movie.BoxOffice.as_ref().unwrap(), "$30,697,999");
-        assert!(movie.totalSeasons.is_none());
-        */
+        assert_eq!(imdb.title, "Breaking Bad");
+        assert_eq!(imdb.year, "2008–2013");
+        assert_eq!(imdb.imdb_id, "tt0903747");
+        assert_eq!(imdb.total_seasons.unwrap(), "5");
     }
 }
 
 #[cfg(test)]
-mod test_get_omdb_metadata {
-
+mod test_get_omdb_with_id {
     use super::*;
-    use crate::metadata_extractor::VideoMetaData;
-
-    #[tokio::test]
-    async fn test_get_omdb_metadata() {
-        let test_video = VideoMetaData {
-            id: 0,
-            name: "Ghost Rider".into(),
-            subtitle_path: None,
-            year: Some(2007),
-            files_data: vec![],
-            series: None,
-            imdb_metadata: None,
-            watched: false,
-            my_ranking: 0,
-        };
-
-        // Override the API URL for testing
-        let result = get_omdb_metadata(&[test_video.clone()], "4c602a26").await;
-
-        let result_video = VideoMetaData {
-            id:0,
-            name: "Ghost Rider".into(),
-            subtitle_path: None,
-            year: Some(2007),
-            files_data: vec![],
-            series: None,
-            imdb_metadata: Some(ImdbMetaData {
-                title: "Ghost Rider".into(),
-                year: "2007".into(),
-                rated: "PG-13".into(),
-                released: "16 Feb 2007".into(),
-                runtime: "110 min".into(),
-                genre: vec!["Action".into(), "Fantasy".into(), "Thriller".into()],
-                directors: vec!["Mark Steven Johnson".into()],
-                writers: vec!["Mark Steven Johnson".into()],
-                actors: vec!["Nicolas Cage".into(), "Eva Mendes".into(), "Sam Elliott".into()],
-                plot: "A motorcycle stuntman who sold his soul becomes a supernatural agent of vengeance.".into(),
-                languages: vec!["English".into()],
-                country: vec!["United States".into(), "Australia".into()],
-                awards: "1 win & 11 nominations total".into(),
-                poster: "https://m.media-amazon.com/images/M/MV5BMzIyNDE5ODI1OV5BMl5BanBnXkFtZTcwNTIyNDE0MQ@@._V1_SX300.jpg".into(),
-                imdb_rating: "5.3".into(),
-                imdb_votes: "262,798".into(),
-                imdb_id: "tt0259324".into(),
-                box_office: Some("$115,802,596".into()),
-                total_seasons: None,
-                r#type: "movie".into()
-            }),
-            watched: false,
-            my_ranking: 0,
-        };
-
-        assert_eq!(vec![result_video], result);
-    }
 
     #[tokio::test]
     async fn test_get_omdb_with_id() {
         let result = get_omdb_by_id("tt0381849", "4c602a26").await;
-        let ans = Some( ImdbMetaData {
+        let ans =  Imdb {
             title: "3:10 to Yuma".into(),
             year: "2007".into(),
             rated: "R".into(),
             released: "07 Sep 2007".into(),
             runtime: "122 min".into(),
-            genre: vec!["Action".into(),"Crime".into(),"Drama".into()],
+            genres: vec!["Action".into(),"Crime".into(),"Drama".into()],
             directors: vec!["James Mangold".into()],
             writers: vec!["Halsted Welles".into(),"Michael Brandt".into(),"Derek Haas".into()],
             actors: vec!["Russell Crowe".into(),"Christian Bale".into(),"Ben Foster".into()],
             plot: "A small-time rancher agrees to hold a captured outlaw who's awaiting a train to go to court in Yuma. A battle of wills ensues as the outlaw tries to psych out the rancher.".into(),
             languages: vec!["English".into(),"Chinese".into()],
-            country: vec!["United States".into()],
+            countries: vec!["United States".into()],
             awards: "Nominated for 2 Oscars. 3 wins & 32 nominations total".into(),
             poster: "https://m.media-amazon.com/images/M/MV5BODE0NTcxNTQzNF5BMl5BanBnXkFtZTcwMzczOTIzMw@@._V1_SX300.jpg".into(),
             imdb_rating: "7.6".into(),
@@ -377,7 +190,7 @@ mod test_get_omdb_metadata {
             box_office: Some("$53,606,916".into()),
             total_seasons: None,
             r#type: "movie".into()
-        });
+        };
 
         assert_eq!(ans, result.unwrap());
     }
