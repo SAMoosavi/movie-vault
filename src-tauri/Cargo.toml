@@ -29,14 +29,10 @@ regex = "1"
 rayon = "1.9"
 either = "1.6"
 tempfile = "3.20.0"
-reqwest = { version = "0.12", default-features = false, features = [
-    "json",
-    "rustls-tls",
-] }
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 dotenv = "0.15"
 wiremock = "0.6.4"
 tauri-plugin-dialog = "2"
-tauri-plugin-http = "2"
+tauri-plugin-http = {version = "2", features = ["json", "rustls-tls"]}
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-clipboard-manager = "2"
