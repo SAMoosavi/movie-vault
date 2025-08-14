@@ -32,7 +32,6 @@ const loading = ref(true)
 const videos = useVideosStore()
 const { videos_metadata } = storeToRefs(videos)
 
-
 onMounted(async () => {
   try {
     await videos.updata()

@@ -7,17 +7,17 @@ export interface File {
 }
 
 export interface Episode {
-  id: number,
-  number: number,
-  watched: boolean,
-  files: File[],
+  id: number
+  number: number
+  watched: boolean
+  files: File[]
 }
 
 export interface Season {
-  id: number,
-  number: number,
-  watched: boolean,
-  episodes: Episode[],
+  id: number
+  number: number
+  watched: boolean
+  episodes: Episode[]
 }
 
 export interface Imdb {
