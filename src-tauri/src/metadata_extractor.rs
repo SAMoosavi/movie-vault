@@ -13,8 +13,11 @@ mod season;
 pub use episode::Episode;
 pub use imdb::Imdb;
 pub use media::Media;
-pub use media_file::{MediaFile, LanguageFormat};
+pub use media_file::MediaFile;
 pub use season::Season;
+
+#[cfg(test)]
+pub use media_file::LanguageFormat;
 
 pub fn get_metadata(videos: &[PathBuf]) -> Vec<Media> {
     let meta_data: Vec<_> = videos.par_iter().map(Media::from).collect();

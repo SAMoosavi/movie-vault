@@ -27,28 +27,23 @@ impl Sqlite {
     }
 
     fn insert_or_get_id(conn: &Connection, table: &str, name: &str) -> Result<i64> {
-        let query = format!(
-            "
-            INSERT OR IGNORE INTO {table} (name) VALUES (?1);
-            SELECT id FROM {table} WHERE name = ?1"
-        );
+        let insert_sql = format!("INSERT OR IGNORE INTO {table} (name) VALUES (?1)");
+        conn.execute(&insert_sql, params![name])?;
 
-        conn.query_row(&query, params![name], |row| row.get(0))
+        let select_sql = format!("SELECT id FROM {table} WHERE name = ?1");
+        conn.query_row(&select_sql, params![name], |row| row.get(0))
     }
 
     fn insert_many_to_many(
         conn: &Connection,
         table: &str,
+        field: &str,
         imdb_id: &str,
-        ids: &[i64],
+        value: &str,
     ) -> Result<()> {
-        let mut stmt =
-            conn.prepare_cached(&format!("INSERT OR IGNORE INTO {table} VALUES (?1, ?2)"))?;
-
-        for id in ids {
-            stmt.execute(params![imdb_id, id])?;
-        }
-
+        let entity_id = Self::insert_or_get_id(conn, table, value)?;
+        let sql = format!("INSERT INTO imdb_{table} (imdb_id, {field}) VALUES (?1, ?2)");
+        conn.execute(&sql, params![imdb_id, entity_id])?;
         Ok(())
     }
 
@@ -111,57 +106,41 @@ impl Sqlite {
             ],
         )?;
 
-        Self::insert_imdb_relationships(conn, imdb)
+        Self::insert_imdb_relationships(conn, imdb)?;
+
+        Ok(())
     }
 
     fn insert_imdb_relationships(conn: &Connection, imdb: &Imdb) -> Result<()> {
         // Insert genres
-        let genre_ids: Vec<i64> = imdb
-            .genres
-            .iter()
-            .map(|g| Self::insert_or_get_id(conn, "genres", g))
-            .collect::<Result<_>>()?;
-        Self::insert_many_to_many(conn, "imdb_genres", &imdb.imdb_id, &genre_ids)?;
+        for g in &imdb.genres {
+            Self::insert_many_to_many(conn, "genres", "genre_id", &imdb.imdb_id, g)?;
+        }
 
         // Insert directors
-        let director_ids: Vec<i64> = imdb
-            .directors
-            .iter()
-            .map(|d| Self::insert_or_get_id(conn, "directors", d))
-            .collect::<Result<_>>()?;
-        Self::insert_many_to_many(conn, "imdb_directors", &imdb.imdb_id, &director_ids)?;
+        for d in &imdb.directors {
+            Self::insert_many_to_many(conn, "directors", "director_id", &imdb.imdb_id, d)?;
+        }
 
         // Insert writers
-        let writer_ids: Vec<i64> = imdb
-            .writers
-            .iter()
-            .map(|w| Self::insert_or_get_id(conn, "writers", w))
-            .collect::<Result<_>>()?;
-        Self::insert_many_to_many(conn, "imdb_writers", &imdb.imdb_id, &writer_ids)?;
+        for w in &imdb.writers {
+            Self::insert_many_to_many(conn, "writers", "writer_id", &imdb.imdb_id, w)?;
+        }
 
         // Insert actors
-        let actor_ids: Vec<i64> = imdb
-            .actors
-            .iter()
-            .map(|a| Self::insert_or_get_id(conn, "actors", a))
-            .collect::<Result<_>>()?;
-        Self::insert_many_to_many(conn, "imdb_actors", &imdb.imdb_id, &actor_ids)?;
+        for a in &imdb.actors {
+            Self::insert_many_to_many(conn, "actors", "actor_id", &imdb.imdb_id, a)?;
+        }
 
         // Insert languages
-        let language_ids: Vec<i64> = imdb
-            .languages
-            .iter()
-            .map(|l| Self::insert_or_get_id(conn, "languages", l))
-            .collect::<Result<_>>()?;
-        Self::insert_many_to_many(conn, "imdb_languages", &imdb.imdb_id, &language_ids)?;
+        for l in &imdb.languages {
+            Self::insert_many_to_many(conn, "languages", "language_id", &imdb.imdb_id, l)?;
+        }
 
         // Insert countries
-        let country_ids: Vec<i64> = imdb
-            .countries
-            .iter()
-            .map(|c| Self::insert_or_get_id(conn, "countries", c))
-            .collect::<Result<_>>()?;
-        Self::insert_many_to_many(conn, "imdb_countries", &imdb.imdb_id, &country_ids)?;
+        for c in &imdb.countries {
+            Self::insert_many_to_many(conn, "countries", "country_id", &imdb.imdb_id, c)?;
+        }
 
         Ok(())
     }
@@ -434,7 +413,7 @@ impl Sqlite {
         let mut stmt = conn.prepare(
             "
             SELECT id, file_name, path, quality, language_format
-                FROM file
+                FROM files
                 WHERE path = ?1",
         )?;
 
@@ -505,7 +484,7 @@ impl Sqlite {
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
         let mut query = r#"
         SELECT DISTINCT vm.id
-        FROM media vm
+        FROM medias vm
         LEFT JOIN imdbs im ON vm.imdb_id = im.imdb_id
     "#
         .to_string();
@@ -562,12 +541,12 @@ impl Sqlite {
 
         /*
             if let Some(exist_multi_file) = filters.exist_multi_file {
-                    query.push_str(" LEFT JOIN file vfd ON vm.id = vfd.media_id\n");
+                    query.push_str(" LEFT JOIN files vfd ON vm.id = vfd.media_id\n");
                     if exist_multi_file {
                         where_conditions.push(
                             "(
                 SELECT COUNT(*) 
-                FROM file 
+                FROM files 
                 WHERE media_id = vm.id
             ) > 1"
                                 .to_string(),
@@ -576,7 +555,7 @@ impl Sqlite {
                         where_conditions.push(
                             "(
                 SELECT COUNT(*) 
-                FROM file 
+                FROM files 
                 WHERE media_id = vm.id
             ) <= 1"
                                 .to_string(),
@@ -586,18 +565,18 @@ impl Sqlite {
         */
 
         if let Some(exist_multi_file) = filters.exist_multi_file {
-            query.push_str(" LEFT JOIN file vfd ON vm.id = vfd.media_id\n");
+            query.push_str(" LEFT JOIN files vfd ON vm.id = vfd.media_id\n");
             query.push_str(" LEFT JOIN seasons vs ON vm.id = vs.media_id\n");
             query.push_str(" LEFT JOIN episode ve ON vs.id = ve.season_id\n");
-            query.push_str(" LEFT JOIN file vfe ON ve.id = vfe.episode_id\n");
+            query.push_str(" LEFT JOIN files vfe ON ve.id = vfe.episode_id\n");
 
             if exist_multi_file {
                 where_conditions.push(
                     "(
-                (SELECT COUNT(*) FROM file WHERE media_id = vm.id) > 1
+                (SELECT COUNT(*) FROM files WHERE media_id = vm.id) > 1
                 OR EXISTS (
                     SELECT 1 FROM episode e
-                    JOIN file f ON e.id = f.episode_id
+                    JOIN files f ON e.id = f.episode_id
                     WHERE e.media_id = vm.id
                     GROUP BY e.id
                     HAVING COUNT(f.id) > 1
@@ -608,10 +587,10 @@ impl Sqlite {
             } else {
                 where_conditions.push(
                     "(
-                (SELECT COUNT(*) FROM file WHERE media_id = vm.id) <= 1
+                (SELECT COUNT(*) FROM files WHERE media_id = vm.id) <= 1
                 AND NOT EXISTS (
                     SELECT 1 FROM episode e
-                    JOIN file f ON e.id = f.episode_id
+                    JOIN files f ON e.id = f.episode_id
                     WHERE e.media_id = vm.id
                     GROUP BY e.id
                     HAVING COUNT(f.id) > 1
@@ -672,7 +651,7 @@ impl Sqlite {
 impl Sqlite {
     fn update_media_my_ranking(conn: &Connection, media_id: i64, my_ranking: u8) -> Result<usize> {
         conn.execute(
-            "UPDATE media SET my_ranking = ?1 WHERE id = ?2",
+            "UPDATE medias SET my_ranking = ?1 WHERE id = ?2",
             [&my_ranking.to_string(), &media_id.to_string()],
         )
     }
@@ -721,7 +700,7 @@ impl Sqlite {
 
     fn update_media_imdb(conn: &Connection, media_id: i64, imdb_id: &str) -> Result<()> {
         conn.execute(
-            "UPDATE media SET imdb_id = ? WHERE id = ?",
+            "UPDATE medias SET imdb_id = ? WHERE id = ?",
             [imdb_id, &media_id.to_string()],
         )?;
         Ok(())
@@ -735,7 +714,7 @@ impl Sqlite {
             "
             DELETE FROM imdbs
             WHERE NOT EXISTS (
-                SELECT 1 FROM media WHERE imdb_id = imdbs.imdb_id
+                SELECT 1 FROM medias WHERE imdb_id = imdbs.imdb_id
             )",
             [],
         )?;
@@ -783,7 +762,7 @@ impl Sqlite {
     }
 
     fn remove_file_by_path(conn: &Connection, path: &str) -> Result<usize> {
-        conn.execute("DELETE FROM file WHERE path = ?", [path])
+        conn.execute("DELETE FROM files WHERE path = ?", [path])
     }
 }
 
@@ -927,7 +906,8 @@ impl DB for Sqlite {
             my_ranking INTEGER DEFAULT 0,
             imdb_id TEXT UNIQUE,
             UNIQUE (name, year)
-        );"#, // FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE
+        );"#,
             r#"CREATE TABLE IF NOT EXISTS seasons (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             media_id INTEGER NOT NULL,
@@ -967,9 +947,9 @@ impl DB for Sqlite {
             r#"CREATE TABLE IF NOT EXISTS imdb_actors (
             imdb_id TEXT,
             actor_id INTEGER,
-            PRIMARY KEY (imdb_id, actor_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
-            FOREIGN KEY (actor_id) REFERENCES actors (id) ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, actor_id)
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+            -- FOREIGN KEY (actor_id) REFERENCES actors (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS directors (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -978,9 +958,9 @@ impl DB for Sqlite {
             r#"CREATE TABLE IF NOT EXISTS imdb_directors (
             imdb_id TEXT,
             director_id INTEGER,
-            PRIMARY KEY (imdb_id, director_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
-            FOREIGN KEY (director_id) REFERENCES directors (id) ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, director_id)
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+            -- FOREIGN KEY (director_id) REFERENCES directors (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS writers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -989,9 +969,9 @@ impl DB for Sqlite {
             r#"CREATE TABLE IF NOT EXISTS imdb_writers (
             imdb_id TEXT,
             writer_id INTEGER,
-            PRIMARY KEY (imdb_id, writer_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
-            FOREIGN KEY (writer_id) REFERENCES writers (id) ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, writer_id)
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+            -- FOREIGN KEY (writer_id) REFERENCES writers (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS genres (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1000,9 +980,9 @@ impl DB for Sqlite {
             r#"CREATE TABLE IF NOT EXISTS imdb_genres (
             imdb_id TEXT,
             genre_id INTEGER,
-            PRIMARY KEY (imdb_id, genre_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
-            FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, genre_id)
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+            -- FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS languages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1011,9 +991,9 @@ impl DB for Sqlite {
             r#"CREATE TABLE IF NOT EXISTS imdb_languages (
             imdb_id TEXT,
             language_id INTEGER,
-            PRIMARY KEY (imdb_id, language_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
-            FOREIGN KEY (language_id) REFERENCES languages (id) ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, language_id)
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+            -- FOREIGN KEY (language_id) REFERENCES languages (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS countries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1022,9 +1002,9 @@ impl DB for Sqlite {
             r#"CREATE TABLE IF NOT EXISTS imdb_countries (
             imdb_id TEXT,
             country_id INTEGER,
-            PRIMARY KEY (imdb_id, country_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
-            FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
+            PRIMARY KEY (imdb_id, country_id)
+            -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+            -- FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
         );"#,
         ];
 
