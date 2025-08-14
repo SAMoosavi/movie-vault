@@ -88,7 +88,7 @@ pub trait DB: Default + Send + Sync + Clone {
     fn update_season_watched_to_db(&self, season_id: i64, watched: bool) -> Result<()>;
     fn update_episode_watched_to_db(&self, episode_id: i64, watched: bool) -> Result<()>;
     fn update_media_imdb_to_db(&self, media_id: i64, imdb_id: &str) -> Result<()>;
-    fn insert_imdb_metadata_to_db(&self, imdb: &Imdb) -> Result<()>;
+    fn insert_imdb_to_db(&self, imdb: &Imdb) -> Result<()>;
     fn clear_empty_data_from_db(&self) -> Result<()>;
     fn get_genres_from_db(&self) -> Result<Vec<(usize, String)>>;
     fn get_countries_from_db(&self) -> Result<Vec<(usize, String)>>;

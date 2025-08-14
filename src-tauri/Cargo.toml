@@ -33,6 +33,7 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 dotenv = "0.15"
 wiremock = "0.6.4"
 tauri-plugin-dialog = "2"
-tauri-plugin-http = {version = "2", features = ["json", "rustls-tls"]}
+tauri-plugin-http = {version = "2", features = ["json", "rustls-tls"] }
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-clipboard-manager = "2"
+rand = "0.9.2"

@@ -89,7 +89,7 @@ impl Sqlite {
 impl Sqlite {
     fn insert_imdb(conn: &Connection, imdb: &Imdb) -> Result<()> {
         conn.execute(
-            "INSERT OR REPLACE INTO imdb_metadata (
+            "INSERT OR REPLACE INTO imdbs (
             imdb_id, title, year, rated, released, runtime, plot, awards,
             poster, imdb_rating, imdb_votes, box_office, total_seasons, type
         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
@@ -167,7 +167,15 @@ impl Sqlite {
     }
 
     fn insert_media(conn: &Connection, media: &Media) -> Result<i64> {
-        let imdb_id = media.imdb.as_ref().map(|imdb| &imdb.imdb_id);
+        let imdb_id = media
+            .imdb
+            .as_ref()
+            .map(|imdb| imdb.imdb_id.as_str())
+            .or(Some(""));
+
+        if let Some(imdb) = &media.imdb {
+            Self::insert_imdb(conn, imdb)?;
+        }
 
         let mut stmt = conn.prepare_cached(
             "
@@ -187,10 +195,6 @@ impl Sqlite {
             ],
             |row| row.get(0),
         )?;
-
-        if let Some(imdb) = &media.imdb {
-            Self::insert_imdb(conn, imdb)?;
-        }
 
         for season in &media.seasons {
             Self::insert_season(conn, media_id, season)?;
@@ -307,7 +311,7 @@ impl Sqlite {
             "
         SELECT title, year, rated, released, runtime, plot, awards,
                poster, imdb_rating, imdb_votes, box_office, total_seasons, type, imdb_id
-        FROM imdb_metadata
+        FROM imdbs
         WHERE imdb_id = ?1
     ",
         )?;
@@ -485,7 +489,7 @@ impl Sqlite {
     fn get_all_files(conn: &Connection) -> Result<Vec<MediaFile>> {
         let mut stmt = conn.prepare(
             "SELECT id, file_name, path, quality, language_format
-                FROM file",
+                FROM files",
         )?;
 
         let files = stmt
@@ -502,7 +506,7 @@ impl Sqlite {
         let mut query = r#"
         SELECT DISTINCT vm.id
         FROM media vm
-        LEFT JOIN imdb im ON vm.imdb_id = im.imdb_id
+        LEFT JOIN imdbs im ON vm.imdb_id = im.imdb_id
     "#
         .to_string();
 
@@ -729,9 +733,9 @@ impl Sqlite {
     fn remove_empty_imdb(conn: &Connection) -> Result<()> {
         conn.execute(
             "
-            DELETE FROM imdb
+            DELETE FROM imdbs
             WHERE NOT EXISTS (
-                SELECT 1 FROM media WHERE imdb_id = imdb.imdb_id
+                SELECT 1 FROM media WHERE imdb_id = imdbs.imdb_id
             )",
             [],
         )?;
@@ -770,7 +774,7 @@ impl Sqlite {
             "
             DELETE FROM episodes
             WHERE NOT EXISTS (
-                SELECT 1 FROM filesWHERE episode_id = episodes.id
+                SELECT 1 FROM files WHERE episode_id = episodes.id
             )",
             params![],
         )?;
@@ -780,6 +784,35 @@ impl Sqlite {
 
     fn remove_file_by_path(conn: &Connection, path: &str) -> Result<usize> {
         conn.execute("DELETE FROM file WHERE path = ?", [path])
+    }
+}
+
+#[cfg(test)]
+impl Sqlite {
+    fn new_tmp() -> Self {
+        use rand::{Rng, rng};
+
+        let charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+        let mut rng = rng();
+        let chars: Vec<char> = charset.chars().collect();
+        let length = 10;
+        let mut random_string = String::with_capacity(length);
+
+        for _ in 0..length {
+            let random_index = rng.random_range(0..chars.len());
+            random_string.push(chars[random_index]);
+        }
+
+        Self {
+            path: format!("tmp_{random_string}.db").into(),
+        }
+    }
+
+    fn remove(&self) {
+        use std::fs;
+
+        fs::remove_file(self.path.clone()).unwrap();
     }
 }
 
@@ -870,7 +903,7 @@ impl DB for Sqlite {
         let tx = conn.transaction()?;
 
         let stmts = [
-            r#"CREATE TABLE IF NOT EXISTS imdb_metadata (
+            r#"CREATE TABLE IF NOT EXISTS imdbs (
             imdb_id TEXT PRIMARY KEY,
             title TEXT,
             year TEXT,
@@ -893,9 +926,8 @@ impl DB for Sqlite {
             watched BOOLEAN DEFAULT 0,
             my_ranking INTEGER DEFAULT 0,
             imdb_id TEXT UNIQUE,
-            UNIQUE (name, year),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE
-        );"#,
+            UNIQUE (name, year)
+        );"#, // FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE
             r#"CREATE TABLE IF NOT EXISTS seasons (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             media_id INTEGER NOT NULL,
@@ -936,7 +968,7 @@ impl DB for Sqlite {
             imdb_id TEXT,
             actor_id INTEGER,
             PRIMARY KEY (imdb_id, actor_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             FOREIGN KEY (actor_id) REFERENCES actors (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS directors (
@@ -947,7 +979,7 @@ impl DB for Sqlite {
             imdb_id TEXT,
             director_id INTEGER,
             PRIMARY KEY (imdb_id, director_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             FOREIGN KEY (director_id) REFERENCES directors (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS writers (
@@ -958,7 +990,7 @@ impl DB for Sqlite {
             imdb_id TEXT,
             writer_id INTEGER,
             PRIMARY KEY (imdb_id, writer_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             FOREIGN KEY (writer_id) REFERENCES writers (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS genres (
@@ -969,7 +1001,7 @@ impl DB for Sqlite {
             imdb_id TEXT,
             genre_id INTEGER,
             PRIMARY KEY (imdb_id, genre_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS languages (
@@ -980,7 +1012,7 @@ impl DB for Sqlite {
             imdb_id TEXT,
             language_id INTEGER,
             PRIMARY KEY (imdb_id, language_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             FOREIGN KEY (language_id) REFERENCES languages (id) ON DELETE CASCADE
         );"#,
             r#"CREATE TABLE IF NOT EXISTS countries (
@@ -991,7 +1023,7 @@ impl DB for Sqlite {
             imdb_id TEXT,
             country_id INTEGER,
             PRIMARY KEY (imdb_id, country_id),
-            FOREIGN KEY (imdb_id) REFERENCES imdb_metadata (imdb_id) ON DELETE CASCADE,
+            FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
         );"#,
         ];
@@ -1042,7 +1074,7 @@ impl DB for Sqlite {
         Self::update_media_imdb(&conn, media_id, imdb_id)
     }
 
-    fn insert_imdb_metadata_to_db(&self, imdb: &Imdb) -> Result<()> {
+    fn insert_imdb_to_db(&self, imdb: &Imdb) -> Result<()> {
         let mut conn = self.get_conn()?;
         let tx = conn.transaction()?;
         Self::insert_imdb(&tx, imdb)?;
@@ -1112,47 +1144,34 @@ impl DB for Sqlite {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests_sqlit {
+    use crate::metadata_extractor::LanguageFormat;
+
     use super::*;
-    fn drop_all_tables() -> Result<()> {
-        let db = Sqlite::default();
 
-        let conn = db.get_conn()?;
-
-        conn.execute("PRAGMA foreign_keys = OFF;", [])?;
-
-        let mut stmt = conn.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-        )?;
-        let table_iter = stmt.query_map([], |row| row.get::<_, String>(0))?;
-        let tables: Vec<String> = table_iter.collect::<Result<Vec<_>>>()?;
-
-        for table in tables {
-            let sql = format!("DROP TABLE IF EXISTS {};", table);
-            conn.execute(&sql, [])?;
-        }
-
-        conn.execute("PRAGMA foreign_keys = ON;", [])?;
-
-        Ok(())
+    fn get_sqlite() -> Sqlite {
+        let db = Sqlite::new_tmp();
+        db.create_table().unwrap();
+        db
     }
 
     #[test]
-    fn test_create_table() -> Result<()> {
-        drop_all_tables()?;
+    fn test_create_table() {
+        let db = get_sqlite();
 
-        let db = Sqlite::default();
-        db.create_table()?;
-
-        let conn = db.get_conn()?;
+        let conn = db.get_conn().unwrap();
 
         // Retrieve all table names
-        let mut stmt = conn.prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
-        )?;
-        let table_iter = stmt.query_map([], |row| row.get(0))?;
-
-        let mut tables: Vec<String> = table_iter.collect::<Result<Vec<_>>>()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'",
+            )
+            .unwrap();
+        let mut tables: Vec<String> = stmt
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
 
         tables.sort();
 
@@ -1168,7 +1187,7 @@ mod tests {
             "imdb_directors",
             "imdb_genres",
             "imdb_languages",
-            "imdb_metadata",
+            "imdbs",
             "imdb_writers",
             "languages",
             "medias",
@@ -1184,6 +1203,165 @@ mod tests {
 
         assert_eq!(tables, expected);
 
-        Ok(())
+        db.remove();
+    }
+
+    #[test]
+    fn insert_movie() {
+        let db = get_sqlite();
+
+        let m1 = Media {
+            id: 1,
+            name: "who am i".into(),
+            year: Some(2014),
+            files: vec![MediaFile {
+                id: 1,
+                file_name: "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez".into(),
+                path: "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into(),
+                quality: Some("720p".into()),
+                language_format: LanguageFormat::HardSub,
+            }],
+            imdb: None,
+            watched: false,
+            my_ranking: 0,
+            seasons: vec![],
+        };
+
+        db.insert_medias(&[m1.clone()]).unwrap();
+
+        assert_eq!(db.get_media_by_id_from_db(1).unwrap(), Some(m1));
+
+        db.remove();
+    }
+
+    #[test]
+    fn insert_series() {
+        let m1 = Media {
+            id: 1,
+            name: "loki".into(),
+            year: None,
+            files: vec![],
+            seasons: vec![
+                Season {
+                    id: 1,
+                    number: 1,
+                    watched: false,
+                    episodes: vec![
+                        Episode {
+                            id: 1,
+                            number: 2,
+                            watched: false,
+                            files: vec![
+                                MediaFile {
+                                    id: 1,
+                                    path:
+                                        "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv"
+                                            .into(),
+                                    file_name: "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                                MediaFile {
+                                    id: 2,
+                                    path: "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.mkv"
+                                        .into(),
+                                    file_name: "Loki.S01E02.720p.WEB.DL.Dubbed".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                            ],
+                        },
+                        Episode {
+                            id: 2,
+                            number: 3,
+                            watched: false,
+                            files: vec![
+                                MediaFile {
+                                    id: 3,
+                                    path: "/marvel/loki/S1/Loki.S01E03.720p.WEB.DL.Dubbed.mkv"
+                                        .into(),
+                                    file_name: "Loki.S01E03.720p.WEB.DL.Dubbed".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                                MediaFile {
+                                    id: 4,
+                                    path:
+                                        "/marvel/loki/S1/Loki.S01E03.720p.WEB.DL.Dubbed.ZarFilm.mkv"
+                                            .into(),
+                                    file_name: "Loki.S01E03.720p.WEB.DL.Dubbed.ZarFilm".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                            ],
+                        },
+                    ],
+                },
+                Season {
+                    id: 1,
+                    number: 2,
+                    watched: false,
+                    episodes: vec![
+                        Episode {
+                            id: 3,
+                            number: 2,
+                            watched: false,
+                            files: vec![
+                                MediaFile {
+                                    id: 5,
+                                    path:
+                                        "/marvel/loki/S2/Loki.S02E02.720p.WEB.DL.Dubbed.ZarFilm.mkv"
+                                            .into(),
+                                    file_name: "Loki.S02E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                                MediaFile {
+                                    id: 6,
+                                    path: "/marvel/loki/S2/Loki.S02E02.720p.WEB.DL.Dubbed.mkv"
+                                        .into(),
+                                    file_name: "Loki.S02E02.720p.WEB.DL.Dubbed".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                            ],
+                        },
+                        Episode {
+                            id: 4,
+                            number: 3,
+                            watched: false,
+                            files: vec![
+                                MediaFile {
+                                    id: 7,
+                                    path:
+                                        "/marvel/loki/S2/Loki.S02E03.720p.WEB.DL.Dubbed.ZarFilm.mkv"
+                                            .into(),
+                                    file_name: "Loki.S02E03.720p.WEB.DL.Dubbed.ZarFilm".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                                MediaFile {
+                                    id: 8,
+                                    path: "/marvel/loki/S2/Loki.S02E03.720p.WEB.DL.Dubbed.mkv"
+                                        .into(),
+                                    file_name: "Loki.S02E03.720p.WEB.DL.Dubbed".into(),
+                                    quality: Some("720p".into()),
+                                    language_format: LanguageFormat::Dubbed,
+                                },
+                            ],
+                        },
+                    ],
+                },
+            ],
+            imdb: None,
+            watched: false,
+            my_ranking: 0,
+        };
+        let db = get_sqlite();
+        db.insert_medias(&[m1.clone()]).unwrap();
+
+        assert_eq!(db.get_media_by_id_from_db(1).unwrap(), Some(m1));
+
+        db.remove();
     }
 }

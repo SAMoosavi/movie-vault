@@ -77,8 +77,7 @@ async fn update_media_imdb_app(media_id: i64, imdb_id: &str, api_key: &str) -> R
         .await
         .map_err(|e| e.to_string())?;
 
-    db.insert_imdb_metadata_to_db(&imdb)
-        .map_err(|e| e.to_string())?;
+    db.insert_imdb_to_db(&imdb).map_err(|e| e.to_string())?;
     db.update_media_imdb_to_db(media_id, imdb_id)
         .map_err(|e| e.to_string())?;
     Ok(())

@@ -32,7 +32,14 @@ impl ToSql for LanguageFormat {
 
 impl FromSql for LanguageFormat {
     fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        value.as_str().map(|s| s.into())
+        let language_format = match value.as_str()? {
+            "soft_sub" => LanguageFormat::SoftSub,
+            "hard_sub" => LanguageFormat::HardSub,
+            "dubbed" => LanguageFormat::Dubbed,
+            _ => LanguageFormat::Unknown,
+        };
+
+        Ok(language_format)
     }
 }
 

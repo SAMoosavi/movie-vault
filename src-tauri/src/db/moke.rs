@@ -45,7 +45,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn insert_imdb_metadata_to_db(&self, _imdb: &metadata_extractor::Imdb) -> Result<()> {
+    fn insert_imdb_to_db(&self, _imdb: &metadata_extractor::Imdb) -> Result<()> {
         todo!()
     }
 
