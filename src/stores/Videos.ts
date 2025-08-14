@@ -1,5 +1,5 @@
-import { search_videos } from '../functions/invoker'
-import type { VideoMetaData } from '../type'
+import { filter_medias } from '../functions/invoker'
+import type { Media } from '../type'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useFiltersStore } from './Filters'
@@ -7,10 +7,10 @@ import { useFiltersStore } from './Filters'
 export const useVideosStore = defineStore('videos', () => {
   const filterStore = useFiltersStore()
 
-  const videos_metadata = ref<VideoMetaData[]>([])
+  const videos_metadata = ref<Media[]>([])
 
   async function updata() {
-    videos_metadata.value = await search_videos(filterStore.filters)
+    videos_metadata.value = await filter_medias(filterStore.filters)
   }
 
   const number_of_videos = computed(() => videos_metadata.value.length)

@@ -85,14 +85,14 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
-import type { VideoMetaData } from '../type'
-import { update_video_imdb } from '../functions/invoker'
+import type { Media } from '../type'
+import { update_media_imdb } from '../functions/invoker'
 import { toast } from 'vue3-toastify'
 import { fetch } from '@tauri-apps/plugin-http'
 import { SearchX, Search } from 'lucide-vue-next'
 import type { MovieSearchResult, SearchedMovie } from './SearchMovie'
 
-const props = defineProps<{ movie: VideoMetaData; change: boolean }>()
+const props = defineProps<{ movie: Media; change: boolean }>()
 const emit = defineEmits(['cancel', 'updated'])
 
 const movieName = ref(props.movie.name)
@@ -120,7 +120,7 @@ onMounted(() => searchMovies(movieName.value))
 
 async function selectMovie(imdb_id: string) {
   try {
-    await update_video_imdb(props.movie.id, imdb_id)
+    await update_media_imdb(props.movie.id, imdb_id)
     emit('updated')
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Failed to set imdb'

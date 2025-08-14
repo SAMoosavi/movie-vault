@@ -7,12 +7,10 @@ export interface VideoFileData {
   title: string
   path: string
   quality?: string
-  has_hard_sub: boolean
-  has_soft_sub: boolean
-  is_dubbed: boolean
+  language_format: string
 }
 
-export interface ImdbMetaData {
+export interface Imdb {
   title: string
   year: string
   rated: string
@@ -35,14 +33,14 @@ export interface ImdbMetaData {
   type: string
 }
 
-export interface VideoMetaData {
+export interface Media {
   id: number
   name: string
   subtitle_path?: string
   year?: number
-  files_data: VideoFileData[]
+  files: VideoFileData[]
   series?: SeriesMeta
-  imdb_metadata?: ImdbMetaData
+  imdb?: Imdb
   watched: boolean
   my_ranking: number
 }

@@ -5,18 +5,14 @@
   >
     <div class="card bg-base-100 h-full">
       <figure class="relative">
-        <img
-          :src="movie.imdb_metadata?.poster"
-          :alt="movie.imdb_metadata?.title || movie.name"
-          class="h-96 w-full object-cover"
-        />
+        <img :src="movie.imdb?.poster" :alt="movie.imdb?.title || movie.name" class="h-96 w-full object-cover" />
 
         <div
-          v-if="(movie.imdb_metadata?.imdb_rating || NA) !== NA"
+          v-if="(movie.imdb?.imdb_rating || NA) !== NA"
           class="badge badge-neutral absolute bottom-3 left-3 flex items-center"
         >
           <Star class="text-warning fill-warning mr-1 h-4 w-4" />
-          <span class="font-semibold">{{ movie.imdb_metadata?.imdb_rating }}</span>
+          <span class="font-semibold">{{ movie.imdb?.imdb_rating }}</span>
         </div>
         <div v-if="movie.watched" class="badge badge-success absolute top-3 right-3 flex items-center">
           <Eye class="mr-1 h-4 w-4" />
@@ -26,18 +22,18 @@
 
       <div class="card-body p-4">
         <h3 class="card-title truncate text-lg">
-          {{ movie.imdb_metadata?.title || movie.name }}
+          {{ movie.imdb?.title || movie.name }}
         </h3>
 
         <div class="text-base-content/70 mb-2 flex items-center text-sm">
           <Calendar class="mr-1 h-4 w-4" />
-          <span>{{ movie.imdb_metadata?.year || movie.year }}</span>
+          <span>{{ movie.imdb?.year || movie.year }}</span>
           <span class="mx-2">•</span>
-          <span class="capitalize">{{ movie.imdb_metadata?.type }}</span>
+          <span class="capitalize">{{ movie.imdb?.type }}</span>
         </div>
 
         <div class="mb-3 flex flex-wrap gap-1">
-          <span v-for="genre in movie.imdb_metadata?.genre" :key="genre" class="badge badge-outline badge-sm">
+          <span v-for="genre in movie.imdb?.genre" :key="genre" class="badge badge-outline badge-sm">
             {{ genre }}
           </span>
         </div>
@@ -45,8 +41,8 @@
         <div class="text-base-content/80 flex items-center text-sm">
           <User class="mr-1 h-4 w-4" />
           <div class="truncate">
-            {{ movie.imdb_metadata?.actors?.slice(0, 2).join(', ') }}
-            <span v-if="(movie.imdb_metadata?.actors?.length || 0) > 2">, ...</span>
+            {{ movie.imdb?.actors?.slice(0, 2).join(', ') }}
+            <span v-if="(movie.imdb?.actors?.length || 0) > 2">, ...</span>
           </div>
         </div>
         <div class="from-primary/50 to-secondary/50 -mb-3 h-0.5 w-full bg-gradient-to-b"></div>
@@ -67,9 +63,9 @@
 
 <script setup lang="ts">
 import { Calendar, Star, User, Eye } from 'lucide-vue-next'
-import type { VideoMetaData } from '../type'
+import type { Media } from '../type'
 
-defineProps<{ movie: VideoMetaData }>()
+defineProps<{ movie: Media }>()
 
 const NA = 'N/A'
 </script>

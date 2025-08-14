@@ -1,4 +1,4 @@
-import type { FilterValues, NumericalString, VideoMetaData } from '../type'
+import type { FilterValues, NumericalString, Media } from '../type'
 import { invoke } from '@tauri-apps/api/core'
 
 export async function create_table() {
@@ -21,11 +21,11 @@ export async function get_countries() {
   return await invoke<NumericalString[]>('get_countries_app')
 }
 
-export async function filter_medias(filters: FilterValues): Promise<VideoMetaData[]> {
-  return await invoke<VideoMetaData[]>('filter_medias_app', { filters })
+export async function filter_medias(filters: FilterValues): Promise<Media[]> {
+  return await invoke<Media[]>('filter_medias_app', { filters })
 }
 
-export async function get_media_by_id(mediaId: number): Promise<VideoMetaData> {
+export async function get_media_by_id(mediaId: number): Promise<Media> {
   return await invoke('get_media_by_id_app', { mediaId })
 }
 

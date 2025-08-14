@@ -4,7 +4,7 @@
       <h2 class="card-title mb-4">
         <FileText class="mr-2 h-6 w-6" />
         Available Files
-        <div class="badge badge-secondary">{{ movie.files_data?.length }} files</div>
+        <div class="badge badge-secondary">{{ movie.files?.length }} files</div>
       </h2>
       <div class="border-base-200 overflow-x-auto rounded-lg border shadow-sm">
         <table class="table-zebra table">
@@ -18,7 +18,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="file in movie.files_data" :key="file.path" class="group hover:bg-base-300">
+            <tr v-for="file in movie.files" :key="file.path" class="group hover:bg-base-300">
               <!-- File Details Column -->
               <td>
                 <div class="font-medium">{{ file.title }}</div>
@@ -42,9 +42,7 @@
               <!-- Type Column -->
               <td class="text-center">
                 <div class="badge badge-md badge-primary gap-1">
-                  <span v-if="file.has_soft_sub"> Soft Sub </span>
-                  <span v-else-if="file.has_hard_sub"> Hard Sub </span>
-                  <span v-else-if="file.is_dubbed"> Dubbed </span>
+                  <span v-if="file.language_format"> {{ file.language_format }} </span>
                   <span v-else> unknown </span>
                 </div>
               </td>
@@ -102,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import type { VideoMetaData } from '../type'
+import type { Media } from '../type'
 import { Files, FileText, FolderOpen, Play, Scissors, Trash2 } from 'lucide-vue-next'
 import { basename, dirname, join } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
@@ -111,7 +109,7 @@ import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from 'vue3-toastify'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
-defineProps<{ movie: VideoMetaData }>()
+defineProps<{ movie: Media }>()
 const emit = defineEmits(['reload'])
 
 function playFile(path: string) {
