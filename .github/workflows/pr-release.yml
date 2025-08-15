@@ -7,34 +7,10 @@ on:
       # just re-run
 
 jobs:
-  publish:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  check_version:
+    runs-on: 'ubuntu-latest'
+
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install JS dependencies
-        run: pnpm install
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install Rust dependencies
-        run: cargo fetch
-        working-directory: src-tauri
-
       - name: Get app version from tauri.conf.json
         id: tauri_version
         run: |
@@ -62,6 +38,34 @@ jobs:
                  "package=${{ steps.package_version.outputs.package }}"
             exit 1
           fi
+
+  publish:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install JS dependencies
+        run: pnpm install
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust dependencies
+        run: cargo fetch
+        working-directory: src-tauri
 
       - name: Install system dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
