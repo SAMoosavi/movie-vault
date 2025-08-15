@@ -44,9 +44,7 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev
-
-      - name: Install dependencies
-        run: pnpm install
+          pnpm install
 
       - name: Check format
         run: npx prettier --check .
@@ -65,4 +63,4 @@ jobs:
         working-directory: src-tauri
 
       - name: Build Tauri app
-        run: pnpm tauri build -- --no-bundle
+        run: pnpm tauri build
