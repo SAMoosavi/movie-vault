@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "targets": ["dmg"],
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": null
+    }
+  }
+}
