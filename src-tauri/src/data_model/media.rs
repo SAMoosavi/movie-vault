@@ -160,12 +160,12 @@ impl Media {
             let is_before_digit = before.map(|c| c.is_ascii_digit()).unwrap_or(false);
             let is_after_digit = after.map(|c| c.is_ascii_digit()).unwrap_or(false);
 
-            if !is_before_digit && !is_after_digit {
-                if let Ok(year) = s.parse::<u32>() {
-                    if (1900..=2099).contains(&year) {
-                        last = Some(year); // keep updating to get the last
-                    }
-                }
+            if !is_before_digit
+                && !is_after_digit
+                && let Ok(year) = s.parse::<u32>()
+                && (1900..=2099).contains(&year)
+            {
+                last = Some(year);
             }
         }
 

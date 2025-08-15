@@ -1,4 +1,4 @@
-use crate::metadata_extractor::{Imdb, Media};
+use crate::data_model::{Imdb, Media};
 
 use futures::future::join_all;
 use serde::Deserialize;

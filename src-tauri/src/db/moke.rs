@@ -1,6 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use crate::{db::DB, metadata_extractor};
+use crate::{
+    data_model::{Imdb, Media, MediaFile},
+    db::DB,
+};
 use rusqlite::Result;
 
 #[derive(Default, Clone)]
@@ -21,7 +24,7 @@ impl DB for MokeDB {
         }
     }
 
-    fn insert_medias(&self, _medias: &[metadata_extractor::Media]) -> Result<()> {
+    fn insert_medias(&self, _medias: &[Media]) -> Result<()> {
         todo!()
     }
 
@@ -45,7 +48,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn insert_imdb_to_db(&self, _imdb: &metadata_extractor::Imdb) -> Result<()> {
+    fn insert_imdb_to_db(&self, _imdb: &Imdb) -> Result<()> {
         todo!()
     }
 
@@ -69,18 +72,15 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn get_all_files_from_db(&self) -> Result<Vec<metadata_extractor::MediaFile>> {
+    fn get_all_files_from_db(&self) -> Result<Vec<MediaFile>> {
         todo!()
     }
 
-    fn filter_medias_on_db(
-        &self,
-        _filters: &super::FilterValues,
-    ) -> Result<Vec<metadata_extractor::Media>> {
+    fn filter_medias_on_db(&self, _filters: &super::FilterValues) -> Result<Vec<Media>> {
         todo!()
     }
 
-    fn get_media_by_id_from_db(&self, _media_id: i64) -> Result<Option<metadata_extractor::Media>> {
+    fn get_media_by_id_from_db(&self, _media_id: i64) -> Result<Option<Media>> {
         todo!()
     }
 

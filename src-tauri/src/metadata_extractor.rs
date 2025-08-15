@@ -4,20 +4,7 @@ use std::{
     path::PathBuf,
 };
 
-mod episode;
-mod imdb;
-mod media;
-mod media_file;
-mod season;
-
-pub use episode::Episode;
-pub use imdb::Imdb;
-pub use media::Media;
-pub use media_file::MediaFile;
-pub use season::Season;
-
-#[cfg(test)]
-pub use media_file::LanguageFormat;
+use crate::data_model::Media;
 
 pub fn get_metadata(videos: &[PathBuf]) -> Vec<Media> {
     let meta_data: Vec<_> = videos.par_iter().map(Media::from).collect();
@@ -83,6 +70,7 @@ fn merge_media(metas: &[Media]) -> Vec<Media> {
 #[cfg(test)]
 mod tests_merge_media {
     use super::*;
+    use crate::data_model::{Episode, MediaFile, Season};
 
     fn default_media(
         name: String,
@@ -292,8 +280,8 @@ mod tests_merge_media {
 
 #[cfg(test)]
 mod tests_get_metadata {
-
     use super::*;
+    use crate::data_model::{Episode, LanguageFormat, MediaFile, Season};
 
     #[test]
     fn get_metadata_of_series() {

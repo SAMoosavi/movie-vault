@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::{
+    data_model::{Episode, Imdb, Media, MediaFile, Season},
     db::{ContentType, DB, FilterValues, SortByType},
-    metadata_extractor::{Episode, Imdb, Media, MediaFile, Season},
 };
 
 #[derive(Clone)]
@@ -182,7 +182,7 @@ impl Sqlite {
                 params![&media.name, media.year],
                 |row| row.get(0),
             )?,
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(e),
         };
 
         for season in &media.seasons {
@@ -1193,7 +1193,7 @@ impl DB for Sqlite {
 
 #[cfg(test)]
 mod tests_sqlit {
-    use crate::metadata_extractor::LanguageFormat;
+    use crate::data_model::LanguageFormat;
 
     use super::*;
 

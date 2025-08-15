@@ -5,7 +5,7 @@ use std::{
 
 use rusqlite::Result;
 
-use crate::metadata_extractor::{Imdb, Media, MediaFile};
+use crate::data_model::{Imdb, Media, MediaFile};
 
 mod sqlite;
 

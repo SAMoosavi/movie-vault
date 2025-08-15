@@ -1,5 +1,6 @@
 use crate::db::{DB, FilterValues};
 
+mod data_model;
 mod db;
 mod media_scanner;
 mod metadata_extractor;
@@ -57,13 +58,13 @@ fn get_actors_app() -> Result<Vec<(usize, String)>, String> {
 }
 
 #[tauri::command]
-fn filter_medias_app(filters: FilterValues) -> Result<Vec<metadata_extractor::Media>, String> {
+fn filter_medias_app(filters: FilterValues) -> Result<Vec<data_model::Media>, String> {
     let db = get_db();
     db.filter_medias_on_db(&filters).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_media_by_id_app(media_id: i64) -> Result<metadata_extractor::Media, String> {
+fn get_media_by_id_app(media_id: i64) -> Result<data_model::Media, String> {
     let db = get_db();
     db.get_media_by_id_from_db(media_id)
         .map_err(|e| e.to_string())?
