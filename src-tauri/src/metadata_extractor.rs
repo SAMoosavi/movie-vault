@@ -336,6 +336,7 @@ mod tests_get_metadata {
             watched: false,
             my_ranking: 0,
             seasons: vec![],
+            watch_list: false,
         }];
 
         let result =
@@ -454,6 +455,7 @@ mod tests_get_metadata {
                 ],
                 imdb: None,
                 watched: false,
+            watch_list: false,
                 my_ranking: 0,
             },
             Media {
@@ -479,6 +481,7 @@ mod tests_get_metadata {
                 imdb: None,
                 watched: false,
                 my_ranking: 0,
+            watch_list: false,
                 seasons: vec![],
             },
         ];

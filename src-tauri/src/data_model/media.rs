@@ -33,6 +33,7 @@ impl PartialEq for Media {
                 .eq(other.seasons.iter().sorted())
             && self.files.iter().sorted().eq(other.files.iter().sorted())
             && self.imdb == other.imdb
+            && self.watch_list == other.watch_list
     }
 }
 
