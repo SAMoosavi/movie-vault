@@ -1,12 +1,12 @@
 name: Release Branch Build & Tag
 
 on:
-  pull_request: # change to merge
+  push:
     branches:
       - 'release/*'
 
 permissions:
-  contents: write  # Grants write access for creating releases
+  contents: write # Grants write access for creating releases
 
 jobs:
   check_version:
@@ -16,23 +16,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify configuration files exist
+        run: |
+          if [ ! -f src-tauri/tauri.conf.json ]; then
+            echo "Error: src-tauri/tauri.conf.json not found"
+            exit 1
+          fi
+          if [ ! -f src-tauri/Cargo.toml ]; then
+            echo "Error: src-tauri/Cargo.toml not found"
+            exit 1
+          fi
+          if [ ! -f package.json ]; then
+            echo "Error: package.json not found"
+            exit 1
+          fi
+
       - name: Check version consistency
         id: get_version
         run: |
           TAURI_VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           CARGO_VERSION=$(grep '^version =' src-tauri/Cargo.toml | awk '{print $3}' | tr -d '"')
           PACKAGE_VERSION=$(jq -r .version package.json)
+          echo "TAURI_VERSION=$TAURI_VERSION"
+          echo "CARGO_VERSION=$CARGO_VERSION"
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION"
+          if [ -z "$TAURI_VERSION" ] || [ -z "$CARGO_VERSION" ] || [ -z "$PACKAGE_VERSION" ]; then
+            echo "Error: One or more version fields are empty"
+            exit 1
+          fi
           if [ "$TAURI_VERSION" != "$CARGO_VERSION" ] || [ "$TAURI_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "Version mismatch: tauri=$TAURI_VERSION cargo=$CARGO_VERSION package=$PACKAGE_VERSION"
             exit 1
           fi
           echo "version=$TAURI_VERSION" >> $GITHUB_OUTPUT
+          echo "Version set to: $TAURI_VERSION"
 
   build:
     needs: check_version
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -76,9 +99,13 @@ jobs:
             src-tauri/target/release/bundle/**/*.rpm
 
   publish:
-    needs: build
+    needs: [check_version, build]
     runs-on: ubuntu-latest
     steps:
+      - name: Debug version output
+        run: |
+          echo "Version from check_version job: ${{ needs.check_version.outputs.version }}"
+
       - uses: actions/download-artifact@v4
         with:
           path: ./artifacts
