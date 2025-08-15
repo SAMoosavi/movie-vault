@@ -77,19 +77,19 @@
         <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Directors</h3>
-            <p>{{ movie.imdb?.directors?.join(', ') }}</p>
+            <p>{{ movie.imdb?.directors?.join(', ') || 'N/A' }}</p>
           </div>
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Writers</h3>
-            <p>{{ movie.imdb?.writers?.join(', ') }}</p>
+            <p>{{ movie.imdb?.writers?.join(', ') || 'N/A' }}</p>
           </div>
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Stars</h3>
-            <p>{{ movie.imdb?.actors?.join(', ') }}</p>
+            <p>{{ movie.imdb?.actors?.join(', ') || 'N/A' }}</p>
           </div>
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Languages</h3>
-            <p>{{ movie.imdb?.languages?.join(', ') }}</p>
+            <p>{{ movie.imdb?.languages?.join(', ') || 'N/A' }}</p>
           </div>
         </div>
 
@@ -97,12 +97,18 @@
         <div class="grid grid-cols-1 gap-4 text-sm md:grid-cols-3">
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Country</h3>
-            <p>{{ movie.imdb?.country?.join(', ') }}</p>
+            <p>{{ movie.imdb?.country?.join(', ') || 'N/A' }}</p>
           </div>
-          <div>
+
+          <div v-if="movie.imdb?.type == 'movie'">
             <h3 class="text-base-content/70 mb-1 font-semibold">Box Office</h3>
             <p>{{ movie.imdb?.box_office || 'N/A' }}</p>
           </div>
+          <div v-else-if="movie.imdb?.type == 'series'">
+            <h3 class="text-base-content/70 mb-1 font-semibold">Total Seasons</h3>
+            <p>{{ movie.imdb?.total_seasons || 'N/A' }}</p>
+          </div>
+
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Awards</h3>
             <p>{{ movie.imdb?.awards }}</p>

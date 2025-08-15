@@ -349,11 +349,11 @@ impl Sqlite {
         // First get all seasons for the media
         let mut stmt = conn.prepare_cached(
             "
-        SELECT id, media_id, season_number, watched
-        FROM seasons
-        WHERE media_id = ?1
-        ORDER BY season_number
-    ",
+            SELECT id, season_number, watched
+            FROM seasons
+            WHERE media_id = ?1
+            ORDER BY season_number
+        ",
         )?;
 
         let mut seasons: Vec<Season> = stmt

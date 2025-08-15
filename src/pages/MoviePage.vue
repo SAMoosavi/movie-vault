@@ -21,12 +21,16 @@
         v-if="movie.imdb && !change"
         :movie="movie"
         @edit="() => (change = true)"
-        @toggle-watched="toggle_watched"
+        @toggle-watched="toggle_media_watched"
         @set-ranking="set_ranking"
       />
       <SearchMovie v-else :movie="movie" :change="change" @cancel="() => (change = false)" @updated="get_movie" />
 
-      <FilesSection :movie="movie" />
+      <FilesSection
+        :movie="movie"
+        @set-watched-episode="set_watched_episode"
+        @set-watched-season="set_watched_season"
+      />
     </template>
   </div>
 </template>
@@ -35,7 +39,13 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { Media } from '../type'
 import { useRoute } from 'vue-router'
-import { get_media_by_id, update_media_my_ranking, update_media_watched } from '../functions/invoker'
+import {
+  get_media_by_id,
+  update_episode_watched,
+  update_media_my_ranking,
+  update_media_watched,
+  update_season_watched,
+} from '../functions/invoker'
 import { ArrowLeft, Hash } from 'lucide-vue-next'
 import MovieHeader from '../component/MovieHeader.vue'
 import SearchMovie from '../component/SearchMovie.vue'
@@ -65,8 +75,20 @@ onMounted(() => {
 })
 onUnmounted(() => clearInterval(interval))
 
-async function toggle_watched() {
+async function toggle_media_watched() {
   if (movie.value) await update_media_watched(movie.value.id, !movie.value.watched)
+}
+
+async function set_watched_episode(episode_id: number, new_state:boolean) {
+  console.log(episode_id);
+
+  await update_episode_watched(episode_id, new_state)
+}
+
+async function set_watched_season(season_id: number, new_state:boolean) {
+  console.log(season_id);
+
+  await update_season_watched(season_id, new_state)
 }
 
 async function set_ranking(rank: number) {

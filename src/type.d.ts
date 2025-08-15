@@ -1,6 +1,6 @@
 export interface File {
   id: number
-  title: string
+  file_name: string
   path: string
   quality?: string
   language_format: string
