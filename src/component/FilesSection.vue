@@ -1,99 +1,98 @@
 <template>
   <div class="card bg-base-100 shadow-xl">
     <div class="card-body">
-      <h2 class="card-title mb-4">
-        <FileText class="mr-2 h-6 w-6" />
+      <h2 class="card-title mb-4 flex items-center gap-2">
+        <FileText class="h-6 w-6" />
         Available Files
         <div class="badge badge-secondary">{{ movie.files?.length }} files</div>
       </h2>
-      <div class="border-base-200 overflow-x-auto rounded-lg border shadow-sm">
-        <table class="table-zebra table">
-          <!-- Header with improved styling -->
-          <thead class="bg-primary text-primary-content">
-            <tr>
-              <th class="text-center">File Details</th>
-              <th class="text-center">Quality</th>
-              <th class="text-center">Language Format</th>
-              <th class="text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="file in movie.files" :key="file.path" class="group hover:bg-base-300">
-              <!-- File Details Column -->
-              <td>
-                <div class="font-medium">{{ file.title }}</div>
-                <div class="tooltip tooltip-primary" data-tip="Click to copy path">
-                  <button
-                    class="link link-hover max-w-xs truncate transition-all duration-300 group-hover:max-w-full"
-                    @click="copyToClipboard(file.path)"
-                  >
-                    {{ file.path }}
-                  </button>
-                </div>
-              </td>
 
-              <!-- Quality Column -->
-              <td class="text-center">
-                <div class="badge badge-lg badge-outline">
-                  {{ file.quality || 'N/A' }}
-                </div>
-              </td>
+      <div class="border-base-200 overflow-hidden rounded-lg border shadow-sm">
+        <!-- Header -->
+        <div class="bg-primary text-primary-content hidden p-3 text-center font-bold sm:grid sm:grid-cols-4">
+          <div>File Details</div>
+          <div>Quality</div>
+          <div>Language Format</div>
+          <div>Actions</div>
+        </div>
 
-              <!-- Type Column -->
-              <td class="text-center">
-                <div class="badge badge-md badge-primary gap-1">
-                  <span v-if="file.language_format"> {{ file.language_format }} </span>
-                  <span v-else> unknown </span>
-                </div>
-              </td>
+        <!-- Rows -->
+        <div
+          v-for="file in movie.files"
+          :key="file.path"
+          class="border-base-200 odd:bg-base-200 even:bg-base-100 hover:bg-base-300 grid grid-cols-1 items-center gap-4 border-t p-3 transition-colors first:border-t-0 sm:grid-cols-4"
+        >
+          <!-- File Details -->
+          <div class="flex flex-col sm:col-span-1">
+            <div class="font-medium">{{ file.title }}</div>
+            <div class="tooltip tooltip-primary" data-tip="Click to copy path">
+              <button
+                class="link link-hover max-w-xs truncate text-left transition-all duration-300 hover:max-w-full"
+                @click="copyToClipboard(file.path)"
+              >
+                {{ file.path }}
+              </button>
+            </div>
+          </div>
 
-              <!-- Actions Column -->
-              <td class="py-3">
-                <div class="flex flex-wrap items-center justify-center gap-1">
-                  <button
-                    class="btn btn-xs btn-square btn-primary btn-outline tooltip tooltip-top"
-                    data-tip="Play"
-                    @click="playFile(file.path)"
-                  >
-                    <Play class="h-3 w-3" />
-                  </button>
+          <!-- Quality -->
+          <div class="flex justify-start sm:justify-center">
+            <div class="badge badge-lg badge-outline">
+              {{ file.quality || 'N/A' }}
+            </div>
+          </div>
 
-                  <button
-                    class="btn btn-xs btn-square btn-secondary btn-outline tooltip tooltip-top"
-                    data-tip="Open Location"
-                    @click="openFileLocation(file.path)"
-                  >
-                    <FolderOpen class="h-3 w-3" />
-                  </button>
+          <!-- Language Format -->
+          <div class="flex justify-start sm:justify-center">
+            <div class="badge badge-md badge-primary gap-1">
+              <span v-if="file.language_format">{{ file.language_format }}</span>
+              <span v-else>unknown</span>
+            </div>
+          </div>
 
-                  <button
-                    class="btn btn-xs btn-square btn-accent btn-outline tooltip tooltip-top"
-                    data-tip="Move"
-                    @click="MoveFile(file.path)"
-                  >
-                    <Scissors class="h-3 w-3" />
-                  </button>
+          <!-- Actions -->
+          <div class="flex flex-wrap justify-start gap-1 sm:justify-center">
+            <button
+              class="btn btn-xs btn-square btn-primary btn-outline tooltip tooltip-top"
+              data-tip="Play"
+              @click="playFile(file.path)"
+            >
+              <Play class="h-3 w-3" />
+            </button>
 
-                  <button
-                    class="btn btn-xs btn-square btn-info btn-outline tooltip tooltip-top"
-                    data-tip="Copy"
-                    @click="CopyFile(file.path)"
-                  >
-                    <Files class="h-3 w-3" />
-                  </button>
+            <button
+              class="btn btn-xs btn-square btn-secondary btn-outline tooltip tooltip-top"
+              data-tip="Open Location"
+              @click="openFileLocation(file.path)"
+            >
+              <FolderOpen class="h-3 w-3" />
+            </button>
 
-                  <button
-                    class="btn btn-xs btn-square btn-error btn-outline tooltip tooltip-top"
-                    data-tip="Delete"
-                    @click="DeleteFile(file.path)"
-                  >
-                    <Trash2 class="h-3 w-3" />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+            <button
+              class="btn btn-xs btn-square btn-accent btn-outline tooltip tooltip-top"
+              data-tip="Move"
+              @click="MoveFile(file.path)"
+            >
+              <Scissors class="h-3 w-3" />
+            </button>
+
+            <button
+              class="btn btn-xs btn-square btn-info btn-outline tooltip tooltip-top"
+              data-tip="Copy"
+              @click="CopyFile(file.path)"
+            >
+              <Files class="h-3 w-3" />
+            </button>
+
+            <button
+              class="btn btn-xs btn-square btn-error btn-outline tooltip tooltip-top"
+              data-tip="Delete"
+              @click="DeleteFile(file.path)"
+            >
+              <Trash2 class="h-3 w-3" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -175,7 +174,6 @@ async function CopyFile(path: string) {
     toast.success('File copied successfully')
   } catch (e) {
     toast.error('copy Failed!')
-
     console.error('Error copying file:', e)
   }
 }
