@@ -71,7 +71,7 @@ async function get_movie() {
 
 let interval = 0
 onMounted(() => {
-  interval = setInterval(get_movie, 1000)
+  interval = setInterval(get_movie, 300)
 })
 onUnmounted(() => clearInterval(interval))
 

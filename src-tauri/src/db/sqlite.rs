@@ -700,6 +700,24 @@ impl Sqlite {
             params![watched, season_id],
         )?;
 
+        let media_id: i64 = conn.query_row(
+            "SELECT media_id FROM seasons WHERE id = ?1",
+            params![season_id],
+            |row| row.get(0),
+        )?;
+
+        let media_all_watched: bool = conn.query_row(
+            "SELECT COUNT(*) = SUM(CASE WHEN watched THEN 1 ELSE 0 END)
+         FROM seasons WHERE media_id = ?1",
+            params![media_id],
+            |row| row.get(0),
+        )?;
+
+        conn.execute(
+            "UPDATE medias SET watched = ?1 WHERE id = ?2",
+            params![media_all_watched, media_id],
+        )?;
+
         Ok(())
     }
 
@@ -708,6 +726,43 @@ impl Sqlite {
             "UPDATE episodes SET watched = ?1 WHERE id = ?2",
             params![watched, episode_id],
         )?;
+
+        let season_id: i64 = conn.query_row(
+            "SELECT season_id FROM episodes WHERE id = ?1",
+            params![episode_id],
+            |row| row.get(0),
+        )?;
+
+        let all_watched: bool = conn.query_row(
+            "SELECT COUNT(*) = SUM(CASE WHEN watched THEN 1 ELSE 0 END) 
+         FROM episodes WHERE season_id = ?1",
+            params![season_id],
+            |row| row.get(0),
+        )?;
+
+        conn.execute(
+            "UPDATE seasons SET watched = ?1 WHERE id = ?2",
+            params![all_watched, season_id],
+        )?;
+
+        let media_id: i64 = conn.query_row(
+            "SELECT media_id FROM seasons WHERE id = ?1",
+            params![season_id],
+            |row| row.get(0),
+        )?;
+
+        let media_all_watched: bool = conn.query_row(
+            "SELECT COUNT(*) = SUM(CASE WHEN watched THEN 1 ELSE 0 END)
+         FROM seasons WHERE media_id = ?1",
+            params![media_id],
+            |row| row.get(0),
+        )?;
+
+        conn.execute(
+            "UPDATE medias SET watched = ?1 WHERE id = ?2",
+            params![media_all_watched, media_id],
+        )?;
+
         Ok(())
     }
 
