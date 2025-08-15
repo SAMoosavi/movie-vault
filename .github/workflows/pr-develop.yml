@@ -67,18 +67,5 @@ jobs:
         working-directory: src-tauri
 
       # Build for each OS
-      - name: Build Tauri (Linux .deb)
-        if: matrix.os == 'ubuntu-latest'
-        run: pnpm tauri build --target deb
-
-      - name: Build Tauri (Linux .rpm)
-        if: matrix.os == 'ubuntu-latest'
-        run: pnpm tauri build --target rpm
-
-      - name: Build Tauri (Windows)
-        if: matrix.os == 'windows-latest'
-        run: pnpm tauri build
-
-      - name: Build Tauri (macOS)
-        if: matrix.os == 'macos-latest'
+      - name: Build Tauri
         run: pnpm tauri build

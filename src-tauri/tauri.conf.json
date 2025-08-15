@@ -23,7 +23,6 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["deb", "rpm", "appimage", "nsis", "dmg"],
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
@@ -32,15 +31,6 @@
       "icons/icon.icns",
       "icons/icon.ico",
       "icons/icon.png"
-    ],
-    "windows": {
-      "nsis": {
-        "installerIcon": "icons/icon.ico"
-      }
-    },
-    "macOS": {
-      "entitlements": null,
-      "exceptionDomain": null
-    }
+    ]
   }
 }
