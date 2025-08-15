@@ -5,6 +5,9 @@ on:
     branches:
       - 'release/*'
 
+permissions:
+  contents: write  # Grants write access for creating releases
+
 jobs:
   check_version:
     runs-on: ubuntu-latest
@@ -92,4 +95,4 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.rpm
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
