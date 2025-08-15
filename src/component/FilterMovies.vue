@@ -101,6 +101,16 @@
           </select>
         </div>
 
+        <!-- watch list -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">watch list</span></label>
+          <select v-model="filters.watchList" class="select select-bordered w-full pr-8">
+            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
+        </div>
+
         <!-- Sort By -->
         <div class="form-control">
           <label class="label">

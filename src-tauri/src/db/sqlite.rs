@@ -274,7 +274,7 @@ impl Sqlite {
         // Get basic media info
         let mut stmt = conn.prepare_cached(
             "
-        SELECT id, name, year, watched, my_ranking, imdb_id
+        SELECT id, name, year, watched, my_ranking, watch_list, imdb_id
         FROM medias
         WHERE id = ?1
     ",
@@ -331,7 +331,7 @@ impl Sqlite {
     fn get_media_and_imdb_by_media_id(conn: &Connection, media_id: i64) -> Result<Media> {
         let mut stmt = conn.prepare_cached(
             "
-                SELECT id, name, year, watched, my_ranking, imdb_id
+                SELECT id, name, year, watched, my_ranking, watch_list, imdb_id
                 FROM medias
                 WHERE id = ?1
             ",
@@ -620,6 +620,11 @@ impl Sqlite {
             params.push(Box::new(watched));
         }
 
+        if let Some(watch_list) = filters.watch_list {
+            where_conditions.push("vm.watch_list = ?".to_string());
+            params.push(Box::new(watch_list));
+        }
+
         if !filters.name.is_empty() {
             let search_pattern = format!("%{}%", filters.name);
             where_conditions.push("(vm.name LIKE ? OR im.title LIKE ?)".to_string());
@@ -669,6 +674,15 @@ impl Sqlite {
         )
     }
 
+    fn update_watch_list(conn: &Connection, media_id: i64, watch_list: bool) -> Result<()> {
+        conn.execute(
+            "UPDATE medias SET watch_list = ?1 WHERE id = ?2",
+            params![watch_list, media_id],
+        )?;
+
+        Ok(())
+    }
+
     fn update_media_watched(conn: &Connection, media_id: i64, watched: bool) -> Result<()> {
         conn.execute(
             "UPDATE medias SET watched = ?1 WHERE id = ?2",
@@ -686,6 +700,9 @@ impl Sqlite {
             params![watched, media_id],
         )?;
 
+        if watched {
+            Self::update_watch_list(conn, media_id, false)?;
+        }
         Ok(())
     }
 
@@ -717,6 +734,10 @@ impl Sqlite {
             "UPDATE medias SET watched = ?1 WHERE id = ?2",
             params![media_all_watched, media_id],
         )?;
+
+        if media_all_watched {
+            Self::update_watch_list(conn, media_id, false)?;
+        }
 
         Ok(())
     }
@@ -762,6 +783,10 @@ impl Sqlite {
             "UPDATE medias SET watched = ?1 WHERE id = ?2",
             params![media_all_watched, media_id],
         )?;
+
+        if media_all_watched {
+            Self::update_watch_list(conn, media_id, false)?;
+        }
 
         Ok(())
     }
@@ -932,6 +957,7 @@ impl From<&rusqlite::Row<'_>> for Media {
             year: row.get(2).unwrap_or_default(),
             watched: row.get(3).unwrap_or_default(),
             my_ranking: row.get(4).unwrap_or_default(),
+            watch_list: row.get(5).unwrap_or_default(),
             imdb: None,
             seasons: Vec::new(),
             files: Vec::new(),
@@ -972,6 +998,7 @@ impl DB for Sqlite {
             year INTEGER,
             watched BOOLEAN DEFAULT 0,
             my_ranking INTEGER DEFAULT 0,
+            watch_list BOOLEAN DEFAULT 0,
             imdb_id TEXT UNIQUE,
             UNIQUE (name, year)
             -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE
@@ -1188,6 +1215,11 @@ impl DB for Sqlite {
         let re = Self::get_media_by_id(&tx, media_id);
         tx.commit()?;
         re
+    }
+
+    fn update_watch_list_to_db(&self, media_id: i64, watch_list: bool) -> Result<()> {
+        let conn = self.get_conn()?;
+        Self::update_watch_list(&conn, media_id, watch_list)
     }
 }
 

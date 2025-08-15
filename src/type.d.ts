@@ -52,6 +52,7 @@ export interface Media {
   imdb?: Imdb
   watched: boolean
   my_ranking: number
+  watch_list: boolean
 }
 
 type ContentType = 'all' | 'movie' | 'series'
@@ -73,4 +74,5 @@ export interface FilterValues {
   watched: NullableBool
   sortBy: SortByType
   sortDirection: SortDirectionType
+  watchList: NullableBool
 }

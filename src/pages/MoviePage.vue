@@ -23,6 +23,7 @@
         @edit="() => (change = true)"
         @toggle-watched="toggle_media_watched"
         @set-ranking="set_ranking"
+        @toggle-watch-list="toggle_watch_list"
       />
       <SearchMovie v-else :movie="movie" :change="change" @cancel="() => (change = false)" @updated="get_movie" />
 
@@ -43,6 +44,7 @@ import {
   get_media_by_id,
   update_episode_watched,
   update_media_my_ranking,
+  update_media_watch_list,
   update_media_watched,
   update_season_watched,
 } from '../functions/invoker'
@@ -78,15 +80,18 @@ onUnmounted(() => clearInterval(interval))
 async function toggle_media_watched() {
   if (movie.value) await update_media_watched(movie.value.id, !movie.value.watched)
 }
+async function toggle_watch_list() {
+  if (movie.value) await update_media_watch_list(movie.value.id, !movie.value.watch_list)
+}
 
-async function set_watched_episode(episode_id: number, new_state:boolean) {
-  console.log(episode_id);
+async function set_watched_episode(episode_id: number, new_state: boolean) {
+  console.log(episode_id)
 
   await update_episode_watched(episode_id, new_state)
 }
 
-async function set_watched_season(season_id: number, new_state:boolean) {
-  console.log(season_id);
+async function set_watched_season(season_id: number, new_state: boolean) {
+  console.log(season_id)
 
   await update_season_watched(season_id, new_state)
 }

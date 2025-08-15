@@ -124,6 +124,7 @@ mod test_get_omdb_of_medias {
             imdb: None,
             watched: false,
             my_ranking: 0,
+            watch_list: false,
         };
 
         let result = get_omdb_of_medias(&[test_video.clone()], "4c602a26").await;
@@ -148,6 +149,7 @@ mod test_get_omdb_of_medias {
             imdb: None,
             watched: false,
             my_ranking: 0,
+            watch_list: false,
         };
 
         let result = get_omdb_of_medias(&[test_video.clone()], "4c602a26").await;

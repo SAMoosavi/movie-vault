@@ -18,6 +18,11 @@
           <Eye class="mr-1 h-4 w-4" />
           <span class="font-semibold">Watched</span>
         </div>
+
+        <div v-if="movie.watch_list" class="badge badge-primary absolute right-3 bottom-3 flex items-center">
+          <BookmarkCheck class="mr-1 h-4 w-4" />
+          <span class="font-semibold">Watchlist</span>
+        </div>
       </figure>
 
       <div class="card-body p-4">
@@ -62,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { Calendar, Star, User, Eye } from 'lucide-vue-next'
+import { Calendar, Star, User, Eye, BookmarkCheck } from 'lucide-vue-next'
 import type { Media } from '../type'
 
 defineProps<{ movie: Media }>()

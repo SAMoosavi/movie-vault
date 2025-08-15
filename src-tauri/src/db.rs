@@ -77,6 +77,7 @@ pub struct FilterValues {
     pub watched: Option<bool>,
     pub sort_by: SortByType,
     pub sort_direction: SortDirectionType,
+    pub watch_list: Option<bool>,
 }
 
 pub trait DB: Default + Send + Sync + Clone {
@@ -84,6 +85,7 @@ pub trait DB: Default + Send + Sync + Clone {
     fn create_table(&self) -> Result<()>;
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;
     fn update_media_my_ranking_to_db(&self, media_id: i64, my_ranking: u8) -> Result<usize>;
+    fn update_watch_list_to_db(&self, media_id: i64, watch_list: bool) -> Result<()>;
     fn update_media_watched_to_db(&self, media_id: i64, watched: bool) -> Result<()>;
     fn update_season_watched_to_db(&self, season_id: i64, watched: bool) -> Result<()>;
     fn update_episode_watched_to_db(&self, episode_id: i64, watched: bool) -> Result<()>;

@@ -48,3 +48,7 @@ export async function update_episode_watched(episodeId: number, watched: boolean
 export async function update_media_my_ranking(mediaId: number, myRanking: number) {
   return await invoke('update_media_my_ranking_app', { mediaId, myRanking })
 }
+
+export async function update_media_watch_list(mediaId: number, watchList: boolean) {
+  return await invoke('update_watch_list_app', { mediaId, watchList })
+}

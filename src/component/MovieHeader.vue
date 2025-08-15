@@ -29,6 +29,21 @@
             </div>
           </button>
 
+          <button
+            v-if="!movie.watched"
+            class="flex cursor-pointer items-center gap-2"
+            @click="$emit('toggle-watch-list')"
+          >
+            <div v-if="movie.watch_list" class="badge badge-lg badge-primary gap-1">
+              <BookmarkCheck class="h-4 w-4" />
+              <span>On Watchlist</span>
+            </div>
+            <div v-else class="badge badge-lg badge-outline gap-1">
+              <BookmarkPlus class="h-4 w-4" />
+              <span>Add to Watchlist</span>
+            </div>
+          </button>
+
           <!-- Personal Rating -->
           <div class="flex items-center gap-2">
             <span class="font-semibold">My Rating:</span>
@@ -121,8 +136,8 @@
 
 <script setup lang="ts">
 import type { Media } from '../type'
-import { Star, Eye, EyeOff } from 'lucide-vue-next'
+import { Star, Eye, EyeOff, BookmarkPlus, BookmarkCheck } from 'lucide-vue-next'
 
 defineProps<{ movie: Media }>()
-defineEmits(['edit', 'toggle-watched', 'set-ranking'])
+defineEmits(['edit', 'toggle-watched', 'set-ranking', 'toggle-watch-list'])
 </script>

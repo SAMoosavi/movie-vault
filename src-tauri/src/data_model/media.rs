@@ -14,6 +14,7 @@ pub struct Media {
     pub year: Option<u32>,
     pub watched: bool,
     pub my_ranking: u8,
+    pub watch_list: bool,
     pub seasons: Vec<Season>,
     pub files: Vec<MediaFile>,
     pub imdb: Option<Imdb>,
@@ -57,6 +58,7 @@ impl From<PathBuf> for Media {
             imdb: None,
             watched: false,
             my_ranking: 0,
+            watch_list: false,
         }
     }
 }

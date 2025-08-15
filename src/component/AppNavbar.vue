@@ -10,9 +10,7 @@
           <li>
             <RouterLink to="/">Home</RouterLink>
           </li>
-          <li><a>Movies</a></li>
-          <li><a>TV Shows</a></li>
-          <li><a>Watchlist</a></li>
+          <li><a @click="show_watch_list">Watchlist</a></li>
         </ul>
       </div>
       <span class="from-primary to-secondary ml-2 bg-gradient-to-r bg-clip-text text-xl font-bold text-transparent">
@@ -26,9 +24,7 @@
         <li>
           <RouterLink to="/" class="hover:bg-base-200 rounded-lg">Home</RouterLink>
         </li>
-        <li><a class="hover:bg-base-200 rounded-lg">Movies</a></li>
-        <li><a class="hover:bg-base-200 rounded-lg">TV Shows</a></li>
-        <li><a class="hover:bg-base-200 rounded-lg">Watchlist</a></li>
+        <li><a class="hover:bg-base-200 rounded-lg" @click="show_watch_list">Watchlist</a></li>
       </ul>
     </div>
 
@@ -104,6 +100,10 @@ const themNumber = ref(0)
 function setThem(index: number) {
   document.documentElement.setAttribute('data-theme', thems[index])
   localStorage.setItem('theme', index.toString())
+}
+
+function show_watch_list() {
+  toast.info("This page doesn't exist. Please use the watchlist filter to find your saved movies.")
 }
 
 watch(themNumber, setThem)

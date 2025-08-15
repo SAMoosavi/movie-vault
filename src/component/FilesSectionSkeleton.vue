@@ -32,7 +32,7 @@
           </div>
 
           <!-- Column 4 -->
-          <div class="flex flex-wrap gap-2 mx-auto">
+          <div class="mx-auto flex flex-wrap gap-2">
             <div v-for="i in 5" :key="i" class="skeleton h-6 w-8"></div>
           </div>
         </div>

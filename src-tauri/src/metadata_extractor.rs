@@ -87,6 +87,7 @@ mod tests_merge_media {
             seasons: season,
             files,
             imdb: None,
+            watch_list: false,
         }
     }
 
@@ -310,6 +311,7 @@ mod tests_get_metadata {
             imdb: None,
             watched: false,
             my_ranking: 0,
+            watch_list: false,
         }];
         let result =
             get_metadata(&["/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()]);

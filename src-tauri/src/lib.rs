@@ -85,6 +85,14 @@ async fn update_media_imdb_app(media_id: i64, imdb_id: &str, api_key: &str) -> R
 }
 
 #[tauri::command]
+fn update_watch_list_app(media_id: i64, watch_list: bool) -> Result<(), String> {
+    let db = get_db();
+    db.update_watch_list_to_db(media_id, watch_list)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 fn update_media_watched_app(media_id: i64, watched: bool) -> Result<(), String> {
     let db = get_db();
     db.update_media_watched_to_db(media_id, watched)
@@ -136,7 +144,8 @@ pub fn run() {
             update_media_watched_app,
             update_season_watched_app,
             update_episode_watched_app,
-            update_media_my_ranking_app
+            update_media_my_ranking_app,
+            update_watch_list_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

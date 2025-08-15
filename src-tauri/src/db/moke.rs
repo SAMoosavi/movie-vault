@@ -87,4 +87,8 @@ impl DB for MokeDB {
     fn create_table(&self) -> Result<()> {
         todo!()
     }
+
+    fn update_watch_list_to_db(&self, media_id: i64, watch_list: bool) -> Result<()> {
+        todo!()
+    }
 }

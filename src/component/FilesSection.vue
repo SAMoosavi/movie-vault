@@ -30,7 +30,7 @@
               <div class="collapse-title flex items-center justify-between font-semibold">
                 <span class="font-semibold"> Season {{ season.number }} </span>
                 <button
-                  class="flex cursor-pointer items-center gap-2 z-10"
+                  class="z-10 flex cursor-pointer items-center gap-2"
                   @click="$emit('set-watched-season', season.id, !season.watched)"
                 >
                   <div v-if="season.watched" class="badge badge-lg badge-success gap-1">
@@ -51,7 +51,7 @@
                     <div class="collapse-title flex items-center justify-between text-sm font-medium">
                       <span>Episode {{ episode.number }}</span>
                       <button
-                        class="flex cursor-pointer items-center gap-2 z-10"
+                        class="z-10 flex cursor-pointer items-center gap-2"
                         @click="$emit('set-watched-episode', episode.id, !episode.watched)"
                       >
                         <div v-if="episode.watched" class="badge badge-lg badge-success gap-1">
