@@ -1,4 +1,4 @@
-name: Release Branch Build & Tag
+name: Pre-Release Branch Build
 
 on:
   pull_request:

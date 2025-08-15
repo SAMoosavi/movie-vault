@@ -1,29 +1,128 @@
-name: Pull Request to Main (Production)
+name: Release Branch Build
 
 on:
   pull_request:
+    types: [closed]
     branches:
-      - main
+      - 'main'
+
+permissions:
+  contents: write
 
 jobs:
-  production-checks:
+  check_version:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify configuration files exist
+        run: |
+          if [ ! -f src-tauri/tauri.conf.json ]; then
+            echo "Error: src-tauri/tauri.conf.json not found"
+            exit 1
+          fi
+          if [ ! -f src-tauri/Cargo.toml ]; then
+            echo "Error: src-tauri/Cargo.toml not found"
+            exit 1
+          fi
+          if [ ! -f package.json ]; then
+            echo "Error: package.json not found"
+            exit 1
+          fi
+
+      - name: Check version consistency
+        id: get_version
+        run: |
+          TAURI_VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          CARGO_VERSION=$(grep '^version =' src-tauri/Cargo.toml | awk '{print $3}' | tr -d '"')
+          PACKAGE_VERSION=$(jq -r .version package.json)
+          echo "TAURI_VERSION=$TAURI_VERSION"
+          echo "CARGO_VERSION=$CARGO_VERSION"
+          echo "PACKAGE_VERSION=$PACKAGE_VERSION"
+          if [ -z "$TAURI_VERSION" ] || [ -z "$CARGO_VERSION" ] || [ -z "$PACKAGE_VERSION" ]; then
+            echo "Error: One or more version fields are empty"
+            exit 1
+          fi
+          if [ "$TAURI_VERSION" != "$CARGO_VERSION" ] || [ "$TAURI_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Version mismatch: tauri=$TAURI_VERSION cargo=$CARGO_VERSION package=$PACKAGE_VERSION"
+            exit 1
+          fi
+          echo "version=$TAURI_VERSION" >> $GITHUB_OUTPUT
+          echo "Version set to: $TAURI_VERSION"
+
+  build:
+    if: github.event.pull_request.merged == true
+    needs: check_version
+
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '22'
 
-      - name: Install dependencies
-        run: npm install --production
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
-      - name: Run tests
-        run: npm test
+      - name: Install JS dependencies
+        run: pnpm install
 
-      - name: Build production
-        run: npm run build
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Security audit
-        run: npm audit --production
+      - name: Install Rust dependencies
+        run: cargo fetch
+        working-directory: src-tauri
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Build Tauri app
+        run: pnpm tauri build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/**/*.AppImage
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.deb
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/release/bundle/**/*.rpm
+
+  publish:
+    if: github.event.pull_request.merged == true
+    needs: [check_version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create GitHub pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.check_version.outputs.version }}
+          name: release v${{ needs.check_version.outputs.version }}
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.exe
+            artifacts/**/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
