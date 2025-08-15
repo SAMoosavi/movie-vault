@@ -1,0 +1,29 @@
+name: Pull Request to Release Branch
+
+on:
+  pull_request:
+    branches:
+      - 'release/*'
+
+jobs:
+  pre-release-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Lint code
+        run: npm run lint
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build for staging
+        run: npm run build

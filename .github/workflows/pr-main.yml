@@ -1,0 +1,29 @@
+name: Pull Request to Main (Production)
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  production-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install --production
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production
+        run: npm run build
+
+      - name: Security audit
+        run: npm audit --production
