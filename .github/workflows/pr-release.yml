@@ -4,6 +4,7 @@ on:
   pull_request: # change to merge
     branches:
       - 'release/*'
+      # just re-run
 
 jobs:
   publish:
