@@ -90,7 +90,7 @@ impl LanguageFormat {
     }
 }
 
-#[derive(Debug, Eq, Clone, serde::Serialize, Ord)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct MediaFile {
     pub id: i64,
     pub file_name: String,
@@ -99,23 +99,22 @@ pub struct MediaFile {
     pub language_format: LanguageFormat,
 }
 
-impl PartialOrd for MediaFile {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.file_name.partial_cmp(&other.file_name) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.path.partial_cmp(&other.path) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.quality.partial_cmp(&other.quality) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.language_format.partial_cmp(&other.language_format)
+impl Ord for MediaFile {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.file_name
+            .cmp(&other.file_name)
+            .then_with(|| self.path.cmp(&other.path))
+            .then_with(|| self.quality.cmp(&other.quality))
+            .then_with(|| self.language_format.cmp(&other.language_format))
     }
 }
+
+impl PartialOrd for MediaFile {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl PartialEq for MediaFile {
     fn eq(&self, other: &Self) -> bool {
         self.file_name == other.file_name
@@ -124,6 +123,8 @@ impl PartialEq for MediaFile {
             && self.language_format == other.language_format
     }
 }
+
+impl Eq for MediaFile {}
 
 impl From<PathBuf> for MediaFile {
     fn from(path: PathBuf) -> Self {

@@ -4,12 +4,27 @@ use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
-#[derive(Debug, Eq, Clone, serde::Serialize, Ord)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Season {
     pub id: i64,
     pub number: i32,
     pub watched: bool,
     pub episodes: Vec<Episode>,
+}
+
+impl Ord for Season {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.number
+            .cmp(&other.number)
+            .then_with(|| self.watched.cmp(&other.watched))
+            .then_with(|| self.episodes.cmp(&other.episodes))
+    }
+}
+
+impl PartialOrd for Season {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl PartialEq for Season {
@@ -24,19 +39,7 @@ impl PartialEq for Season {
     }
 }
 
-impl PartialOrd for Season {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.number.partial_cmp(&other.number) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.watched.partial_cmp(&other.watched) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.episodes.partial_cmp(&other.episodes)
-    }
-}
+impl Eq for Season {}
 
 impl TryFrom<PathBuf> for Season {
     type Error = Box<dyn std::error::Error>;

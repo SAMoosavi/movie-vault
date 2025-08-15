@@ -3,25 +3,25 @@ use std::path::PathBuf;
 use super::media_file::MediaFile;
 use itertools::Itertools;
 
-#[derive(Debug, Clone, Eq, Ord, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Episode {
     pub id: i64,
     pub number: i32,
     pub watched: bool,
     pub files: Vec<MediaFile>,
 }
+impl Ord for Episode {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.number
+            .cmp(&other.number)
+            .then_with(|| self.watched.cmp(&other.watched))
+            .then_with(|| self.files.cmp(&other.files))
+    }
+}
 
 impl PartialOrd for Episode {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.number.partial_cmp(&other.number) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        match self.watched.partial_cmp(&other.watched) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.files.partial_cmp(&other.files)
+        Some(self.cmp(other))
     }
 }
 
@@ -32,6 +32,8 @@ impl PartialEq for Episode {
             && self.files.iter().sorted().eq(other.files.iter().sorted())
     }
 }
+
+impl Eq for Episode {}
 
 impl Episode {
     pub fn new(path: PathBuf, number: i32) -> Self {
