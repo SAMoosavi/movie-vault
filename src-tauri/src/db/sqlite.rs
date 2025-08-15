@@ -1193,7 +1193,7 @@ impl DB for Sqlite {
 
 #[cfg(test)]
 mod tests_sqlit {
-    use crate::data_model::LanguageFormat;
+    use crate::metadata_extractor::get_metadata;
 
     use super::*;
 
@@ -1258,22 +1258,9 @@ mod tests_sqlit {
     fn insert_movie() {
         let db = get_sqlite();
 
-        let m1 = Media {
-            id: 1,
-            name: "who am i".into(),
-            year: Some(2014),
-            files: vec![MediaFile {
-                id: 1,
-                file_name: "Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez".into(),
-                path: "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4".into(),
-                quality: Some("720p".into()),
-                language_format: LanguageFormat::HardSub,
-            }],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            seasons: vec![],
-        };
+        let m1 = Media::from(PathBuf::from(
+            "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4",
+        ));
 
         db.insert_medias(&[m1.clone()]).unwrap();
 
@@ -1284,131 +1271,21 @@ mod tests_sqlit {
 
     #[test]
     fn insert_series() {
-        let m1 = Media {
-            id: 1,
-            name: "loki".into(),
-            year: None,
-            files: vec![],
-            seasons: vec![
-                Season {
-                    id: 1,
-                    number: 1,
-                    watched: false,
-                    episodes: vec![
-                        Episode {
-                            id: 1,
-                            number: 2,
-                            watched: false,
-                            files: vec![
-                                MediaFile {
-                                    id: 1,
-                                    path:
-                                        "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv"
-                                            .into(),
-                                    file_name: "Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                                MediaFile {
-                                    id: 2,
-                                    path: "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.mkv"
-                                        .into(),
-                                    file_name: "Loki.S01E02.720p.WEB.DL.Dubbed".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                            ],
-                        },
-                        Episode {
-                            id: 2,
-                            number: 3,
-                            watched: false,
-                            files: vec![
-                                MediaFile {
-                                    id: 3,
-                                    path: "/marvel/loki/S1/Loki.S01E03.720p.WEB.DL.Dubbed.mkv"
-                                        .into(),
-                                    file_name: "Loki.S01E03.720p.WEB.DL.Dubbed".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                                MediaFile {
-                                    id: 4,
-                                    path:
-                                        "/marvel/loki/S1/Loki.S01E03.720p.WEB.DL.Dubbed.ZarFilm.mkv"
-                                            .into(),
-                                    file_name: "Loki.S01E03.720p.WEB.DL.Dubbed.ZarFilm".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                            ],
-                        },
-                    ],
-                },
-                Season {
-                    id: 1,
-                    number: 2,
-                    watched: false,
-                    episodes: vec![
-                        Episode {
-                            id: 3,
-                            number: 2,
-                            watched: false,
-                            files: vec![
-                                MediaFile {
-                                    id: 5,
-                                    path:
-                                        "/marvel/loki/S2/Loki.S02E02.720p.WEB.DL.Dubbed.ZarFilm.mkv"
-                                            .into(),
-                                    file_name: "Loki.S02E02.720p.WEB.DL.Dubbed.ZarFilm".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                                MediaFile {
-                                    id: 6,
-                                    path: "/marvel/loki/S2/Loki.S02E02.720p.WEB.DL.Dubbed.mkv"
-                                        .into(),
-                                    file_name: "Loki.S02E02.720p.WEB.DL.Dubbed".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                            ],
-                        },
-                        Episode {
-                            id: 4,
-                            number: 3,
-                            watched: false,
-                            files: vec![
-                                MediaFile {
-                                    id: 7,
-                                    path:
-                                        "/marvel/loki/S2/Loki.S02E03.720p.WEB.DL.Dubbed.ZarFilm.mkv"
-                                            .into(),
-                                    file_name: "Loki.S02E03.720p.WEB.DL.Dubbed.ZarFilm".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                                MediaFile {
-                                    id: 8,
-                                    path: "/marvel/loki/S2/Loki.S02E03.720p.WEB.DL.Dubbed.mkv"
-                                        .into(),
-                                    file_name: "Loki.S02E03.720p.WEB.DL.Dubbed".into(),
-                                    quality: Some("720p".into()),
-                                    language_format: LanguageFormat::Dubbed,
-                                },
-                            ],
-                        },
-                    ],
-                },
-            ],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-        };
-        let db = get_sqlite();
-        db.insert_medias(&[m1.clone()]).unwrap();
+        let m1 = get_metadata(&[
+            "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
+            "/marvel/loki/S2/Loki.S02E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
+            "/marvel/loki/S2/Loki.S02E02.720p.WEB.DL.Dubbed.mkv".into(),
+            "/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.mkv".into(),
+            "/marvel/loki/S1/Loki.S01E03.720p.WEB.DL.Dubbed.mkv".into(),
+            "/marvel/loki/S2/Loki.S02E03.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
+            "/marvel/loki/S1/Loki.S01E03.720p.WEB.DL.Dubbed.ZarFilm.mkv".into(),
+            "/marvel/loki/S2/Loki.S02E03.720p.WEB.DL.Dubbed.mkv".into(),
+        ]);
 
-        assert_eq!(db.get_media_by_id_from_db(1).unwrap(), Some(m1));
+        let db = get_sqlite();
+        db.insert_medias(&m1).unwrap();
+
+        assert_eq!(db.get_media_by_id_from_db(1).unwrap(), Some(m1[0].clone()));
 
         db.remove();
     }
