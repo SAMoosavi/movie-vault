@@ -4,7 +4,7 @@ use regex::Regex;
 use rusqlite::Result as RusqliteResult;
 use rusqlite::types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, Ord, PartialOrd)]
 pub enum LanguageFormat {
     SoftSub,
     HardSub,
@@ -90,13 +90,39 @@ impl LanguageFormat {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+#[derive(Debug, Eq, Clone, serde::Serialize, Ord)]
 pub struct MediaFile {
     pub id: i64,
     pub file_name: String,
     pub path: String,
     pub quality: Option<String>,
     pub language_format: LanguageFormat,
+}
+
+impl PartialOrd for MediaFile {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.file_name.partial_cmp(&other.file_name) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        match self.path.partial_cmp(&other.path) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        match self.quality.partial_cmp(&other.quality) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.language_format.partial_cmp(&other.language_format)
+    }
+}
+impl PartialEq for MediaFile {
+    fn eq(&self, other: &Self) -> bool {
+        self.file_name == other.file_name
+            && self.path == other.path
+            && self.quality == other.quality
+            && self.language_format == other.language_format
+    }
 }
 
 impl From<PathBuf> for MediaFile {

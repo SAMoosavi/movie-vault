@@ -5,7 +5,9 @@ use super::imdb::Imdb;
 use super::media_file::MediaFile;
 use super::season::Season;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+use itertools::Itertools;
+
+#[derive(Debug, Clone, Default, Eq, serde::Serialize)]
 pub struct Media {
     pub id: i64,
     pub name: String,
@@ -15,6 +17,22 @@ pub struct Media {
     pub seasons: Vec<Season>,
     pub files: Vec<MediaFile>,
     pub imdb: Option<Imdb>,
+}
+
+impl PartialEq for Media {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+            && self.year == other.year
+            && self.watched == other.watched
+            && self.my_ranking == other.my_ranking
+            && self
+                .seasons
+                .iter()
+                .sorted()
+                .eq(other.seasons.iter().sorted())
+            && self.files.iter().sorted().eq(other.files.iter().sorted())
+            && self.imdb == other.imdb
+    }
 }
 
 impl From<PathBuf> for Media {

@@ -37,3 +37,4 @@ tauri-plugin-http = {version = "2", features = ["json", "rustls-tls"] }
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-clipboard-manager = "2"
 rand = "0.9.2"
+itertools = "0.14.0"

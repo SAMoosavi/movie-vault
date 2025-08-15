@@ -1,15 +1,41 @@
-use std::path::PathBuf;
-
-use regex::Regex;
-
 use super::episode::Episode;
 
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
+use itertools::Itertools;
+use regex::Regex;
+use std::path::PathBuf;
+
+#[derive(Debug, Eq, Clone, serde::Serialize, Ord)]
 pub struct Season {
     pub id: i64,
     pub number: i32,
     pub watched: bool,
     pub episodes: Vec<Episode>,
+}
+
+impl PartialEq for Season {
+    fn eq(&self, other: &Self) -> bool {
+        self.number == other.number
+            && self.watched == other.watched
+            && self
+                .episodes
+                .iter()
+                .sorted()
+                .eq(other.episodes.iter().sorted())
+    }
+}
+
+impl PartialOrd for Season {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.number.partial_cmp(&other.number) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        match self.watched.partial_cmp(&other.watched) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.episodes.partial_cmp(&other.episodes)
+    }
 }
 
 impl TryFrom<PathBuf> for Season {
