@@ -13,7 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - id: get_version
+      - name: Check version consistency
+        id: get_version
         run: |
           TAURI_VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           CARGO_VERSION=$(grep '^version =' src-tauri/Cargo.toml | awk '{print $3}' | tr -d '"')
@@ -33,27 +34,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '22'
 
-      - uses: pnpm/action-setup@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 10
 
-      - run: pnpm install
+      - name: Install JS dependencies
+        run: pnpm install
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - run: cargo fetch
+      - name: Install Rust dependencies
+        run: cargo fetch
         working-directory: src-tauri
 
-      - if: matrix.os == 'ubuntu-latest'
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
-      - run: pnpm tauri build
+      - name: Build Tauri app
+        run: pnpm tauri build
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: tauri-build-${{ matrix.os }}
           path: |
