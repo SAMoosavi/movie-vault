@@ -118,7 +118,7 @@ mod tests_merge_media {
     #[test]
     fn single_media() {
         let m1 = default_media("Movie1".to_string(), None, vec![], vec![]);
-        let result = merge_media(&[m1.clone()]);
+        let result = merge_media(std::slice::from_ref(&m1));
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], m1);
     }

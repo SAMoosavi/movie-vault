@@ -877,7 +877,7 @@ impl Sqlite {
         }
 
         Self {
-            path: format!("tmp_{random_string}.db").into(),
+            path: format!("tmp_{random_string}.db"),
         }
     }
 
@@ -1294,7 +1294,7 @@ mod tests_sqlit {
             "/film/Who.Am.I.2014.720p.BluRay.HardSub.DigiMoviez.mp4",
         ));
 
-        db.insert_medias(&[m1.clone()]).unwrap();
+        db.insert_medias(std::slice::from_ref(&m1)).unwrap();
 
         assert_eq!(db.get_media_by_id_from_db(1).unwrap(), Some(m1));
 

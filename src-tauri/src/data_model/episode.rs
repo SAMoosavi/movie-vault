@@ -64,10 +64,7 @@ mod tests_episode {
 
         assert_eq!(episode.id, 0, "ID should be initialized to 0");
         assert_eq!(episode.number, test_number, "Number should match input");
-        assert_eq!(
-            episode.watched, false,
-            "Watched should be initialized to false"
-        );
+        assert!(!episode.watched);
         assert_eq!(
             episode.files.len(),
             1,
