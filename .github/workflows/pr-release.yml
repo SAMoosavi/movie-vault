@@ -1,7 +1,7 @@
 name: Release Branch Build & Tag
 
 on:
-  push:
+  pull_request:
     branches:
       - 'release/*'
 
@@ -106,11 +106,13 @@ jobs:
         run: |
           echo "Version from check_version job: ${{ needs.check_version.outputs.version }}"
 
-      - uses: actions/download-artifact@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - uses: softprops/action-gh-release@v2
+      - name: Create GitHub pre-release
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check_version.outputs.version }}_pre
           name: Pre-release v${{ needs.check_version.outputs.version }}
