@@ -32,11 +32,25 @@ jobs:
         with:
           version: 10
 
-      - name: Install dependencies
+      - name: Install Tauri dependencies
         run: |
-          sudo apt-get update 
-          sudo apt-get install -y libglib2.0-dev
-          pnpm install
+          sudo apt-get update
+          sudo apt-get install -y \
+            libglib2.0-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-6.0-dev \
+            libwebkit2gtk-6.0-4 \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            libgdk-pixbuf2.0-dev \
+            libpango1.0-dev \
+            libatk1.0-dev
+
+      - name: Install dependencies
+        run: pnpm install
 
       - name: Check format
         run: npx prettier --check .
@@ -53,19 +67,6 @@ jobs:
       - name: Run Rust tests
         run: cargo test
         working-directory: src-tauri
-
-      - name: Install Tauri dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-6.0-dev \
-            libwebkit2gtk-6.0-4 \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libssl-dev \
-            libayatana-appindicator3-dev
 
       - name: Build Tauri app
         run: pnpm tauri build -- --no-bundle
