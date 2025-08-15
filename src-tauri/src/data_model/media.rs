@@ -341,9 +341,10 @@ mod tests {
     use super::*;
 
     fn default_media() -> Media {
-        let mut m = Media::default();
-        m.name = "test".into();
-        m
+        Media {
+            name: "test".into(),
+            ..Default::default()
+        }
     }
 
     #[test]

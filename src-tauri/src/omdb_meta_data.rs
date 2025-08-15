@@ -127,7 +127,7 @@ mod test_get_omdb_of_medias {
             watch_list: false,
         };
 
-        let result = get_omdb_of_medias(&[test_video.clone()], "4c602a26").await;
+        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26").await;
 
         assert_eq!(result.len(), 1);
         let imdb = result[0].imdb.clone().unwrap();
@@ -152,7 +152,7 @@ mod test_get_omdb_of_medias {
             watch_list: false,
         };
 
-        let result = get_omdb_of_medias(&[test_video.clone()], "4c602a26").await;
+        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26").await;
 
         assert_eq!(result.len(), 1);
         let imdb = result[0].imdb.clone().unwrap();
