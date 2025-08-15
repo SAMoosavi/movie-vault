@@ -35,6 +35,12 @@ jobs:
 
       - name: Install Rust dependencies
         run: cargo fetch
+        working-directory: src-tauri
+
+      # Ubuntu: install Linux dependencies before build
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
       # Ubuntu: run format, lint, and tests
       - name: Check formatting (JS/Vue)
@@ -44,6 +50,7 @@ jobs:
       - name: Check formatting (Rust)
         if: matrix.os == 'ubuntu-latest'
         run: cargo fmt -- --check
+        working-directory: src-tauri
 
       - name: Lint JS/Vue
         if: matrix.os == 'ubuntu-latest'
@@ -52,15 +59,12 @@ jobs:
       - name: Lint Rust
         if: matrix.os == 'ubuntu-latest'
         run: cargo clippy --all-targets --all-features -- -D warnings
+        working-directory: src-tauri
 
       - name: Run Rust tests
         if: matrix.os == 'ubuntu-latest'
         run: cargo test --workspace --all-targets
-
-      # Ubuntu: install Linux dependencies before build
-      - name: Install system dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+        working-directory: src-tauri
 
       # Build for each OS
       - name: Build Tauri (Linux .deb)
