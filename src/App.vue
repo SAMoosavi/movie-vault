@@ -10,7 +10,7 @@ import AppNavbar from './component/AppNavbar.vue'
 import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
 import { useDirsStore } from './stores/Dirs'
 import { storeToRefs } from 'pinia'
-import { create_table, sync_app } from './functions/invoker'
+import { create_table, sync_files } from './functions/invoker'
 import { useVideosStore } from './stores/Videos'
 import { toast } from 'vue3-toastify'
 
@@ -37,7 +37,7 @@ const startWatching = async (paths: string[]) => {
             return
           }
           console.log(event.type)
-          await sync_app(path)
+          await sync_files(path)
           await videos.updata()
         },
         {
@@ -59,7 +59,7 @@ onMounted(async () => {
     await create_table()
 
     // Sync files with better error handling
-    const syncPromises = dir_path.value.map(sync_app)
+    const syncPromises = dir_path.value.map(sync_files)
     await Promise.all(syncPromises)
 
     await startWatching(dir_path.value)

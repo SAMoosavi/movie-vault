@@ -19,7 +19,7 @@
     <template v-else>
       <MovieHeader
         v-if="movie.imdb && !change"
-        :movie="movie"
+        :media="movie"
         @edit="() => (change = true)"
         @toggle-watched="toggle_media_watched"
         @set-ranking="set_ranking"

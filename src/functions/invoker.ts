@@ -5,7 +5,7 @@ export async function create_table(): Promise<void> {
   return await invoke('create_table')
 }
 
-export async function sync(dir: string): Promise<number> {
+export async function sync_files(dir: string): Promise<number> {
   return await invoke('sync_files', { root: dir, apiKey: '4c602a26' })
 }
 
@@ -49,7 +49,11 @@ export async function update_media_my_ranking(mediaId: number, myRanking: number
   return await invoke('update_media_my_ranking', { mediaId, myRanking })
 }
 
-export async function get_tags(): Promise<Tag> {
+export async function update_media_watch_list(mediaId: number, watchList: boolean) {
+  return await invoke('update_watch_list', { mediaId, watchList })
+}
+
+export async function get_tags(): Promise<Tag[]> {
   return await invoke('get_tags')
 }
 
@@ -62,7 +66,7 @@ export async function update_tag(tag: Tag): Promise<void> {
 }
 
 export async function get_medias_by_tag(tagId: number): Promise<Media> {
-  return await invoke('update_watch_list', { tagId })
+  return await invoke('get_medias_by_tag', { tagId })
 }
 
 export async function insert_tag(tag: Tag): Promise<void> {
@@ -72,3 +76,8 @@ export async function insert_tag(tag: Tag): Promise<void> {
 export async function insert_media_tag(mediaId: number, tagId: number): Promise<void> {
   return await invoke('insert_media_tag', { mediaId, tagId })
 }
+
+export async function remove_media_tag(mediaId: number, tagId: number): Promise<void> {
+  return await invoke('remove_media_tag', { mediaId, tagId })
+}
+

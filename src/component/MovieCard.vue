@@ -37,9 +37,20 @@
           <span class="capitalize">{{ movie.imdb?.type }}</span>
         </div>
 
-        <div class="mb-3 flex flex-wrap gap-1">
-          <span v-for="genre in movie.imdb?.genre" :key="genre" class="badge badge-outline badge-sm">
+        <div v-if="movie.imdb?.genres.length" class="mb-3 flex flex-wrap gap-1">
+          <span v-for="genre in movie.imdb?.genres" :key="genre" class="badge badge-outline badge-sm">
             {{ genre }}
+          </span>
+        </div>
+
+        <div v-if="movie.tags.length" class="mb-3 flex flex-wrap gap-1">
+          <Tags class="h4 mr-1 w-4" />
+          <span
+            v-for="tag in movie.tags"
+            :key="tag.id"
+            :class="`badge badge-md badge-${tag.color}`"
+          >
+            {{ tag.name }}
           </span>
         </div>
 
@@ -67,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { Calendar, Star, User, Eye, BookmarkCheck } from 'lucide-vue-next'
+import { Calendar, Star, User, Eye, BookmarkCheck, Tags } from 'lucide-vue-next'
 import type { Media } from '../type'
 
 defineProps<{ movie: Media }>()

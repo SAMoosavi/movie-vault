@@ -52,7 +52,7 @@ import { FolderPlus, Sun, Moon, AlignJustify, Coffee } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 import { useVideosStore } from '../stores/Videos'
 import { useDirsStore } from '../stores/Dirs'
-import { sync_app } from '../functions/invoker'
+import { sync_files } from '../functions/invoker'
 import { onMounted, ref, watch } from 'vue'
 
 const videos = useVideosStore()
@@ -79,7 +79,7 @@ async function handleAddDirectory() {
     toast.info('Adding directory and syncing files...')
 
     // Sync files in the new directory
-    const number_of_added = await sync_app(selectedDir)
+    const number_of_added = await sync_files(selectedDir)
 
     // Refresh video metadata
     await videos.updata()

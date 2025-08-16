@@ -16,6 +16,7 @@ export const useFiltersStore = defineStore('filters', () => {
     sortBy: 'name',
     sortDirection: 'asc',
     watchList: null,
+    tags: []
   }
 
   const filters = ref<FilterValues>({ ...defaultFilters })

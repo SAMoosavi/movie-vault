@@ -71,6 +71,12 @@
           <AutocompleteSelect v-model="filters.actor" :items="actors" />
         </div>
 
+        <!-- Tag -->
+        <div class="form-control">
+          <label class="label"><span class="label-text">Tag</span></label>
+          <AutocompleteSelect v-model="filters.tags" :items="tags" />
+        </div>
+
         <!-- Exist IMDb -->
         <div class="form-control">
           <label class="label"><span class="label-text">Has IMDb</span></label>
@@ -144,7 +150,7 @@ import { Filter, RefreshCcw, Search } from 'lucide-vue-next'
 import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
-import { get_actors, get_countries, get_genres } from '../functions/invoker'
+import { get_actors, get_countries, get_genres, get_tags } from '../functions/invoker'
 import AutocompleteSelect from './AutocompleteSelect.vue'
 import type { NumericalString } from '../type'
 
@@ -154,14 +160,21 @@ const { filters } = storeToRefs(filtersStore)
 const countries = ref<NumericalString[]>([])
 const genres = ref<NumericalString[]>([])
 const actors = ref<NumericalString[]>([])
+const tags = ref<NumericalString[]>([])
 
 onMounted(async () => {
   try {
-    const [genresData, countriesData, actorsData] = await Promise.all([get_genres(), get_countries(), get_actors()])
+    const [genresData, countriesData, actorsData, tagsData] = await Promise.all([
+      get_genres(),
+      get_countries(),
+      get_actors(),
+      get_tags(),
+    ])
 
     genres.value = genresData
     countries.value = countriesData
     actors.value = actorsData
+    tags.value = tagsData.map((tag) => [tag.id, tag.name])
   } catch (e) {
     console.error('Data fetching error:', e)
   }

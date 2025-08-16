@@ -32,7 +32,7 @@ export interface Imdb {
   rated: string
   released: string
   runtime: string
-  genre: string[]
+  genres: string[]
   directors: string[]
   writers: string[]
   actors: string[]
@@ -82,4 +82,5 @@ export interface FilterValues {
   sortBy: SortByType
   sortDirection: SortDirectionType
   watchList: NullableBool
+  tags: NumericalString[]
 }
