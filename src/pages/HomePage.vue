@@ -4,7 +4,7 @@
 
     <!-- Tag Manager -->
     <div class="mb-3 rounded-xl border-2 p-3">
-      <div class="flex items-center mb-2 gap-3">
+      <div class="mb-2 flex items-center gap-3">
         <TagIcon class="h-6 w-6" />
         <h3 class="text-xl">tag manager</h3>
       </div>
@@ -21,10 +21,15 @@
             v-for="tag in tags"
             :key="tag.id"
             class="badge badge-outline badge-sm cursor-pointer"
-            @click="removeTag(tag.id)"
+            @click="() => (selectedTag = { ...tag })"
           >
             {{ tag.name }}
           </span>
+        </div>
+        <div v-if="selectedTag.id" class="ml-4 flex items-center gap-2">
+          <button class="btn btn-error" @click="removeTag">remove</button>
+          <input class="input" v-model="selectedTag.name" />
+          <button class="btn btn-info" @click="updateTag">rename</button>
         </div>
       </div>
     </div>
@@ -54,7 +59,7 @@ import { useVideosStore } from '../stores/Videos'
 import { storeToRefs } from 'pinia'
 import { useFiltersStore } from '../stores/Filters'
 import type { Tag } from '../type'
-import { get_tags, insert_tag, remove_tag } from '../functions/invoker'
+import { get_tags, insert_tag, remove_tag, update_tag } from '../functions/invoker'
 import { TagIcon } from 'lucide-vue-next'
 
 const loading = ref(true)
@@ -95,6 +100,7 @@ async function search() {
 
 const tags = ref<Tag[]>([])
 const tag = ref<Tag>({ id: 0, name: '' })
+const selectedTag = ref({ id: 0, name: '' })
 
 async function getTags() {
   tags.value = await get_tags()
@@ -106,8 +112,15 @@ async function addTag() {
   await getTags()
 }
 
-async function removeTag(tag_id: number) {
-  await remove_tag(tag_id)
+async function removeTag() {
+  await remove_tag(selectedTag.value.id)
   await getTags()
+  selectedTag.value = { id: 0, name: '' }
+}
+
+async function updateTag() {
+  await update_tag(selectedTag.value)
+  await getTags()
+  selectedTag.value = { id: 0, name: '' }
 }
 </script>
