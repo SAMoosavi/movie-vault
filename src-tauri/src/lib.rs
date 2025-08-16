@@ -140,10 +140,9 @@ fn remove_tag(tag_id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn update_tag(tag_id: i64, name: &str, color: &str) -> Result<(), String> {
+fn update_tag(tag: Tag) -> Result<(), String> {
     let db = get_db();
-    db.update_tag_from_db(tag_id, name, color)
-        .map_err(|e| e.to_string())?;
+    db.update_tag_from_db(&tag).map_err(|e| e.to_string())?;
     Ok(())
 }
 

@@ -1317,9 +1317,9 @@ impl DB for Sqlite {
         Self::remove_tag(&conn, tag_id)
     }
 
-    fn update_tag_from_db(&self, tag_id: i64, name: &str, color: &str) -> Result<()> {
+    fn update_tag_from_db(&self, tag: &Tag) -> Result<()> {
         let conn = self.get_conn()?;
-        Self::update_tag(&conn, tag_id, name, color)?;
+        Self::update_tag(&conn, tag.id, &tag.name, &tag.color)?;
         Ok(())
     }
 

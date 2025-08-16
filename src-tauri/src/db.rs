@@ -102,7 +102,7 @@ pub trait DB: Default + Send + Sync + Clone {
     fn get_media_by_id_from_db(&self, media_id: i64) -> Result<Option<Media>>;
     fn get_tags_from_db(&self) -> Result<Vec<Tag>>;
     fn remove_tag_from_db(&self, tag_id: i64) -> Result<usize>;
-    fn update_tag_from_db(&self, tag_id: i64, name: &str, color: &str) -> Result<()>;
+    fn update_tag_from_db(&self, tag: &Tag) -> Result<()>;
     fn get_medias_by_tag_from_db(&self, tag_id: i64) -> Result<Vec<Media>>;
     fn insert_tag(&self, tag: &Tag) -> Result<()>;
     fn insert_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()>;
