@@ -1,3 +1,9 @@
+export interface Tag {
+  id: number
+  name: string
+  color: string
+}
+
 export interface File {
   id: number
   file_name: string
@@ -53,6 +59,7 @@ export interface Media {
   watched: boolean
   my_ranking: number
   watch_list: boolean
+  tags: Tag[]
 }
 
 type ContentType = 'all' | 'movie' | 'series'
