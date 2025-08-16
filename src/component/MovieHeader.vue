@@ -103,7 +103,7 @@
               v-for="tag in media.tags"
               @click="removeTag(tag.id)"
               :key="tag.id"
-              :class="`cursor-pointer badge badge-md badge-${tag.color}`"
+              class="badge badge-md badge-outline badge-accent cursor-pointer"
             >
               {{ tag.name }}
             </span>
@@ -182,7 +182,7 @@ async function addTagToMovie() {
 }
 
 async function removeTag(tag_id: number) {
-  console.log(tag_id);
+  console.log(tag_id)
 
   await remove_media_tag(props.media.id, tag_id)
 }

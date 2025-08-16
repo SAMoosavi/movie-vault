@@ -271,13 +271,13 @@ impl Sqlite {
     fn insert_tag(conn: &Connection, tag: &Tag) -> Result<i64> {
         let mut stmt = conn.prepare_cached(
             "
-                INSERT INTO tags (name, color)
-                VALUES (?1, ?2)
+                INSERT INTO tags (name)
+                VALUES (?)
                 RETURNING id
             ",
         )?;
 
-        stmt.query_row(params![tag.name, tag.color], |row| row.get(0))
+        stmt.query_row(params![tag.name], |row| row.get(0))
     }
 
     fn insert_media_tag(conn: &Connection, media_id: i64, tag_id: i64) -> Result<()> {
@@ -689,7 +689,7 @@ impl Sqlite {
     fn get_tags_for_media(conn: &Connection, media_id: i64) -> Result<Vec<Tag>> {
         let mut stmt = conn.prepare_cached(
             "
-            SELECT t.id, t.name, t.color
+            SELECT t.id, t.name
             FROM tags t
             JOIN media_tags mt ON t.id = mt.tag_id
             WHERE mt.media_id = ?1;
@@ -851,10 +851,10 @@ impl Sqlite {
         Ok(())
     }
 
-    fn update_tag(conn: &Connection, tag_id: i64, name: &str, color: &str) -> Result<()> {
+    fn update_tag(conn: &Connection, tag: &Tag) -> Result<()> {
         conn.execute(
-            "UPDATE tags SET name = ?1, color = ?2 WHERE id = ?3;",
-            [name, color, &tag_id.to_string()],
+            "UPDATE tags SET name = ?1 WHERE id = ?2;",
+            params![tag.name, tag.id],
         )?;
         Ok(())
     }
@@ -1040,7 +1040,6 @@ impl From<&Row<'_>> for Tag {
         Self {
             id: row.get(0).unwrap_or_default(),
             name: row.get(1).unwrap_or_default(),
-            color: row.get(2).unwrap_or_default(),
         }
     }
 }
@@ -1183,8 +1182,7 @@ impl DB for Sqlite {
         );"#,
             r#"CREATE TABLE IF NOT EXISTS tags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            color TEXT DEFAULT 'defualt'
+            name TEXT UNIQUE NOT NULL
         );"#,
             r#"CREATE TABLE IF NOT EXISTS media_tags (
             media_id INTEGER NOT NULL,
@@ -1327,7 +1325,7 @@ impl DB for Sqlite {
 
     fn update_tag_from_db(&self, tag: &Tag) -> Result<()> {
         let conn = self.get_conn()?;
-        Self::update_tag(&conn, tag.id, &tag.name, &tag.color)?;
+        Self::update_tag(&conn, tag)?;
         Ok(())
     }
 

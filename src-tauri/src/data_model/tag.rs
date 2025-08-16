@@ -2,14 +2,11 @@
 pub struct Tag {
     pub id: i64,
     pub name: String,
-    pub color: String,
 }
 
 impl Ord for Tag {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.name
-            .cmp(&other.name)
-            .then_with(|| self.color.cmp(&other.color))
+        self.name.cmp(&other.name)
     }
 }
 
@@ -21,7 +18,7 @@ impl PartialOrd for Tag {
 
 impl PartialEq for Tag {
     fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.color == other.color
+        self.name == other.name
     }
 }
 

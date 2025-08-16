@@ -48,7 +48,7 @@
           <span
             v-for="tag in movie.tags"
             :key="tag.id"
-            :class="`badge badge-md badge-${tag.color}`"
+            class="badge badge-md badge-outline badge-accent"
           >
             {{ tag.name }}
           </span>
