@@ -1,9 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use rusqlite::{Connection, OptionalExtension, Result, params};
+use itertools::Itertools;
+use rusqlite::{Connection, OptionalExtension, Result, Row, params};
 
 use crate::{
-    data_model::{Episode, Imdb, Media, MediaFile, Season},
+    data_model::{Episode, Imdb, Media, MediaFile, Season, Tag},
     db::{ContentType, DB, FilterValues, SortByType},
 };
 
@@ -266,6 +267,26 @@ impl Sqlite {
             |row| row.get(0),
         )
     }
+
+    fn insert_tag(conn: &Connection, tag: &Tag) -> Result<i64> {
+        let mut stmt = conn.prepare_cached(
+            "
+                INSERT INTO tags (name, color)
+                VALUES (?1, ?2)
+                RETURNING id
+            ",
+        )?;
+
+        stmt.query_row(params![tag.name, tag.color], |row| row.get(0))
+    }
+
+    fn insert_media_tag(conn: &Connection, media_id: i64, tag_id: i64) -> Result<()> {
+        conn.execute(
+            "INSERT OR IGNORE INTO media_tags (media_id, tag_id) VALUES (?1, ?2)",
+            params![media_id, tag_id],
+        )?;
+        Ok(())
+    }
 }
 
 // get
@@ -290,6 +311,8 @@ impl Sqlite {
         // Get seasons with episodes and files
         media.seasons = Self::get_seasons_for_media(conn, media_id)?;
         media.files = Self::get_files_for_media(conn, media_id)?;
+
+        media.tags = Self::get_tags_for_media(conn, media_id)?;
 
         Ok(Some(media))
     }
@@ -341,6 +364,8 @@ impl Sqlite {
         if let Some(imdb_id) = Self::get_imdb_id_for_media(conn, media_id)? {
             media.imdb = Self::get_imdb(conn, &imdb_id)?;
         }
+
+        media.tags = Self::get_tags_for_media(conn, media_id)?;
 
         Ok(media)
     }
@@ -416,11 +441,8 @@ impl Sqlite {
         ",
         )?;
 
-        let files = stmt
-            .query_map(params![episode_id], |row| Ok(MediaFile::from(row)))?
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(files)
+        stmt.query_map(params![episode_id], |row| Ok(MediaFile::from(row)))?
+            .collect::<Result<_>>()
     }
 
     fn get_file_by_path(conn: &Connection, path: &Path) -> Result<Option<MediaFile>> {
@@ -443,40 +465,28 @@ impl Sqlite {
     fn get_countries(conn: &Connection) -> Result<Vec<(usize, String)>> {
         let mut stmt = conn.prepare("SELECT id, name FROM countries ORDER BY name")?;
 
-        let countries = stmt
-            .query_map([], |row| {
-                Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
-            })?
-            .filter_map(Result::ok)
-            .collect();
-
-        Ok(countries)
+        stmt.query_map([], |row| {
+            Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<_>>()
     }
 
     fn get_actors(conn: &Connection) -> Result<Vec<(usize, String)>> {
         let mut stmt = conn.prepare("SELECT id, name FROM actors ORDER BY name")?;
 
-        let countries = stmt
-            .query_map([], |row| {
-                Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
-            })?
-            .filter_map(Result::ok)
-            .collect();
-
-        Ok(countries)
+        stmt.query_map([], |row| {
+            Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<_>>()
     }
 
     fn get_genres(conn: &Connection) -> Result<Vec<(usize, String)>> {
         let mut stmt = conn.prepare("SELECT id, name FROM genres ORDER BY name")?;
 
-        let genres = stmt
-            .query_map([], |row| {
-                Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
-            })?
-            .filter_map(Result::ok)
-            .collect();
-
-        Ok(genres)
+        stmt.query_map([], |row| {
+            Ok((row.get::<_, usize>(0)?, row.get::<_, String>(1)?))
+        })?
+        .collect::<Result<_>>()
     }
 
     fn get_all_files(conn: &Connection) -> Result<Vec<MediaFile>> {
@@ -516,9 +526,7 @@ impl Sqlite {
         // Handle country filter (array of IDs)
         if !filters.country.is_empty() {
             query.push_str(" LEFT JOIN imdb_countries ic ON im.imdb_id = ic.imdb_id\n");
-            let placeholders: Vec<String> =
-                filters.country.iter().map(|_| "?".to_string()).collect();
-            let in_clause = placeholders.join(",");
+            let in_clause = filters.country.iter().map(|_| "?".to_string()).join(",");
             where_conditions.push(format!("ic.country_id IN ({in_clause})"));
             for country_id in &filters.country {
                 params.push(Box::new(country_id.0));
@@ -527,8 +535,7 @@ impl Sqlite {
 
         if !filters.genre.is_empty() {
             query.push_str(" LEFT JOIN imdb_genres ig ON im.imdb_id = ig.imdb_id\n");
-            let placeholders: Vec<String> = filters.genre.iter().map(|_| "?".to_string()).collect();
-            let in_clause = placeholders.join(",");
+            let in_clause = filters.genre.iter().map(|_| "?".to_string()).join(",");
             where_conditions.push(format!("ig.genre_id IN ({in_clause})"));
             for genre_id in &filters.genre {
                 params.push(Box::new(genre_id.0));
@@ -537,11 +544,19 @@ impl Sqlite {
 
         if !filters.actor.is_empty() {
             query.push_str(" LEFT JOIN imdb_actors ia ON im.imdb_id = ia.imdb_id\n");
-            let placeholders: Vec<String> = filters.actor.iter().map(|_| "?".to_string()).collect();
-            let in_clause = placeholders.join(",");
+            let in_clause = filters.actor.iter().map(|_| "?".to_string()).join(",");
             where_conditions.push(format!("ia.actor_id IN ({in_clause})"));
             for actor_id in &filters.actor {
                 params.push(Box::new(actor_id.0));
+            }
+        }
+
+        if !filters.tags.is_empty() {
+            query.push_str(" LEFT JOIN media_tags mt ON vm.id = mt.media_id\n");
+            let in_clause = filters.tags.iter().map(|_| "?".to_string()).join(",");
+            where_conditions.push(format!("mt.tag_id IN ({in_clause})"));
+            for tags_id in &filters.tags {
+                params.push(Box::new(tags_id.0));
             }
         }
 
@@ -662,6 +677,43 @@ impl Sqlite {
             .collect::<Result<_>>()?;
 
         Ok(results)
+    }
+
+    fn get_tags(conn: &Connection) -> Result<Vec<Tag>> {
+        let mut stmt = conn.prepare("SELECT * FROM tags ORDER BY name")?;
+
+        stmt.query_map([], |row| Ok(Tag::from(row)))?
+            .collect::<Result<_>>()
+    }
+
+    fn get_tags_for_media(conn: &Connection, media_id: i64) -> Result<Vec<Tag>> {
+        let mut stmt = conn.prepare_cached(
+            "
+            SELECT t.id, t.name, t.color
+            FROM tags t
+            JOIN media_tags mt ON t.id = mt.tag_id
+            WHERE mt.media_id = ?1;
+        ",
+        )?;
+
+        stmt.query_map(params![media_id], |row| Ok(Tag::from(row)))?
+            .collect::<Result<_>>()
+    }
+
+    fn get_medias_by_tag(conn: &Connection, tag_id: i64) -> Result<Vec<Media>> {
+        let mut stmt = conn.prepare_cached(
+            "
+            SELECT m.id
+            FROM medias m
+            JOIN media_tags mt ON m.id = mt.media_id
+            WHERE mt.tag_id = ?1;
+        ",
+        )?;
+
+        stmt.query_map(params![tag_id], |row| {
+            Self::get_media_and_imdb_by_media_id(conn, row.get(0)?)
+        })?
+        .collect::<Result<_>>()
     }
 }
 
@@ -798,6 +850,14 @@ impl Sqlite {
         )?;
         Ok(())
     }
+
+    fn update_tag(conn: &Connection, tag_id: i64, name: &str, color: &str) -> Result<()> {
+        conn.execute(
+            "UPDATE tags SET name = ?1, color = ?2 WHERE id = ?3;",
+            [name, color, &tag_id.to_string()],
+        )?;
+        Ok(())
+    }
 }
 
 // remove
@@ -857,6 +917,10 @@ impl Sqlite {
     fn remove_file_by_path(conn: &Connection, path: &str) -> Result<usize> {
         conn.execute("DELETE FROM files WHERE path = ?", [path])
     }
+
+    fn remove_tag(conn: &Connection, tag_id: i64) -> Result<usize> {
+        conn.execute("DELETE FROM tags WHERE id = ?", [tag_id])
+    }
 }
 
 #[cfg(test)]
@@ -888,8 +952,8 @@ impl Sqlite {
     }
 }
 
-impl From<&rusqlite::Row<'_>> for Imdb {
-    fn from(row: &rusqlite::Row) -> Self {
+impl From<&Row<'_>> for Imdb {
+    fn from(row: &Row) -> Self {
         Self {
             title: row.get(0).unwrap_or_default(),
             year: row.get(1).unwrap_or_default(),
@@ -915,8 +979,8 @@ impl From<&rusqlite::Row<'_>> for Imdb {
     }
 }
 
-impl From<&rusqlite::Row<'_>> for MediaFile {
-    fn from(row: &rusqlite::Row) -> Self {
+impl From<&Row<'_>> for MediaFile {
+    fn from(row: &Row) -> Self {
         MediaFile {
             id: row.get(0).unwrap_or_default(),
             file_name: row.get(1).unwrap_or_default(),
@@ -927,8 +991,8 @@ impl From<&rusqlite::Row<'_>> for MediaFile {
     }
 }
 
-impl From<&rusqlite::Row<'_>> for Episode {
-    fn from(row: &rusqlite::Row) -> Self {
+impl From<&Row<'_>> for Episode {
+    fn from(row: &Row) -> Self {
         Episode {
             id: row.get(0).unwrap_or_default(),
             number: row.get(1).unwrap_or_default(),
@@ -938,8 +1002,8 @@ impl From<&rusqlite::Row<'_>> for Episode {
     }
 }
 
-impl From<&rusqlite::Row<'_>> for Season {
-    fn from(row: &rusqlite::Row) -> Self {
+impl From<&Row<'_>> for Season {
+    fn from(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap_or_default(),
             number: row.get(1).unwrap_or_default(),
@@ -949,8 +1013,8 @@ impl From<&rusqlite::Row<'_>> for Season {
     }
 }
 
-impl From<&rusqlite::Row<'_>> for Media {
-    fn from(row: &rusqlite::Row) -> Self {
+impl From<&Row<'_>> for Media {
+    fn from(row: &Row) -> Self {
         Self {
             id: row.get(0).unwrap_or_default(),
             name: row.get(1).unwrap_or_default(),
@@ -958,9 +1022,17 @@ impl From<&rusqlite::Row<'_>> for Media {
             watched: row.get(3).unwrap_or_default(),
             my_ranking: row.get(4).unwrap_or_default(),
             watch_list: row.get(5).unwrap_or_default(),
-            imdb: None,
-            seasons: Vec::new(),
-            files: Vec::new(),
+            ..Self::default()
+        }
+    }
+}
+
+impl From<&Row<'_>> for Tag {
+    fn from(row: &Row) -> Self {
+        Self {
+            id: row.get(0).unwrap_or_default(),
+            name: row.get(1).unwrap_or_default(),
+            color: row.get(2).unwrap_or_default(),
         }
     }
 }
@@ -1101,6 +1173,18 @@ impl DB for Sqlite {
             -- FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
             -- FOREIGN KEY (country_id) REFERENCES countries (id) ON DELETE CASCADE
         );"#,
+            r#"CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE NOT NULL,
+            color TEXT DEFAULT 'defualt'
+        );"#,
+            r#"CREATE TABLE IF NOT EXISTS media_tags (
+            media_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            PRIMARY KEY (media_id, tag_id),
+            FOREIGN KEY (media_id) REFERENCES medias (id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+        );"#,
         ];
 
         for stmt in stmts {
@@ -1168,6 +1252,12 @@ impl DB for Sqlite {
         tx.commit()
     }
 
+    fn get_tags_from_db(&self) -> Result<Vec<Tag>> {
+        let conn = self.get_conn()?;
+
+        Self::get_tags(&conn)
+    }
+
     fn get_genres_from_db(&self) -> Result<Vec<(usize, String)>> {
         let conn = self.get_conn()?;
 
@@ -1221,6 +1311,34 @@ impl DB for Sqlite {
         let conn = self.get_conn()?;
         Self::update_watch_list(&conn, media_id, watch_list)
     }
+
+    fn remove_tag_from_db(&self, tag_id: i64) -> Result<usize> {
+        let conn = self.get_conn()?;
+        Self::remove_tag(&conn, tag_id)
+    }
+
+    fn update_tag_from_db(&self, tag_id: i64, name: &str, color: &str) -> Result<()> {
+        let conn = self.get_conn()?;
+        Self::update_tag(&conn, tag_id, name, color)?;
+        Ok(())
+    }
+
+    fn get_medias_by_tag_from_db(&self, tag_id: i64) -> Result<Vec<Media>> {
+        let conn = self.get_conn()?;
+        Self::get_medias_by_tag(&conn, tag_id)
+    }
+
+    fn insert_tag(&self, tag: &Tag) -> Result<()> {
+        let conn = self.get_conn()?;
+        Self::insert_tag(&conn, tag)?;
+        Ok(())
+    }
+
+    fn insert_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()> {
+        let conn = self.get_conn()?;
+        Self::insert_media_tag(&conn, media_id, tag_id)?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1273,6 +1391,8 @@ mod tests_sqlit {
             "medias",
             "seasons",
             "writers",
+            "tags",
+            "media_tags",
         ];
 
         let mut expected = expected_tables

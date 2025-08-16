@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
-    data_model::{Imdb, Media, MediaFile},
+    data_model::{Imdb, Media, MediaFile, Tag},
     db::DB,
 };
 use rusqlite::Result;
@@ -89,6 +89,30 @@ impl DB for MokeDB {
     }
 
     fn update_watch_list_to_db(&self, _media_id: i64, _watch_list: bool) -> Result<()> {
+        todo!()
+    }
+    
+    fn get_tags_from_db(&self) -> Result<Vec<Tag>> {
+        todo!()
+    }
+    
+    fn remove_tag_from_db(&self, _tag_id: i64) -> Result<usize> {
+        todo!()
+    }
+    
+    fn update_tag_from_db(&self, _tag_id: i64, _name: &str, _color: &str) -> Result<()> {
+        todo!()
+    }
+    
+    fn get_medias_by_tag_from_db(&self, _tag_id: i64) -> Result<Vec<Media>> {
+        todo!()
+    }
+    
+    fn insert_tag(&self, _tag: &Tag) -> Result<()> {
+        todo!()
+    }
+    
+    fn insert_media_tag(&self, _media_id: i64, _tag_id: i64) -> Result<()> {
         todo!()
     }
 }

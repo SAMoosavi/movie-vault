@@ -116,15 +116,8 @@ mod test_get_omdb_of_medias {
     #[tokio::test]
     async fn test_get_omdb_metadata() {
         let test_video = Media {
-            id: 0,
             name: "3 Days To Kill".into(),
-            year: None,
-            files: vec![],
-            seasons: vec![],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Media::default()
         };
 
         let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26").await;
@@ -141,15 +134,8 @@ mod test_get_omdb_of_medias {
     #[tokio::test]
     async fn test_get_omdb_metadata_of_serial() {
         let test_video = Media {
-            id: 0,
             name: "Breaking Bad".into(),
-            year: None,
-            files: vec![],
-            seasons: vec![],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Media::default()
         };
 
         let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26").await;
