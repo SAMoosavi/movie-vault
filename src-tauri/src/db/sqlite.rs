@@ -921,6 +921,14 @@ impl Sqlite {
     fn remove_tag(conn: &Connection, tag_id: i64) -> Result<usize> {
         conn.execute("DELETE FROM tags WHERE id = ?", [tag_id])
     }
+
+    fn remove_media_tag(conn: &Connection, media_id: i64, tag_id: i64) -> Result<()> {
+        conn.execute(
+            "DELETE FROM media_tags WHERE media_id = ?1 AND tag_id = ?2",
+            params![media_id, tag_id],
+        )?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -1337,6 +1345,12 @@ impl DB for Sqlite {
     fn insert_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()> {
         let conn = self.get_conn()?;
         Self::insert_media_tag(&conn, media_id, tag_id)?;
+        Ok(())
+    }
+
+    fn remove_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()> {
+        let conn = self.get_conn()?;
+        Self::remove_media_tag(&conn, media_id, tag_id)?;
         Ok(())
     }
 }

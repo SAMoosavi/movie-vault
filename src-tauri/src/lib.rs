@@ -166,6 +166,14 @@ fn insert_media_tag(media_id: i64, tag_id: i64) -> Result<(), String> {
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn remove_media_tag(media_id: i64, tag_id: i64) -> Result<(), String> {
+    let db = get_db();
+    println!("{media_id} {tag_id}");
+    db.remove_media_tag(media_id, tag_id)
+        .map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -193,7 +201,8 @@ pub fn run() {
             update_tag,
             get_medias_by_tag,
             insert_tag,
-            insert_media_tag
+            insert_media_tag,
+            remove_media_tag
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

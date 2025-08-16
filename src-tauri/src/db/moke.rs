@@ -115,4 +115,8 @@ impl DB for MokeDB {
     fn insert_media_tag(&self, _media_id: i64, _tag_id: i64) -> Result<()> {
         todo!()
     }
+    
+    fn remove_media_tag(&self, _media_id: i64, _tag_id: i64) -> Result<()> {
+        todo!()
+    }
 }
