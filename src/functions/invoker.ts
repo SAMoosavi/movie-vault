@@ -80,4 +80,3 @@ export async function insert_media_tag(mediaId: number, tagId: number): Promise<
 export async function remove_media_tag(mediaId: number, tagId: number): Promise<void> {
   return await invoke('remove_media_tag', { mediaId, tagId })
 }
-

@@ -13,6 +13,7 @@ import { storeToRefs } from 'pinia'
 import { create_table, sync_files } from './functions/invoker'
 import { useVideosStore } from './stores/Videos'
 import { toast } from 'vue3-toastify'
+import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
 
 const videos = useVideosStore()
 const dir = useDirsStore()
@@ -28,7 +29,7 @@ const stopWatching = () => {
 const startWatching = async (paths: string[]) => {
   stopWatching()
 
-  paths.forEach(async (path) => {
+  for (const path of paths) {
     try {
       const unwatch = await fsWatch(
         path,
@@ -38,7 +39,7 @@ const startWatching = async (paths: string[]) => {
           }
           console.log(event.type)
           await sync_files(path)
-          await videos.updata()
+          await videos.reload_media()
         },
         {
           recursive: true,
@@ -50,10 +51,24 @@ const startWatching = async (paths: string[]) => {
     } catch (error) {
       console.error(`Failed to set up file watcher for path ${path}:`, error)
     }
-  })
+  }
+}
+
+function getErrorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : String(e)
 }
 
 onMounted(async () => {
+  try {
+    const store = await initStore()
+    const theme = (await loadTheme(store)) ?? getDefaultTheme()
+    await setTheme(theme, store)
+  } catch (e) {
+    const message = getErrorMessage(e)
+    console.error('Initialization error:', e)
+    toast.error(`Failed to initialize: ${message}`)
+  }
+
   try {
     // Initialize database
     await create_table()
@@ -66,8 +81,10 @@ onMounted(async () => {
 
     toast.success('initialized successfully!')
   } catch (e) {
+    const message = getErrorMessage(e)
+
     console.error('Initialization error:', e)
-    toast.error(`Failed to initialize: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    toast.error(`Failed to initialize: ${message}`)
   }
 })
 

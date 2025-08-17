@@ -2,38 +2,6 @@
   <main class="container mx-auto px-4 py-6">
     <FilterMovies />
 
-    <!-- Tag Manager -->
-    <div class="mb-3 rounded-xl border-2 p-3">
-      <div class="mb-2 flex items-center gap-3">
-        <TagIcon class="h-6 w-6" />
-        <h3 class="text-xl">tag manager</h3>
-      </div>
-      <div class="flex items-center">
-        <!-- Add Tag -->
-        <div class="flex basis-1/3 gap-3">
-          <input class="input" v-model="tag.name" />
-          <button class="btn" @click="addTag">add tag</button>
-        </div>
-
-        <!-- Show and remove tag -->
-        <div class="flex flex-wrap gap-1">
-          <span
-            v-for="tag in tags"
-            :key="tag.id"
-            class="badge badge-outline badge-sm cursor-pointer"
-            @click="() => (selectedTag = { ...tag })"
-          >
-            {{ tag.name }}
-          </span>
-        </div>
-        <div v-if="selectedTag.id" class="ml-4 flex items-center gap-2">
-          <button class="btn btn-error" @click="removeTag">remove</button>
-          <input class="input" v-model="selectedTag.name" />
-          <button class="btn btn-info" @click="updateTag">rename</button>
-        </div>
-      </div>
-    </div>
-
     <LoadingView v-if="loading" />
     <!-- Movie Grid -->
     <div v-else>
@@ -58,9 +26,6 @@ import MovieCard from '../component/MovieCard.vue'
 import { useVideosStore } from '../stores/Videos'
 import { storeToRefs } from 'pinia'
 import { useFiltersStore } from '../stores/Filters'
-import type { Tag } from '../type'
-import { get_tags, insert_tag, remove_tag, update_tag } from '../functions/invoker'
-import { TagIcon } from 'lucide-vue-next'
 
 const loading = ref(true)
 
@@ -68,10 +33,8 @@ const videos = useVideosStore()
 const { videos_metadata } = storeToRefs(videos)
 
 onMounted(async () => {
-  await getTags()
-
   try {
-    await videos.updata()
+    await videos.reload_media()
 
     toast.success('Data loaded successfully!')
   } catch (e) {
@@ -92,35 +55,9 @@ watch(filters, () => search(), { deep: true })
 async function search() {
   loading.value = true
   videos
-    .updata()
+    .reload_media()
     .then(() => {})
     .catch((e) => toast.error(e))
     .finally(() => (loading.value = false))
-}
-
-const tags = ref<Tag[]>([])
-const tag = ref<Tag>({ id: 0, name: '' })
-const selectedTag = ref({ id: 0, name: '' })
-
-async function getTags() {
-  tags.value = await get_tags()
-}
-
-async function addTag() {
-  await insert_tag(tag.value)
-  tag.value = { id: 0, name: '' }
-  await getTags()
-}
-
-async function removeTag() {
-  await remove_tag(selectedTag.value.id)
-  await getTags()
-  selectedTag.value = { id: 0, name: '' }
-}
-
-async function updateTag() {
-  await update_tag(selectedTag.value)
-  await getTags()
-  selectedTag.value = { id: 0, name: '' }
 }
 </script>
