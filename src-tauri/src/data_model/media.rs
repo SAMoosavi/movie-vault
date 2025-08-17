@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use super::imdb::Imdb;
 use super::media_file::MediaFile;
 use super::season::Season;
+use super::tag::Tag;
 
 use itertools::Itertools;
 
@@ -18,6 +19,7 @@ pub struct Media {
     pub seasons: Vec<Season>,
     pub files: Vec<MediaFile>,
     pub imdb: Option<Imdb>,
+    pub tags: Vec<Tag>,
 }
 
 impl PartialEq for Media {
@@ -32,6 +34,7 @@ impl PartialEq for Media {
                 .sorted()
                 .eq(other.seasons.iter().sorted())
             && self.files.iter().sorted().eq(other.files.iter().sorted())
+            && self.tags.iter().sorted().eq(other.tags.iter().sorted())
             && self.imdb == other.imdb
             && self.watch_list == other.watch_list
     }
@@ -51,15 +54,11 @@ impl From<PathBuf> for Media {
         };
 
         Self {
-            id: 0,
             name: Self::detect_name(&video_stem),
             year: Self::detect_year(&video_stem),
             files,
             seasons: season,
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Self::default()
         }
     }
 }

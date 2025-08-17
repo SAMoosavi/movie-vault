@@ -1,3 +1,8 @@
+export interface Tag {
+  id: number
+  name: string
+}
+
 export interface File {
   id: number
   file_name: string
@@ -26,7 +31,7 @@ export interface Imdb {
   rated: string
   released: string
   runtime: string
-  genre: string[]
+  genres: string[]
   directors: string[]
   writers: string[]
   actors: string[]
@@ -53,6 +58,7 @@ export interface Media {
   watched: boolean
   my_ranking: number
   watch_list: boolean
+  tags: Tag[]
 }
 
 type ContentType = 'all' | 'movie' | 'series'
@@ -75,4 +81,5 @@ export interface FilterValues {
   sortBy: SortByType
   sortDirection: SortDirectionType
   watchList: NullableBool
+  tags: NumericalString[]
 }

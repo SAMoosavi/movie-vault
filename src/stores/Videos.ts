@@ -9,11 +9,11 @@ export const useVideosStore = defineStore('videos', () => {
 
   const videos_metadata = ref<Media[]>([])
 
-  async function updata() {
+  async function reload_media() {
     videos_metadata.value = await filter_medias(filterStore.filters)
   }
 
   const number_of_videos = computed(() => videos_metadata.value.length)
 
-  return { videos_metadata, updata, number_of_videos }
+  return { videos_metadata, reload_media, number_of_videos }
 })

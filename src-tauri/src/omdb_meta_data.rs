@@ -65,7 +65,10 @@ impl From<OmdbMovie> for Imdb {
     }
 }
 
-pub async fn get_omdb_of_medias(medias: &[Media], api_key: &str) -> Vec<Media> {
+pub async fn get_omdb_of_medias(
+    medias: &[Media],
+    api_key: &str,
+) -> Result<Vec<Media>, Box<dyn std::error::Error>> {
     let client = Client::new();
 
     let tasks = medias.iter().map(|media| {
@@ -90,12 +93,20 @@ pub async fn get_omdb_of_medias(medias: &[Media], api_key: &str) -> Vec<Media> {
         })
     });
 
-    join_all(tasks)
-        .await
-        .into_iter()
-        .filter_map(Result::ok)
-        .filter_map(Result::ok)
-        .collect()
+    // wait for all tasks
+    let results = join_all(tasks).await;
+
+    // flatten JoinError + reqwest::Error
+    let mut medias_out = Vec::new();
+    for res in results {
+        match res {
+            Ok(Ok(media)) => medias_out.push(media),
+            Ok(Err(e)) => return Err(Box::new(e)),
+            Err(e) => return Err(Box::new(e)),
+        }
+    }
+
+    Ok(medias_out)
 }
 
 pub async fn get_omdb_by_id(imdb_id: &str, api_key: &str) -> reqwest::Result<Imdb> {
@@ -116,18 +127,13 @@ mod test_get_omdb_of_medias {
     #[tokio::test]
     async fn test_get_omdb_metadata() {
         let test_video = Media {
-            id: 0,
             name: "3 Days To Kill".into(),
-            year: None,
-            files: vec![],
-            seasons: vec![],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Media::default()
         };
 
-        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26").await;
+        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26")
+            .await
+            .unwrap();
 
         assert_eq!(result.len(), 1);
         let imdb = result[0].imdb.clone().unwrap();
@@ -141,18 +147,13 @@ mod test_get_omdb_of_medias {
     #[tokio::test]
     async fn test_get_omdb_metadata_of_serial() {
         let test_video = Media {
-            id: 0,
             name: "Breaking Bad".into(),
-            year: None,
-            files: vec![],
-            seasons: vec![],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Media::default()
         };
 
-        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26").await;
+        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26")
+            .await
+            .unwrap();
 
         assert_eq!(result.len(), 1);
         let imdb = result[0].imdb.clone().unwrap();

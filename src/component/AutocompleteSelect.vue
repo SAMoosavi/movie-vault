@@ -22,7 +22,7 @@
     <!-- Dropdown -->
     <ul
       tabindex="0"
-      class="dropdown-content bg-base-100 text-base-content rounded-box top-px mt-16 max-h-60 w-full overflow-y-auto border border-white/5 shadow-2xl outline-1 outline-black/5"
+      class="dropdown-content bg-base-100 text-base-content rounded-box top-px mt-12 max-h-60 w-full overflow-y-auto border border-white/5 shadow-2xl outline-1 outline-black/5"
     >
       <li
         v-for="item in selectedItemsModel"

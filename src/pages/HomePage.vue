@@ -34,9 +34,7 @@ const { videos_metadata } = storeToRefs(videos)
 
 onMounted(async () => {
   try {
-    await videos.updata()
-
-    toast.success('Data loaded successfully!')
+    await videos.reload_media()
   } catch (e) {
     console.error('Data fetching error:', e)
     toast.error(`Failed to load data: ${e instanceof Error ? e.message : 'Unknown error'}`)
@@ -55,7 +53,7 @@ watch(filters, () => search(), { deep: true })
 async function search() {
   loading.value = true
   videos
-    .updata()
+    .reload_media()
     .then(() => {})
     .catch((e) => toast.error(e))
     .finally(() => (loading.value = false))
