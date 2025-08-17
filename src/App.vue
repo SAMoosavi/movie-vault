@@ -78,8 +78,6 @@ onMounted(async () => {
     await Promise.all(syncPromises)
 
     await startWatching(dir_path.value)
-
-    toast.success('initialized successfully!')
   } catch (e) {
     const message = getErrorMessage(e)
 

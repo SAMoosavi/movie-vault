@@ -35,8 +35,6 @@ const { videos_metadata } = storeToRefs(videos)
 onMounted(async () => {
   try {
     await videos.reload_media()
-
-    toast.success('Data loaded successfully!')
   } catch (e) {
     console.error('Data fetching error:', e)
     toast.error(`Failed to load data: ${e instanceof Error ? e.message : 'Unknown error'}`)

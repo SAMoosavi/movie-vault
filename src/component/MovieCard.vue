@@ -43,7 +43,7 @@
           </span>
         </div>
 
-        <div v-if="movie.tags.length" class="mb-3 flex flex-wrap gap-1">
+        <div class="mb-3 flex flex-wrap gap-1">
           <Tags class="h4 mr-1 w-4" />
           <span v-for="tag in movie.tags" :key="tag.id" class="badge badge-md badge-outline badge-accent">
             {{ tag.name }}

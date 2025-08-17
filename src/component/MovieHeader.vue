@@ -18,7 +18,7 @@
         </div>
         <!-- Rating and Meta Info -->
         <div class="mb-4 flex flex-wrap items-center gap-4">
-          <button class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-watched')">
+          <div class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-watched')">
             <div v-if="media.watched" class="badge badge-lg badge-success gap-1">
               <Eye class="h-4 w-4" />
               <span>Watched</span>
@@ -27,9 +27,9 @@
               <EyeOff class="h-4 w-4" />
               <span>Not Watched</span>
             </div>
-          </button>
+          </div>
 
-          <button
+          <div
             v-if="!media.watched"
             class="flex cursor-pointer items-center gap-2"
             @click="$emit('toggle-watch-list')"
@@ -42,7 +42,7 @@
               <BookmarkPlus class="h-4 w-4" />
               <span>Add to Watchlist</span>
             </div>
-          </button>
+          </div>
 
           <!-- Personal Rating -->
           <div class="flex items-center gap-2">
@@ -84,28 +84,29 @@
         </div>
 
         <!-- 🏷 Tags -->
-        <div class="mb-4 flex gap-2">
-          <TagsIcon class="h-6 w-6" />
+        <div class="flex items-center gap-2">
           <!-- Add Tag -->
-          <div class="flex basis-1/3 items-center gap-2">
-            <select v-model="selectedTagId" class="select select-bordered select-sm">
+          <div class="flex items-center gap-2">
+            <TagsIcon class="text-primary h-5 w-5" />
+            <select v-model="selectedTagId" class="select select-bordered select-sm w-40">
               <option disabled :value="0">+ Select Tag</option>
-              <option v-for="tag in tags" :key="tag.id" :value="tag.id">
+              <option v-for="tag in selectableTags" :key="tag.id" :value="tag.id">
                 {{ tag.name }}
               </option>
             </select>
-
             <button class="btn btn-sm btn-primary" :disabled="!selectedTagId" @click="addTagToMovie">Add</button>
           </div>
 
-          <div class="mb-2 flex flex-wrap gap-2">
+          <!-- Current Tags -->
+          <div class="flex flex-wrap gap-2">
             <span
               v-for="tag in media.tags"
-              @click="removeTag(tag.id)"
               :key="tag.id"
               class="badge badge-md badge-outline badge-accent cursor-pointer"
+              @click="removeTag(tag.id)"
             >
               {{ tag.name }}
+              <CircleX class="h-4 w-4" />
             </span>
           </div>
         </div>
@@ -162,9 +163,9 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { Media, Tag } from '../type'
-import { Star, Eye, EyeOff, BookmarkPlus, BookmarkCheck, TagsIcon } from 'lucide-vue-next'
+import { Star, Eye, EyeOff, BookmarkPlus, BookmarkCheck, TagsIcon, CircleX } from 'lucide-vue-next'
 import { get_tags, insert_media_tag, remove_media_tag } from '../functions/invoker'
 
 const props = defineProps<{ media: Media }>()
@@ -177,8 +178,11 @@ onMounted(async () => {
   tags.value = await get_tags()
 })
 
+const selectableTags = computed(() => tags.value.filter((tag) => !props.media.tags.some((t) => t.id === tag.id)))
+
 async function addTagToMovie() {
   await insert_media_tag(props.media.id, selectedTagId.value)
+  selectedTagId.value = 0
 }
 
 async function removeTag(tag_id: number) {
