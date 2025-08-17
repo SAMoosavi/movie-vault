@@ -29,11 +29,7 @@
             </div>
           </div>
 
-          <div
-            v-if="!media.watched"
-            class="flex cursor-pointer items-center gap-2"
-            @click="$emit('toggle-watch-list')"
-          >
+          <div v-if="!media.watched" class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-watch-list')">
             <div v-if="media.watch_list" class="badge badge-lg badge-primary gap-1">
               <BookmarkCheck class="h-4 w-4" />
               <span>On Watchlist</span>
@@ -186,8 +182,6 @@ async function addTagToMovie() {
 }
 
 async function removeTag(tag_id: number) {
-  console.log(tag_id)
-
   await remove_media_tag(props.media.id, tag_id)
 }
 </script>
