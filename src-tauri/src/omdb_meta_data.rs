@@ -85,14 +85,7 @@ pub async fn get_omdb_of_medias(
                 builder = builder.query(&[("y", &year.to_string())]);
             }
 
-            let parsed = builder
-                .send()
-                .await
-                .map_err(Into::into)?
-                .json::<OmdbMovie>()
-                .await
-                .map_err(Into::into)?
-                .into();
+            let parsed = builder.send().await?.json::<OmdbMovie>().await?.into();
 
             media.imdb = Some(parsed);
 
