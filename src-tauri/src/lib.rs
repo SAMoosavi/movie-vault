@@ -25,8 +25,10 @@ async fn sync_files(root: &str, api_key: &str) -> Result<usize, String> {
         .await
         .map_err(|e| e.to_string())?;
 
-    let metadatas = metadata_extractor::get_metadata(&found_files);
-    let data = omdb_meta_data::get_omdb_of_medias(&metadatas, api_key).await;
+    let metadata = metadata_extractor::get_metadata(&found_files);
+    let data = omdb_meta_data::get_omdb_of_medias(&metadata, api_key)
+        .await
+        .map_err(|e| e.to_string())?;
 
     db.insert_medias(&data).map_err(|e| e.to_string())?;
     Ok(data.len())
