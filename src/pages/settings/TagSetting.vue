@@ -46,7 +46,7 @@
         </AnimatedList>
       </section>
 
-      <Animated>
+      <AnimatedShow>
         <section v-if="selectedTag.id">
           <div class="divider from-primary/60 to-secondary/60 before:bg-gradient-to-r after:bg-gradient-to-r"></div>
           <h2 class="card-title text-xl">Selected Tag</h2>
@@ -71,7 +71,7 @@
             </div>
           </div>
         </section>
-      </Animated>
+      </AnimatedShow>
     </div>
   </SettingCategoryCard>
 </template>
@@ -81,7 +81,7 @@ import { Plus, CircleCheckBig, Save, Trash2 } from 'lucide-vue-next'
 import type { Tag } from '../../type'
 import { get_tags, insert_tag, remove_tag, update_tag } from '../../functions/invoker'
 import { onMounted, ref } from 'vue'
-import Animated from '../../component/Animated.vue'
+import AnimatedShow from '../../component/AnimatedShow.vue'
 import AnimatedList from '../../component/AnimatedList.vue'
 import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
 
