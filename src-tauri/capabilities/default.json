@@ -2,7 +2,9 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "dialog:default",
@@ -83,6 +85,7 @@
     },
     "clipboard-manager:default",
     "clipboard-manager:allow-write-text",
-    "store:default"
+    "store:default",
+    "sql:default"
   ]
 }
