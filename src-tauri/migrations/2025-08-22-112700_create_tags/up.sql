@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS tags
+(
+    id   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS media_tags
+(
+    media_id INTEGER NOT NULL,
+    tag_id   INTEGER NOT NULL,
+    PRIMARY KEY (media_id, tag_id),
+    FOREIGN KEY (media_id) REFERENCES medias (id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+);

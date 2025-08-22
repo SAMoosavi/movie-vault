@@ -83,10 +83,6 @@
     },
     "clipboard-manager:default",
     "clipboard-manager:allow-write-text",
-    "store:default",
-    "sql:default",
-    "sql:allow-execute",
-    "sql:allow-select",
-    "sql:allow-load"
+    "store:default"
   ]
 }
