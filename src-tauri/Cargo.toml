@@ -34,4 +34,10 @@ tauri-plugin-clipboard-manager = "2"
 rand = "0.9.2"
 itertools = "0.14.0"
 tauri-plugin-store = "2"
-tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+serde_json = "1"
+anyhow = "1.0.99"
+r2d2 = "0.8.10"
+chrono = { version = "0.4.41", features = ["serde"] }
+libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
+diesel = { version = "2", features = ["sqlite", "r2d2", "chrono"] }
+diesel_migrations = "2.2.0"
