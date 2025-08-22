@@ -1,10 +1,28 @@
+use diesel::{
+    Queryable,
+    backend::Backend,
+    deserialize::FromSql,
+    serialize,
+    serialize::{Output, ToSql},
+    sql_types::Text,
+    sqlite::Sqlite,
+};
+use regex::Regex;
 use std::path::PathBuf;
 
-use regex::Regex;
-use rusqlite::Result as RusqliteResult;
-use rusqlite::types::{FromSql, FromSqlResult, ToSql, ToSqlOutput, ValueRef};
-
-#[derive(Debug, PartialEq, Eq, Clone, serde::Serialize, Ord, PartialOrd)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    Ord,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    diesel::AsExpression,
+    diesel::FromSqlRow,
+)]
+#[diesel(sql_type = Text)]
 pub enum LanguageFormat {
     SoftSub,
     HardSub,
@@ -14,32 +32,8 @@ pub enum LanguageFormat {
 
 impl std::fmt::Display for LanguageFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let language_format = match &self {
-            LanguageFormat::SoftSub => "soft_sub",
-            LanguageFormat::HardSub => "hard_sub",
-            LanguageFormat::Dubbed => "dubbed",
-            LanguageFormat::Unknown => "",
-        };
+        let language_format = self.as_str();
         write!(f, "{language_format}")
-    }
-}
-
-impl ToSql for LanguageFormat {
-    fn to_sql(&self) -> RusqliteResult<ToSqlOutput<'_>> {
-        Ok(ToSqlOutput::from(self.to_string()))
-    }
-}
-
-impl FromSql for LanguageFormat {
-    fn column_result(value: ValueRef<'_>) -> FromSqlResult<Self> {
-        let language_format = match value.as_str()? {
-            "soft_sub" => LanguageFormat::SoftSub,
-            "hard_sub" => LanguageFormat::HardSub,
-            "dubbed" => LanguageFormat::Dubbed,
-            _ => LanguageFormat::Unknown,
-        };
-
-        Ok(language_format)
     }
 }
 
@@ -63,6 +57,20 @@ impl From<&str> for LanguageFormat {
     }
 }
 
+impl ToSql<Text, Sqlite> for LanguageFormat {
+    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> serialize::Result {
+        out.set_value(self.as_str());
+        Ok(diesel::serialize::IsNull::No)
+    }
+}
+
+impl FromSql<Text, Sqlite> for LanguageFormat {
+    fn from_sql(bytes: <Sqlite as Backend>::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let s = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
+        Ok(LanguageFormat::from(s.as_str()))
+    }
+}
+
 impl Default for LanguageFormat {
     fn default() -> Self {
         Self::Unknown
@@ -70,6 +78,15 @@ impl Default for LanguageFormat {
 }
 
 impl LanguageFormat {
+    pub fn as_str(&self) -> &str {
+        match &self {
+            LanguageFormat::SoftSub => "soft_sub",
+            LanguageFormat::HardSub => "hard_sub",
+            LanguageFormat::Dubbed => "dubbed",
+            LanguageFormat::Unknown => "",
+        }
+    }
+
     fn detect_dubbed(input: &str) -> bool {
         if input.contains("sub") || input.contains("subtitle") {
             return false;
@@ -90,9 +107,10 @@ impl LanguageFormat {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Queryable)]
+#[diesel(table_name = files)]
 pub struct MediaFile {
-    pub id: i64,
+    pub id: i32,
     pub file_name: String,
     pub path: String,
     pub quality: Option<String>,

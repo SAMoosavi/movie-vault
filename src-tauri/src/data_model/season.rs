@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Season {
-    pub id: i64,
+    pub id: i32,
     pub number: i32,
     pub watched: bool,
     pub episodes: Vec<Episode>,

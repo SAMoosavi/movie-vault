@@ -3,13 +3,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use rusqlite::Result;
-
 use crate::data_model::{Imdb, Media, MediaFile, Tag};
 
-mod sqlite;
-
-pub use sqlite::Sqlite;
+mod diesel_db;
+pub use diesel_db::DieselDb;
 
 #[cfg(test)]
 mod moke;
@@ -81,7 +78,9 @@ pub struct FilterValues {
     pub tags: Vec<NumericalString>,
 }
 
-pub trait DB: Default + Send + Sync + Clone {
+pub type Result<T> = std::result::Result<T, anyhow::Error>;
+
+pub trait DB: Send + Sync + Clone {
     fn exist_file_by_path_from_db(&self, path: &Path) -> Result<bool>;
     fn create_table(&self) -> Result<()>;
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;

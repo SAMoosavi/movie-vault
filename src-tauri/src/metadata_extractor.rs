@@ -17,7 +17,7 @@ use std::collections::HashMap;
 struct MediaKey {
     name: String,
     is_series: bool,
-    year: Option<u32>,
+    year: Option<i32>,
 }
 
 impl Hash for MediaKey {
@@ -74,7 +74,7 @@ mod tests_merge_media {
 
     fn default_media(
         name: String,
-        year: Option<u32>,
+        year: Option<i32>,
         season: Vec<Season>,
         files: Vec<MediaFile>,
     ) -> Media {

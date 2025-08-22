@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use crate::{
-    data_model::{Imdb, Media, MediaFile, Tag},
-    db::DB,
-};
-use rusqlite::Result;
+use crate::data_model::{Imdb, Media, MediaFile, Tag};
+
+use super::{DB, Result};
 
 #[derive(Default, Clone)]
 pub struct MokeDB {}

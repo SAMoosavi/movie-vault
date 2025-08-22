@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Episode {
-    pub id: i64,
+    pub id: i32,
     pub number: i32,
     pub watched: bool,
     pub files: Vec<MediaFile>,

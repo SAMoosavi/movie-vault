@@ -1,4 +1,7 @@
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+use diesel::Queryable;
+
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize, Queryable)]
+#[diesel(table_name = tags)]
 pub struct Tag {
     pub id: i64,
     pub name: String,
