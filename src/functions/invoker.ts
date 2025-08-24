@@ -1,10 +1,6 @@
 import type { FilterValues, NumericalString, Media, Tag } from '../type'
 import { invoke } from '@tauri-apps/api/core'
 
-export async function create_table(): Promise<void> {
-  return await invoke('create_table')
-}
-
 export async function sync_files(dir: string): Promise<number> {
   return await invoke('sync_files', { root: dir, apiKey: '4c602a26' })
 }
