@@ -953,7 +953,7 @@ impl DB for Sqlite {
                 }
             },
             SortByType::Year => {
-                let year_sql = sql::<Text>("NULLIF(im.year, '')");
+                let year_sql = sql::<Text>("NULLIF(imdbs.year, '')");
                 if is_asc {
                     query.order((year_sql.asc(), medias::year.asc()))
                 } else {
@@ -961,7 +961,7 @@ impl DB for Sqlite {
                 }
             },
             SortByType::Imdb => {
-                let rating_sql = sql::<Double>("CAST(NULLIF(im.imdb_rating, '') AS REAL)");
+                let rating_sql = sql::<Double>("CAST(NULLIF(imdbs.imdb_rating, '') AS REAL)");
                 if is_asc {
                     query.order(rating_sql.asc())
                 } else {
