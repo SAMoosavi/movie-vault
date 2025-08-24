@@ -5,8 +5,8 @@ use std::{
 
 use crate::data_model::{Imdb, Media, MediaFile, Tag};
 
-mod diesel_db;
-pub use diesel_db::DieselDb;
+mod sqlite;
+pub use sqlite::Sqlite;
 
 #[cfg(test)]
 mod moke;

@@ -1,6 +1,6 @@
 use tauri::Manager;
 
-use crate::db::{DieselDb, NumericalString};
+use crate::db::{NumericalString, Sqlite};
 use crate::{
     data_model::Tag,
     db::{DB, FilterValues},
@@ -13,7 +13,7 @@ mod metadata_extractor;
 mod omdb_meta_data;
 
 struct AppState {
-    db: DieselDb,
+    db: Sqlite,
 }
 
 #[tauri::command]
@@ -248,7 +248,7 @@ pub fn run() {
             remove_media_tag
         ])
         .setup(|app| {
-            let db = DieselDb::from_app_handle(app.app_handle())?;
+            let db = Sqlite::from_app_handle(app.app_handle())?;
             app.manage(AppState { db });
             Ok(())
         })
