@@ -3,7 +3,7 @@ use super::schema::{
     imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
     medias, seasons, tags, writers,
 };
-use crate::data_model::{Episode, Imdb, LanguageFormat, Media, Season};
+use crate::data_model::{Episode, Imdb, LanguageFormat, Media, MediaFile, Season, Tag};
 use diesel::{Identifiable, Insertable, Queryable};
 
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
@@ -122,6 +122,48 @@ impl From<DbImdb> for Imdb {
         }
     }
 }
+
+
+#[derive(Debug, Clone, serde::Serialize, Queryable)]
+#[diesel(table_name = files)]
+pub struct DbFile {
+    pub id: i32,
+    pub media_id: Option<i32>,
+    pub episode_id: Option<i32>,
+    pub file_name: String,
+    pub path: String,
+    pub quality: Option<String>,
+    pub language_format: LanguageFormat,
+}
+
+impl From<DbFile> for MediaFile {
+    fn from(db: DbFile) -> Self {
+        Self {
+            id: db.id,
+            file_name: db.file_name,
+            path: db.path,
+            quality: db.quality,
+            language_format: db.language_format,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
+#[diesel(table_name = tags)]
+pub struct DbTag {
+    pub id: i32,
+    pub name: String,
+}
+
+impl From<DbTag> for Tag {
+    fn from(db: DbTag) -> Self {
+        Self {
+            id: db.id,
+            name: db.name,
+        }
+    }
+}
+
 
 #[derive(Insertable)]
 #[diesel(table_name = medias)]

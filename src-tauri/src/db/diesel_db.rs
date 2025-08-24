@@ -1,14 +1,21 @@
-use super::{DB, FilterValues, Result};
+use super::{DB, FilterValues, NumericalString, Result};
 use crate::data_model::{Episode, Imdb, Media, MediaFile, Season, Tag};
+use crate::db::diesel_db::data_models::{DbEpisode, DbFile, DbImdb, DbMedia, DbSeason};
+use crate::db::{ContentType, SortByType, SortDirectionType};
+use anyhow::Ok;
 use data_models::{
     NewActor, NewCountry, NewDirector, NewEpisode, NewFile, NewGenre, NewImdb, NewImdbActor,
     NewImdbCountry, NewImdbDirector, NewImdbGenre, NewImdbLanguage, NewImdbWriter, NewLanguage,
     NewMedia, NewMediaTag, NewSeason, NewTag, NewWriter,
 };
+use diesel::dsl::exists;
+use diesel::sql_types::{Double, Text};
 use diesel::{
-    Connection, ExpressionMethods, QueryDsl, QueryResult, RunQueryDsl, SqliteConnection,
+    BoolExpressionMethods, Connection, ExpressionMethods, NullableExpressionMethods, QueryDsl,
+    RunQueryDsl, SqliteConnection,
     connection::SimpleConnection,
     dsl::sql,
+    prelude::*,
     r2d2::{ConnectionManager, Pool},
     sql_types::BigInt,
 };
@@ -70,33 +77,37 @@ impl DieselDb {
 
 // insert
 impl DieselDb {
-    fn insert_or_get_id_genre(conn: &mut SqliteConnection, name_val: &str) -> QueryResult<i32> {
+    fn insert_or_get_id_genre(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
         diesel::insert_or_ignore_into(genres::table)
             .values(&NewGenre { name: name_val })
             .execute(conn)?;
 
-        genres::table
+        let id = genres::table
             .filter(genres::name.eq(name_val))
             .select(genres::id)
-            .first(conn)
+            .first(conn)?;
+
+        Ok(id)
     }
 
-    fn insert_or_get_id_director(conn: &mut SqliteConnection, name_val: &str) -> QueryResult<i32> {
+    fn insert_or_get_id_director(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
         diesel::insert_or_ignore_into(directors::table)
             .values(&NewDirector { name: name_val })
             .execute(conn)?;
 
-        directors::table
+        let id = directors::table
             .filter(directors::name.eq(name_val))
             .select(directors::id)
-            .first(conn)
+            .first(conn)?;
+
+        Ok(id)
     }
 
     fn insert_imdb_genre_by_name(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
         entity_name: &str,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_genre(conn, entity_name)?;
         diesel::insert_or_ignore_into(imdb_genres::table)
             .values(&NewImdbGenre {
@@ -111,7 +122,7 @@ impl DieselDb {
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
         entity_name: &str,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_director(conn, entity_name)?;
         diesel::insert_or_ignore_into(imdb_directors::table)
             .values(&NewImdbDirector {
@@ -122,22 +133,23 @@ impl DieselDb {
         Ok(())
     }
 
-    fn insert_or_get_id_writer(conn: &mut SqliteConnection, name_val: &str) -> QueryResult<i32> {
+    fn insert_or_get_id_writer(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
         diesel::insert_or_ignore_into(writers::table)
             .values(&NewWriter { name: name_val })
             .execute(conn)?;
 
-        writers::table
+        let id = writers::table
             .filter(writers::name.eq(name_val))
             .select(writers::id)
-            .first(conn)
+            .first(conn)?;
+        Ok(id)
     }
 
     fn insert_imdb_writer_by_name(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
         entity_name: &str,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_writer(conn, entity_name)?;
         diesel::insert_or_ignore_into(imdb_writers::table)
             .values(&NewImdbWriter {
@@ -148,22 +160,23 @@ impl DieselDb {
         Ok(())
     }
 
-    fn insert_or_get_id_actor(conn: &mut SqliteConnection, name_val: &str) -> QueryResult<i32> {
+    fn insert_or_get_id_actor(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
         diesel::insert_or_ignore_into(actors::table)
             .values(&NewActor { name: name_val })
             .execute(conn)?;
 
-        actors::table
+        let id = actors::table
             .filter(actors::name.eq(name_val))
             .select(actors::id)
-            .first(conn)
+            .first(conn)?;
+        Ok(id)
     }
 
     fn insert_imdb_actor_by_name(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
         entity_name: &str,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_actor(conn, entity_name)?;
         diesel::insert_or_ignore_into(imdb_actors::table)
             .values(&NewImdbActor {
@@ -174,22 +187,23 @@ impl DieselDb {
         Ok(())
     }
 
-    fn insert_or_get_id_language(conn: &mut SqliteConnection, name_val: &str) -> QueryResult<i32> {
+    fn insert_or_get_id_language(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
         diesel::insert_or_ignore_into(languages::table)
             .values(&NewLanguage { name: name_val })
             .execute(conn)?;
 
-        languages::table
+        let id = languages::table
             .filter(languages::name.eq(name_val))
             .select(languages::id)
-            .first(conn)
+            .first(conn)?;
+        Ok(id)
     }
 
     fn insert_imdb_language_by_name(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
         entity_name: &str,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_language(conn, entity_name)?;
         diesel::insert_or_ignore_into(imdb_languages::table)
             .values(&NewImdbLanguage {
@@ -200,22 +214,23 @@ impl DieselDb {
         Ok(())
     }
 
-    fn insert_or_get_id_country(conn: &mut SqliteConnection, name_val: &str) -> QueryResult<i32> {
+    fn insert_or_get_id_country(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
         diesel::insert_or_ignore_into(countries::table)
             .values(&NewCountry { name: name_val })
             .execute(conn)?;
 
-        countries::table
+        let id = countries::table
             .filter(countries::name.eq(name_val))
             .select(countries::id)
-            .first(conn)
+            .first(conn)?;
+        Ok(id)
     }
 
     fn insert_imdb_country_by_name(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
         entity_name: &str,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_country(conn, entity_name)?;
         diesel::insert_or_ignore_into(imdb_countries::table)
             .values(&NewImdbCountry {
@@ -226,7 +241,7 @@ impl DieselDb {
         Ok(())
     }
 
-    fn insert_imdb(conn: &mut SqliteConnection, imdb: &Imdb) -> QueryResult<()> {
+    fn insert_imdb(conn: &mut SqliteConnection, imdb: &Imdb) -> Result<()> {
         let new = NewImdb {
             imdb_id: imdb.imdb_id.as_str(),
             title: imdb.title.as_str(),
@@ -268,7 +283,7 @@ impl DieselDb {
 
         Ok(())
     }
-    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> QueryResult<()> {
+    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<()> {
         let imdb_id = media.imdb.as_ref().map(|imdb| imdb.imdb_id.as_str());
 
         if let Some(imdb) = &media.imdb {
@@ -303,7 +318,7 @@ impl DieselDb {
         conn: &mut SqliteConnection,
         media_id: i32,
         season: &Season,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let new_episode = NewSeason {
             media_id,
             season_number: season.number,
@@ -327,7 +342,7 @@ impl DieselDb {
         conn: &mut SqliteConnection,
         season_id: i32,
         episode: &Episode,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let new_episode = NewEpisode {
             season_id,
             episode_number: episode.number,
@@ -349,7 +364,7 @@ impl DieselDb {
         files_in: &[MediaFile],
         media_id_val: Option<i32>,
         episode_id_val: Option<i32>,
-    ) -> QueryResult<()> {
+    ) -> Result<()> {
         let new_files: Vec<NewFile> = files_in
             .iter()
             .map(|f| NewFile {
@@ -368,136 +383,671 @@ impl DieselDb {
 
         Ok(())
     }
+}
 
-    pub fn insert_tag(conn: &mut SqliteConnection, tag: &crate::Tag) -> QueryResult<i32> {
-        diesel::insert_or_ignore_into(tags::table)
-            .values(&NewTag { name: &tag.name })
-            .execute(conn)?;
-
-        tags::table
-            .filter(tags::name.eq(&tag.name))
-            .select(tags::id)
-            .first(conn)
-    }
-
-    pub fn insert_media_tag(
+// Update
+impl DieselDb {
+    fn update_media_watched(
         conn: &mut SqliteConnection,
         media_id_val: i32,
-        tag_id_val: i32,
-    ) -> QueryResult<()> {
-        diesel::insert_or_ignore_into(media_tags::table)
-            .values(&NewMediaTag {
-                media_id: media_id_val,
-                tag_id: tag_id_val,
-            })
+        watched_val: bool,
+    ) -> Result<()> {
+        // Update medias
+        diesel::update(medias::table.filter(medias::id.eq(media_id_val)))
+            .set(medias::watched.eq(watched_val))
             .execute(conn)?;
+
+        // Update seasons
+        diesel::update(seasons::table.filter(seasons::media_id.eq(media_id_val)))
+            .set(seasons::watched.eq(watched_val))
+            .execute(conn)?;
+
+        // Update episodes (with subselect for season_id)
+        let season_ids = seasons::table
+            .select(seasons::id)
+            .filter(seasons::media_id.eq(media_id_val));
+
+        diesel::update(episodes::table.filter(episodes::season_id.eq_any(season_ids)))
+            .set(episodes::watched.eq(watched_val))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn update_season_watched(
+        conn: &mut SqliteConnection,
+        season_id_val: i32,
+        watched_val: bool,
+    ) -> Result<()> {
+        diesel::update(seasons::table.filter(seasons::id.eq(season_id_val)))
+            .set(seasons::watched.eq(watched_val))
+            .execute(conn)?;
+
+        diesel::update(episodes::table.filter(episodes::season_id.eq(season_id_val)))
+            .set(episodes::watched.eq(watched_val))
+            .execute(conn)?;
+
+        let media_id_val: i32 = seasons::table
+            .select(seasons::media_id)
+            .filter(seasons::id.eq(season_id_val))
+            .first::<i32>(conn)?;
+
+        let watched_count: i64 = seasons::table
+            .filter(seasons::media_id.eq(media_id_val))
+            .filter(seasons::watched.eq(false))
+            .count()
+            .get_result(conn)?;
+
+        diesel::update(medias::table.filter(medias::id.eq(media_id_val)))
+            .set(medias::watched.eq(watched_count == 0))
+            .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn update_episode_watched(
+        conn: &mut SqliteConnection,
+        episode_id_val: i32,
+        watched_val: bool,
+    ) -> Result<()> {
+        diesel::update(episodes::table.filter(episodes::id.eq(episode_id_val)))
+            .set(episodes::watched.eq(watched_val))
+            .execute(conn)?;
+
+        let season_ids = episodes::table
+            .select(episodes::season_id)
+            .filter(episodes::id.eq(episode_id_val))
+            .first::<i32>(conn)?;
+
+        let watched_count: i64 = episodes::table
+            .filter(episodes::season_id.eq(season_ids))
+            .filter(episodes::watched.eq(false))
+            .count()
+            .get_result(conn)?;
+
+        diesel::update(seasons::table.filter(seasons::id.eq(season_ids)))
+            .set(seasons::watched.eq(watched_count == 0))
+            .execute(conn)?;
+
+        let media_id_val: i32 = seasons::table
+            .select(seasons::media_id)
+            .filter(seasons::id.eq(season_ids))
+            .first::<i32>(conn)?;
+
+        let watched_count: i64 = seasons::table
+            .filter(seasons::media_id.eq(media_id_val))
+            .filter(seasons::watched.eq(false))
+            .count()
+            .get_result(conn)?;
+
+        diesel::update(medias::table.filter(medias::id.eq(media_id_val)))
+            .set(medias::watched.eq(watched_count == 0))
+            .execute(conn)?;
+
+        Ok(())
+    }
+}
+
+// get
+impl DieselDb {
+    fn get_imdb(conn: &mut SqliteConnection, imdb_id_val: Option<String>) -> Result<Option<Imdb>> {
+        if imdb_id_val.is_none() {
+            return Ok(None);
+        }
+
+        let imdb_id_val = &imdb_id_val.unwrap();
+
+        // Load basic metadata
+        let imdb_db: Option<DbImdb> = imdbs::table
+            .filter(imdbs::imdb_id.eq(imdb_id_val))
+            .first(conn)
+            .optional()?; // optional returns Result<Option<_>>
+
+        let mut imdb = match imdb_db {
+            Some(data) => Imdb::from(data),
+            None => return Ok(None),
+        };
+
+        // Load all related data using joins
+        imdb.genres = imdb_genres::table
+            .inner_join(genres::table.on(imdb_genres::genre_id.eq(genres::id)))
+            .filter(imdb_genres::imdb_id.eq(imdb_id_val))
+            .select(genres::name)
+            .load(conn)?;
+
+        imdb.directors = imdb_directors::table
+            .inner_join(directors::table.on(imdb_directors::director_id.eq(directors::id)))
+            .filter(imdb_directors::imdb_id.eq(imdb_id_val))
+            .select(directors::name)
+            .load(conn)?;
+
+        imdb.writers = imdb_writers::table
+            .inner_join(writers::table.on(imdb_writers::writer_id.eq(writers::id)))
+            .filter(imdb_writers::imdb_id.eq(imdb_id_val))
+            .select(writers::name)
+            .load(conn)?;
+
+        imdb.actors = imdb_actors::table
+            .inner_join(actors::table.on(imdb_actors::actor_id.eq(actors::id)))
+            .filter(imdb_actors::imdb_id.eq(imdb_id_val))
+            .select(actors::name)
+            .load(conn)?;
+
+        imdb.languages = imdb_languages::table
+            .inner_join(languages::table.on(imdb_languages::language_id.eq(languages::id)))
+            .filter(imdb_languages::imdb_id.eq(imdb_id_val))
+            .select(languages::name)
+            .load(conn)?;
+
+        imdb.countries = imdb_countries::table
+            .inner_join(countries::table.on(imdb_countries::country_id.eq(countries::id)))
+            .filter(imdb_countries::imdb_id.eq(imdb_id_val))
+            .select(countries::name)
+            .load(conn)?;
+
+        Ok(Some(imdb))
+    }
+
+    fn get_media_and_imdb_by_media_id(conn: &mut SqliteConnection, media_id: i32) -> Result<Media> {
+        // Load basic media data
+        let media_db: DbMedia = medias::table
+            .filter(medias::id.eq(media_id))
+            .first(conn)?;
+
+        let imdb = Self::get_imdb(conn, media_db.imdb_id)?;
+
+        // Load tags
+        let media_tags = media_tags::table
+            .inner_join(tags::table.on(media_tags::tag_id.eq(tags::id)))
+            .filter(media_tags::media_id.eq(media_id))
+            .select(tags::all_columns)
+            .load::<Tag>(conn)?;
+
+        Ok(Media {
+            id: media_db.id,
+            name: media_db.name,
+            year: media_db.year,
+            watched: media_db.watched,
+            my_ranking: media_db.my_ranking as u8,
+            watch_list: media_db.watch_list,
+            imdb,
+            tags: media_tags,
+            seasons: vec![],
+            files: vec![],
+        })
+    }
+
+    fn get_files_for_episode(conn: &mut SqliteConnection, episode_id: i32) -> Result<Vec<MediaFile>> {
+        let media_files = files::table
+            .filter(files::episode_id.eq(episode_id))
+            .load::<DbFile>(conn)?;
+
+        Ok(media_files.into_iter().map(MediaFile::from).collect())
+    }
+
+    fn get_files_for_media(conn: &mut SqliteConnection, media_id: i32) -> Result<Vec<MediaFile>> {
+        let media_files = files::table
+            .filter(files::media_id.eq(media_id))
+            .load::<DbFile>(conn)?;
+
+        Ok(media_files.into_iter().map(MediaFile::from).collect())
+    }
+
+    fn get_episodes_by_season_id(conn: &mut SqliteConnection, season_id: i32) -> Result<Vec<Episode>> {
+        let episodes_list = episodes::table
+            .filter(episodes::season_id.eq(season_id))
+            .order(episodes::episode_number.asc())
+            .load::<DbEpisode>(conn)?;
+
+        let episodes_list = episodes_list.into_iter().map(|episode| Ok(Episode{ id: episode.id, number: episode.episode_number, watched: episode.watched, files: Self::get_files_for_episode(conn, episode.id)? })).collect::<Result<_>>()?;
+    Ok(episodes_list)
+    }
+
+    fn get_seasons_by_media_id(conn: &mut SqliteConnection, media_id: i32) -> Result<Vec<Season>> {
+        let seasons_list = seasons::table
+            .filter(seasons::media_id.eq(media_id))
+            .order(seasons::season_number.asc())
+            .load::<DbSeason>(conn)?;
+
+        let seasons_list = seasons_list
+        .into_iter()
+        .map(|season| {
+            Ok(Season {
+                episodes: Self::get_episodes_by_season_id(conn, season.id)?,
+                id: season.id,
+                number: season.season_number,
+                watched: season.watched,
+            })
+        })
+        .collect::<Result<_>>()?;
+
+        Ok(seasons_list)
+
+    }
+
+    fn get_media_by_id(conn: &mut SqliteConnection, media_id: i32) -> Result<Option<Media>> {
+    // 1. Media
+    let media = medias::table
+        .find(media_id)
+        .first::<DbMedia>(conn)
+        .optional()?;
+
+    let Some(media) = media else {
+        return Ok(None);
+    };
+
+    let imdb = Self::get_imdb(conn, media.imdb_id)?;
+
+    // 2. Seasons
+    let seasons_list = Self::get_seasons_by_media_id(conn, media_id)?;
+
+    // 4. Files (bulk load for both media & episodes)
+    let files_list = Self::get_files_for_media(conn, media_id)?;
+
+
+    // 5. Tags (through join table)
+    let tags_list = media_tags::table
+        .inner_join(tags::table)
+        .filter(media_tags::media_id.eq(media.id))
+        .select((tags::id, tags::name))
+        .load::<Tag>(conn)?;
+
+        Ok(Some(Media {
+            id: media.id,
+            name: media.name,
+            year: media.year,
+            watched: media.watched,
+            my_ranking: media.my_ranking as u8,
+            watch_list: media.watch_list,
+            imdb,
+            tags: tags_list,
+            seasons: seasons_list,
+            files: files_list,
+        }))
+    }
+}
+
+// remove
+impl DieselDb {
+    fn remove_empty_imdb(conn: &mut SqliteConnection) -> Result<()> {
+        diesel::delete(imdbs::table.filter(diesel::dsl::not(diesel::dsl::exists(
+            medias::table.filter(medias::imdb_id.eq(imdbs::imdb_id.nullable())),
+        ))))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn remove_empty_media(conn: &mut SqliteConnection) -> Result<()> {
+        diesel::delete(
+            medias::table.filter(
+                diesel::dsl::not(diesel::dsl::exists(
+                    files::table.filter(files::media_id.eq(medias::id.nullable())),
+                ))
+                .and(diesel::dsl::not(diesel::dsl::exists(
+                    seasons::table.filter(seasons::media_id.eq(medias::id)),
+                ))),
+            ),
+        )
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn remove_empty_seasons(conn: &mut SqliteConnection) -> Result<()> {
+        diesel::delete(seasons::table.filter(diesel::dsl::not(diesel::dsl::exists(
+            episodes::table.filter(episodes::season_id.eq(seasons::id)),
+        ))))
+        .execute(conn)?;
+
+        Ok(())
+    }
+
+    fn remove_empty_episodes(conn: &mut SqliteConnection) -> Result<()> {
+        diesel::delete(episodes::table.filter(diesel::dsl::not(diesel::dsl::exists(
+            files::table.filter(files::episode_id.eq(episodes::id.nullable())),
+        ))))
+        .execute(conn)?;
+
         Ok(())
     }
 }
 
 impl DB for DieselDb {
     fn exist_file_by_path_from_db(&self, path: &Path) -> Result<bool> {
-        todo!()
+        let conn = &mut  self.get_conn()?;
+        let path_str = path.to_string_lossy().into_owned();
+        let file_exists = diesel::select(exists(
+        files::table.filter(files::path.eq(path_str))
+    )).get_result(conn)?;
+    Ok(file_exists)
     }
 
-    fn create_table(&self) -> Result<()> {
-        todo!()
-    }
-
-    fn insert_medias(&self, medias: &[Media]) -> Result<()> {
+    fn insert_medias(&self, media_list: &[Media]) -> Result<()> {
         self.get_conn()?.transaction(|conn| {
-            for media in medias {
+            for media in media_list {
                 Self::insert_media(conn, media)?;
             }
             Ok(())
         })
     }
 
-    fn update_media_my_ranking_to_db(&self, media_id: i64, my_ranking: u8) -> Result<usize> {
-        todo!()
+    fn update_media_my_ranking_to_db(&self, media_id: i32, my_ranking: u8) -> Result<usize> {
+        let conn = &mut self.get_conn()?;
+        diesel::update(medias::table.filter(medias::id.eq(media_id)))
+            .set(medias::my_ranking.eq(my_ranking as i32))
+            .execute(conn)
+            .map_err(Into::into)
     }
 
-    fn update_watch_list_to_db(&self, media_id: i64, watch_list: bool) -> Result<()> {
-        todo!()
+    fn update_watch_list_to_db(&self, media_id: i32, watch_list: bool) -> Result<()> {
+        let conn = &mut self.get_conn()?;
+        diesel::update(medias::table.filter(medias::id.eq(media_id)))
+            .set(medias::watch_list.eq(watch_list))
+            .execute(conn)?;
+        Ok(())
     }
 
-    fn update_media_watched_to_db(&self, media_id: i64, watched: bool) -> Result<()> {
-        todo!()
+    fn update_media_watched(&self, media_id: i32, watched: bool) -> Result<()> {
+        self.get_conn()?
+            .transaction(|conn| Self::update_media_watched(conn, media_id, watched))
     }
 
-    fn update_season_watched_to_db(&self, season_id: i64, watched: bool) -> Result<()> {
-        todo!()
+    fn update_season_watched(&self, season_id: i32, watched: bool) -> Result<()> {
+        self.get_conn()?
+            .transaction(|conn| Self::update_season_watched(conn, season_id, watched))
     }
 
-    fn update_episode_watched_to_db(&self, episode_id: i64, watched: bool) -> Result<()> {
-        todo!()
+    fn update_episode_watched_to_db(&self, episode_id: i32, watched: bool) -> Result<()> {
+        self.get_conn()?
+            .transaction(|conn| Self::update_episode_watched(conn, episode_id, watched))
     }
 
-    fn update_media_imdb_to_db(&self, media_id: i64, imdb_id: &str) -> Result<()> {
-        todo!()
+    fn update_media_imdb_to_db(&self, media_id: i32, imdb_id: &str) -> Result<()> {
+        let conn = &mut self.get_conn()?;
+        diesel::update(medias::table.filter(medias::id.eq(media_id)))
+            .set(medias::imdb_id.eq(imdb_id))
+            .execute(conn)?;
+
+        Ok(())
     }
 
     fn insert_imdb_to_db(&self, imdb: &Imdb) -> Result<()> {
-        todo!()
+        self.get_conn()?.transaction(|conn| {
+            Self::insert_imdb(conn, imdb)?;
+            Ok(())
+        })
     }
 
     fn clear_empty_data_from_db(&self) -> Result<()> {
-        todo!()
+        self.get_conn()?.transaction(|conn| {
+            Self::remove_empty_episodes(conn)?;
+            Self::remove_empty_seasons(conn)?;
+            Self::remove_empty_media(conn)?;
+            Self::remove_empty_imdb(conn)?;
+
+            Ok(())
+        })
     }
 
-    fn get_genres_from_db(&self) -> Result<Vec<(usize, String)>> {
-        todo!()
+    fn get_genres_from_db(&self) -> Result<Vec<NumericalString>> {
+        let conn = &mut self.get_conn()?;
+        let results = genres::table
+            .select((genres::id, genres::name))
+            .order(genres::name.asc())
+            .load(conn)?;
+
+        Ok(results)
     }
 
-    fn get_countries_from_db(&self) -> Result<Vec<(usize, String)>> {
-        todo!()
+    fn get_countries_from_db(&self) -> Result<Vec<NumericalString>> {
+        let conn = &mut self.get_conn()?;
+        let results = countries::table
+            .select((countries::id, countries::name))
+            .order(countries::name.asc())
+            .load(conn)?;
+
+        Ok(results)
     }
 
-    fn get_actors_from_db(&self) -> Result<Vec<(usize, String)>> {
-        todo!()
+    fn get_actors_from_db(&self) -> Result<Vec<NumericalString>> {
+        let conn = &mut self.get_conn()?;
+        let results = actors::table
+            .select((actors::id, actors::name))
+            .order(actors::name.asc())
+            .load(conn)?;
+
+        Ok(results)
     }
 
     fn remove_file_by_path_from_db(&self, paths: &[PathBuf]) -> Result<()> {
-        todo!()
+        let conn = &mut self.get_conn()?;
+
+        let path_strings = paths.iter().map(|p| p.to_string_lossy().to_string());
+
+        diesel::delete(files::table.filter(files::path.eq_any(path_strings))).execute(conn)?;
+
+        Ok(())
     }
 
     fn get_all_files_from_db(&self) -> Result<Vec<MediaFile>> {
-        todo!()
+        let conn = &mut self.get_conn()?;
+        let db_files = files::table
+            .select(files::all_columns)
+            .load::<DbFile>(conn)?;
+
+        Ok(db_files.into_iter().map(MediaFile::from).collect())
     }
 
     fn filter_medias_on_db(&self, filters: &FilterValues) -> Result<Vec<Media>> {
-        todo!()
+        let conn = &mut self.get_conn()?;
+
+        let mut query = medias::table
+            .left_join(imdbs::table.on(medias::imdb_id.eq(imdbs::imdb_id.nullable())))
+            .into_boxed();
+
+
+        // -- Name Filter --
+        if !filters.name.is_empty() {
+            let search_pattern = format!("%{}%", filters.name);
+            query = query.filter(
+                medias::name.like(search_pattern.clone())
+                    .or(imdbs::title.like(search_pattern))
+            );
+        }
+
+        // -- Content Type Filter --
+        if filters.r#type != ContentType::All {
+            query = query.filter(imdbs::type_.eq(filters.r#type.to_string()));
+        }
+
+        // -- Minimum Rating Filter --
+        if let Some(min_rating) = filters.min_rating {
+            // Use a raw SQL cast for the column type
+            let rating_clause = sql::<Double>("CAST(imdb_rating AS REAL)").ge(min_rating);
+            query = query.filter(rating_clause);
+        }
+
+        // -- Many-to-Many Filters (Country, Genre, Actor, Tags) --
+        if !filters.country.is_empty() {
+            query = query.filter(exists(
+                imdb_countries::table
+                    .filter(imdb_countries::imdb_id.nullable().eq(medias::imdb_id))
+                    .filter(imdb_countries::country_id.eq_any(filters.country.iter().map(|(id, _)| id)))
+            ));
+        }
+
+        if !filters.genre.is_empty() {
+            query = query.filter(exists(
+                imdb_genres::table
+                    .filter(imdb_genres::imdb_id.nullable().eq(medias::imdb_id))
+                    .filter(imdb_genres::genre_id.eq_any(filters.genre.iter().map(|(id, _)| id)))
+            ));
+        }
+
+        if !filters.actor.is_empty() {
+            query = query.filter(exists(
+                imdb_actors::table
+                    .filter(imdb_actors::imdb_id.nullable().eq(medias::imdb_id))
+                    .filter(imdb_actors::actor_id.eq_any(filters.actor.iter().map(|(id, _)| id)))
+            ));
+        }
+
+        if !filters.tags.is_empty() {
+            query = query.filter(exists(
+                media_tags::table
+                    .filter(media_tags::media_id.eq(medias::id))
+                    .filter(media_tags::tag_id.eq_any(filters.tags.iter().map(|(id, _)| id)))
+            ));
+        }
+
+        // -- Existence Filters --
+        if let Some(exist_imdb) = filters.exist_imdb {
+            if exist_imdb {
+                query = query.filter(medias::imdb_id.is_not_null());
+            } else {
+                query = query.filter(medias::imdb_id.is_null());
+            }
+        }
+
+        if let Some(exist_multi_file) = filters.exist_multi_file {
+            if exist_multi_file {
+                query = query.filter(
+                    diesel::dsl::exists(
+                        files::table
+                            .filter(files::media_id.eq(medias::id.nullable()))
+                            .group_by(files::media_id)
+                            .having(diesel::dsl::count_star().gt(1))
+                    )
+                );
+            } else {
+                query = query.filter(
+                    diesel::dsl::exists(
+                        files::table
+                            .filter(files::media_id.eq(medias::id.nullable()))
+                            .group_by(files::media_id)
+                            .having(diesel::dsl::count_star().le(1))
+                    )
+                );
+            }
+        }
+
+        // -- Boolean Filters --
+        if let Some(watched) = filters.watched {
+            query = query.filter(medias::watched.eq(watched));
+        }
+
+        if let Some(watch_list) = filters.watch_list {
+            query = query.filter(medias::watch_list.eq(watch_list));
+        }
+
+        // -- Sorting Logic --
+        let is_asc = filters.sort_direction == SortDirectionType::Asc;
+
+        query = match filters.sort_by {
+            SortByType::Name => {
+                if is_asc {
+                    query.order((imdbs::title.asc(), medias::name.asc()))
+                } else {
+                    query.order((imdbs::title.desc(), medias::name.desc()))
+                }
+            },
+            SortByType::Year => {
+                let year_sql = sql::<Text>("NULLIF(im.year, '')");
+                if is_asc {
+                    query.order((year_sql.asc(), medias::year.asc()))
+                } else {
+                    query.order((year_sql.desc(), medias::year.desc()))
+                }
+            },
+            SortByType::Imdb => {
+                let rating_sql = sql::<Double>("CAST(NULLIF(im.imdb_rating, '') AS REAL)");
+                if is_asc {
+                    query.order(rating_sql.asc())
+                } else {
+                    query.order(rating_sql.desc())
+                }
+            }
+        };
+
+        // Execute the query and return the results
+        let media_ids = query.select(medias::id).distinct().load::<i32>(conn)?;
+        Ok(media_ids
+            .into_iter()
+            .map(|id| Self::get_media_by_id(conn, id))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>())
+
     }
 
-    fn get_media_by_id_from_db(&self, media_id: i64) -> Result<Option<Media>> {
-        todo!()
-    }
+    fn get_media_by_id_from_db(&self, media_id: i32) -> Result<Option<Media>> {
+            self.get_conn()?.transaction(|conn| {
+                Self::get_media_by_id(conn, media_id)
+            })
+        }
 
     fn get_tags_from_db(&self) -> Result<Vec<Tag>> {
-        todo!()
+        let conn = &mut self.get_conn()?;
+
+        let results = tags::table.order(tags::id.asc()).load(conn)?;
+        Ok(results)
     }
 
-    fn remove_tag_from_db(&self, tag_id: i64) -> Result<usize> {
-        todo!()
+    fn remove_tag_from_db(&self, tag_id: i32) -> Result<()> {
+        let conn = &mut self.get_conn()?;
+        diesel::delete(tags::table.filter(tags::id.eq(tag_id))).execute(conn)?;
+
+        Ok(())
     }
 
     fn update_tag_from_db(&self, tag: &Tag) -> Result<()> {
-        todo!()
+        let conn = &mut self.get_conn()?;
+        diesel::update(tags::table.filter(tags::id.eq(tag.id)))
+            .set(tags::name.eq(&tag.name))
+            .execute(conn)?;
+
+        Ok(())
     }
 
-    fn get_medias_by_tag_from_db(&self, tag_id: i64) -> Result<Vec<Media>> {
-        todo!()
+    fn get_medias_by_tag_from_db(&self, tag_id: i32) -> Result<Vec<Media>> {
+        self.get_conn()?.transaction(|conn| {
+            media_tags::table
+                .inner_join(medias::table.on(media_tags::media_id.eq(medias::id)))
+                .filter(media_tags::tag_id.eq(tag_id))
+                .select(medias::id)
+                .load::<i32>(conn)?
+                .into_iter()
+                .map(|media_id| Self::get_media_and_imdb_by_media_id(conn, media_id))
+                .collect::<Result<Vec<_>>>()
+        })
     }
 
     fn insert_tag(&self, tag: &Tag) -> Result<()> {
-        todo!()
+        let conn = &mut self.get_conn()?;
+        diesel::insert_or_ignore_into(tags::table)
+            .values(&NewTag { name: &tag.name })
+            .execute(conn)?;
+        Ok(())
     }
 
-    fn insert_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()> {
-        todo!()
+    fn insert_media_tag(&self, media_id: i32, tag_id: i32) -> Result<()> {
+        let conn = &mut self.get_conn()?;
+        diesel::insert_or_ignore_into(media_tags::table)
+            .values(&NewMediaTag { media_id, tag_id })
+            .execute(conn)?;
+        Ok(())
     }
 
-    fn remove_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()> {
-        todo!()
+    fn remove_media_tag(&self, media_id: i32, tag_id: i32) -> Result<()> {
+        let conn = &mut self.get_conn()?;
+        diesel::delete(
+            media_tags::table
+                .filter(media_tags::media_id.eq(media_id))
+                .filter(media_tags::tag_id.eq(tag_id)),
+        )
+        .execute(conn)?;
+        Ok(())
     }
 }

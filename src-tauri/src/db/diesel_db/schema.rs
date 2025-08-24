@@ -38,7 +38,7 @@ diesel::table! {
         file_name -> Text,
         path -> Text,
         quality -> Nullable<Text>,
-        language_format -> Nullable<Text>,
+        language_format -> Text,
     }
 }
 

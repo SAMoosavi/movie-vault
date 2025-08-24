@@ -1,6 +1,6 @@
 use tauri::Manager;
 
-use crate::db::DieselDb;
+use crate::db::{DieselDb, NumericalString};
 use crate::{
     data_model::Tag,
     db::{DB, FilterValues},
@@ -42,20 +42,20 @@ async fn sync_files(
 }
 
 #[tauri::command]
-fn get_countries(state: tauri::State<'_, AppState>) -> Result<Vec<(usize, String)>, String> {
+fn get_countries(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
     let db = &state.db;
     db.get_countries_from_db().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<(usize, String)>, String> {
+fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
     let db = &state.db;
 
     db.get_genres_from_db().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<(usize, String)>, String> {
+fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
     let db = &state.db;
 
     db.get_actors_from_db().map_err(|e| e.to_string())
@@ -72,7 +72,7 @@ fn filter_medias(
 
 #[tauri::command]
 fn get_media_by_id(
-    media_id: i64,
+    media_id: i32,
     state: tauri::State<'_, AppState>,
 ) -> Result<data_model::Media, String> {
     let db = &state.db;
@@ -83,7 +83,7 @@ fn get_media_by_id(
 
 #[tauri::command]
 async fn update_media_imdb(
-    media_id: i64,
+    media_id: i32,
     imdb_id: &str,
     api_key: &str,
     state: tauri::State<'_, AppState>,
@@ -101,7 +101,7 @@ async fn update_media_imdb(
 
 #[tauri::command]
 fn update_watch_list(
-    media_id: i64,
+    media_id: i32,
     watch_list: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -113,31 +113,31 @@ fn update_watch_list(
 
 #[tauri::command]
 fn update_media_watched(
-    media_id: i64,
+    media_id: i32,
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
-    db.update_media_watched_to_db(media_id, watched)
+    db.update_media_watched(media_id, watched)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn update_season_watched(
-    season_id: i64,
+    season_id: i32,
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
-    db.update_season_watched_to_db(season_id, watched)
+    db.update_season_watched(season_id, watched)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn update_episode_watched(
-    episode_id: i64,
+    episode_id: i32,
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -149,7 +149,7 @@ fn update_episode_watched(
 
 #[tauri::command]
 fn update_media_my_ranking(
-    media_id: i64,
+    media_id: i32,
     my_ranking: u8,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -165,7 +165,7 @@ fn get_tags(state: tauri::State<'_, AppState>) -> Result<Vec<Tag>, String> {
 }
 
 #[tauri::command]
-fn remove_tag(tag_id: i64, state: tauri::State<'_, AppState>) -> Result<(), String> {
+fn remove_tag(tag_id: i32, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let db = &state.db;
     db.remove_tag_from_db(tag_id).map_err(|e| e.to_string())?;
     Ok(())
@@ -180,7 +180,7 @@ fn update_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String>
 
 #[tauri::command]
 fn get_medias_by_tag(
-    tag_id: i64,
+    tag_id: i32,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
     let db = &state.db;
@@ -196,8 +196,8 @@ fn insert_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String>
 
 #[tauri::command]
 fn insert_media_tag(
-    media_id: i64,
-    tag_id: i64,
+    media_id: i32,
+    tag_id: i32,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
@@ -207,8 +207,8 @@ fn insert_media_tag(
 
 #[tauri::command]
 fn remove_media_tag(
-    media_id: i64,
-    tag_id: i64,
+    media_id: i32,
+    tag_id: i32,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;

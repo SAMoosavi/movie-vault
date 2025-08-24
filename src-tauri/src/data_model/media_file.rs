@@ -1,5 +1,4 @@
 use diesel::{
-    Queryable,
     backend::Backend,
     deserialize::FromSql,
     serialize,
@@ -107,8 +106,7 @@ impl LanguageFormat {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Queryable)]
-#[diesel(table_name = files)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MediaFile {
     pub id: i32,
     pub file_name: String,
