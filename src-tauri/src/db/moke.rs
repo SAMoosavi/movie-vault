@@ -1,32 +1,30 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::data_model::{Imdb, Media, MediaFile, Tag};
 
 use super::{DB, NumericalString, Result};
 
 #[derive(Default, Clone)]
-pub struct MokeDB {}
+pub struct MokeDB {
+    inserted_file: Vec<MediaFile>,
+}
+
+impl MokeDB {
+    pub fn insert_file(&mut self, path: PathBuf) {
+        self.inserted_file.push(MediaFile::from(path));
+    }
+}
 
 impl DB for MokeDB {
-    fn exist_file_by_path_from_db(&self, path: &Path) -> Result<bool> {
-        if path
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .contains("valid")
-        {
-            Ok(false)
-        } else {
-            Ok(true)
-        }
-    }
-
     fn insert_medias(&self, _medias: &[Media]) -> Result<()> {
         todo!()
     }
 
     fn update_media_my_ranking_to_db(&self, _media_id: i32, _my_ranking: u8) -> Result<usize> {
+        todo!()
+    }
+
+    fn update_watch_list_to_db(&self, _media_id: i32, _watch_list: bool) -> Result<()> {
         todo!()
     }
 
@@ -71,7 +69,7 @@ impl DB for MokeDB {
     }
 
     fn get_all_files_from_db(&self) -> Result<Vec<MediaFile>> {
-        todo!()
+        Ok(self.inserted_file.clone())
     }
 
     fn filter_medias_on_db(&self, _filters: &super::FilterValues) -> Result<Vec<Media>> {
@@ -79,10 +77,6 @@ impl DB for MokeDB {
     }
 
     fn get_media_by_id_from_db(&self, _media_id: i32) -> Result<Option<Media>> {
-        todo!()
-    }
-
-    fn update_watch_list_to_db(&self, _media_id: i32, _watch_list: bool) -> Result<()> {
         todo!()
     }
 

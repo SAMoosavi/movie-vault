@@ -1,7 +1,4 @@
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-};
+use std::{fmt, path::PathBuf};
 
 use crate::data_model::{Imdb, Media, MediaFile, Tag};
 
@@ -80,8 +77,7 @@ pub struct FilterValues {
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
-pub trait DB: Send + Sync + Clone {
-    fn exist_file_by_path_from_db(&self, path: &Path) -> Result<bool>;
+pub trait DB {
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;
     fn update_media_my_ranking_to_db(&self, media_id: i32, my_ranking: u8) -> Result<usize>;
     fn update_watch_list_to_db(&self, media_id: i32, watch_list: bool) -> Result<()>;

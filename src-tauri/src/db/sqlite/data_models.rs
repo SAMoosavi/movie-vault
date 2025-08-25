@@ -123,7 +123,6 @@ impl From<DbImdb> for Imdb {
     }
 }
 
-
 #[derive(Debug, Clone, serde::Serialize, Queryable)]
 #[diesel(table_name = files)]
 pub struct DbFile {
@@ -163,7 +162,6 @@ impl From<DbTag> for Tag {
         }
     }
 }
-
 
 #[derive(Insertable)]
 #[diesel(table_name = medias)]
