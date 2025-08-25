@@ -70,7 +70,6 @@ onMounted(async () => {
   }
 
   try {
-
     // Sync files with better error handling
     const syncPromises = dir_path.value.map(sync_files)
     await Promise.all(syncPromises)
