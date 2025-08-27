@@ -1,5 +1,5 @@
 use super::{DB, FilterValues, NumericalString, Result};
-use crate::data_model::{Episode, Imdb, Media, MediaFile, Season, Tag};
+use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Season, Tag};
 use crate::db::sqlite::data_models::{DbEpisode, DbFile, DbImdb, DbMedia, DbSeason};
 use crate::db::{ContentType, SortByType, SortDirectionType};
 use anyhow::Ok;
@@ -314,7 +314,7 @@ impl Sqlite {
 
         Ok(())
     }
-    fn insert_season(conn: &mut SqliteConnection, media_id: i32, season: &Season) -> Result<()> {
+    fn insert_season(conn: &mut SqliteConnection, media_id: IdType, season: &Season) -> Result<()> {
         let new_episode = NewSeason {
             media_id,
             season_number: season.number,
@@ -336,7 +336,7 @@ impl Sqlite {
     }
     fn insert_episodes(
         conn: &mut SqliteConnection,
-        season_id: i32,
+        season_id: IdType,
         episode: &Episode,
     ) -> Result<()> {
         let new_episode = NewEpisode {
@@ -544,7 +544,10 @@ impl Sqlite {
         Ok(Some(imdb))
     }
 
-    fn get_media_and_imdb_by_media_id(conn: &mut SqliteConnection, media_id: i32) -> Result<Media> {
+    fn get_media_and_imdb_by_media_id(
+        conn: &mut SqliteConnection,
+        media_id: IdType,
+    ) -> Result<Media> {
         // Load basic media data
         let media_db: DbMedia = medias::table.filter(medias::id.eq(media_id)).first(conn)?;
 
@@ -573,7 +576,7 @@ impl Sqlite {
 
     fn get_files_for_episode(
         conn: &mut SqliteConnection,
-        episode_id: i32,
+        episode_id: IdType,
     ) -> Result<Vec<MediaFile>> {
         let media_files = files::table
             .filter(files::episode_id.eq(episode_id))
@@ -582,7 +585,10 @@ impl Sqlite {
         Ok(media_files.into_iter().map(MediaFile::from).collect())
     }
 
-    fn get_files_for_media(conn: &mut SqliteConnection, media_id: i32) -> Result<Vec<MediaFile>> {
+    fn get_files_for_media(
+        conn: &mut SqliteConnection,
+        media_id: IdType,
+    ) -> Result<Vec<MediaFile>> {
         let media_files = files::table
             .filter(files::media_id.eq(media_id))
             .load::<DbFile>(conn)?;
@@ -592,7 +598,7 @@ impl Sqlite {
 
     fn get_episodes_by_season_id(
         conn: &mut SqliteConnection,
-        season_id: i32,
+        season_id: IdType,
     ) -> Result<Vec<Episode>> {
         let episodes_list = episodes::table
             .filter(episodes::season_id.eq(season_id))
@@ -613,7 +619,10 @@ impl Sqlite {
         Ok(episodes_list)
     }
 
-    fn get_seasons_by_media_id(conn: &mut SqliteConnection, media_id: i32) -> Result<Vec<Season>> {
+    fn get_seasons_by_media_id(
+        conn: &mut SqliteConnection,
+        media_id: IdType,
+    ) -> Result<Vec<Season>> {
         let seasons_list = seasons::table
             .filter(seasons::media_id.eq(media_id))
             .order(seasons::season_number.asc())
@@ -634,7 +643,7 @@ impl Sqlite {
         Ok(seasons_list)
     }
 
-    fn get_media_by_id(conn: &mut SqliteConnection, media_id: i32) -> Result<Option<Media>> {
+    fn get_media_by_id(conn: &mut SqliteConnection, media_id: IdType) -> Result<Option<Media>> {
         // 1. Media
         let media = medias::table
             .find(media_id)
@@ -731,7 +740,7 @@ impl DB for Sqlite {
         })
     }
 
-    fn update_media_my_ranking_to_db(&self, media_id: i32, my_ranking: u8) -> Result<usize> {
+    fn update_media_my_ranking_to_db(&self, media_id: IdType, my_ranking: u8) -> Result<usize> {
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::my_ranking.eq(my_ranking as i32))
@@ -739,7 +748,7 @@ impl DB for Sqlite {
             .map_err(Into::into)
     }
 
-    fn update_watch_list_to_db(&self, media_id: i32, watch_list: bool) -> Result<()> {
+    fn update_watch_list_to_db(&self, media_id: IdType, watch_list: bool) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::watch_list.eq(watch_list))
@@ -747,22 +756,22 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn update_media_watched(&self, media_id: i32, watched: bool) -> Result<()> {
+    fn update_media_watched(&self, media_id: IdType, watched: bool) -> Result<()> {
         self.get_conn()?
             .transaction(|conn| Self::update_media_watched(conn, media_id, watched))
     }
 
-    fn update_season_watched(&self, season_id: i32, watched: bool) -> Result<()> {
+    fn update_season_watched(&self, season_id: IdType, watched: bool) -> Result<()> {
         self.get_conn()?
             .transaction(|conn| Self::update_season_watched(conn, season_id, watched))
     }
 
-    fn update_episode_watched_to_db(&self, episode_id: i32, watched: bool) -> Result<()> {
+    fn update_episode_watched_to_db(&self, episode_id: IdType, watched: bool) -> Result<()> {
         self.get_conn()?
             .transaction(|conn| Self::update_episode_watched(conn, episode_id, watched))
     }
 
-    fn update_media_imdb_to_db(&self, media_id: i32, imdb_id: &str) -> Result<()> {
+    fn update_media_imdb_to_db(&self, media_id: IdType, imdb_id: &str) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::imdb_id.eq(imdb_id))
@@ -978,7 +987,7 @@ impl DB for Sqlite {
             .collect::<Vec<_>>())
     }
 
-    fn get_media_by_id_from_db(&self, media_id: i32) -> Result<Option<Media>> {
+    fn get_media_by_id_from_db(&self, media_id: IdType) -> Result<Option<Media>> {
         self.get_conn()?
             .transaction(|conn| Self::get_media_by_id(conn, media_id))
     }
@@ -990,7 +999,7 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn remove_tag_from_db(&self, tag_id: i32) -> Result<()> {
+    fn remove_tag_from_db(&self, tag_id: IdType) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::delete(tags::table.filter(tags::id.eq(tag_id))).execute(conn)?;
 
@@ -1006,7 +1015,7 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn get_medias_by_tag_from_db(&self, tag_id: i32) -> Result<Vec<Media>> {
+    fn get_medias_by_tag_from_db(&self, tag_id: IdType) -> Result<Vec<Media>> {
         self.get_conn()?.transaction(|conn| {
             media_tags::table
                 .inner_join(medias::table.on(media_tags::media_id.eq(medias::id)))
@@ -1027,7 +1036,7 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn insert_media_tag(&self, media_id: i32, tag_id: i32) -> Result<()> {
+    fn insert_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::insert_or_ignore_into(media_tags::table)
             .values(&NewMediaTag { media_id, tag_id })
@@ -1035,7 +1044,7 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn remove_media_tag(&self, media_id: i32, tag_id: i32) -> Result<()> {
+    fn remove_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::delete(
             media_tags::table

@@ -1,16 +1,11 @@
+use super::{IdType, imdb::Imdb, media_file::MediaFile, season::Season, tag::Tag};
+use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
-use super::imdb::Imdb;
-use super::media_file::MediaFile;
-use super::season::Season;
-use super::tag::Tag;
-
-use itertools::Itertools;
-
 #[derive(Debug, Clone, Default, Eq, serde::Serialize)]
 pub struct Media {
-    pub id: i32,
+    pub id: IdType,
     pub name: String,
     pub year: Option<i32>,
     pub watched: bool,

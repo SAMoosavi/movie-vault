@@ -1,3 +1,4 @@
+use super::IdType;
 use diesel::{
     backend::Backend,
     deserialize::FromSql,
@@ -108,7 +109,7 @@ impl LanguageFormat {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MediaFile {
-    pub id: i32,
+    pub id: IdType,
     pub file_name: String,
     pub path: String,
     pub quality: Option<String>,

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::data_model::{Imdb, Media, MediaFile, Tag};
+use crate::data_model::{IdType, Imdb, Media, MediaFile, Tag};
 
 use super::{DB, NumericalString, Result};
 
@@ -20,27 +20,27 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn update_media_my_ranking_to_db(&self, _media_id: i32, _my_ranking: u8) -> Result<usize> {
+    fn update_media_my_ranking_to_db(&self, _media_id: IdType, _my_ranking: u8) -> Result<usize> {
         todo!()
     }
 
-    fn update_watch_list_to_db(&self, _media_id: i32, _watch_list: bool) -> Result<()> {
+    fn update_watch_list_to_db(&self, _media_id: IdType, _watch_list: bool) -> Result<()> {
         todo!()
     }
 
-    fn update_media_watched(&self, _media_id: i32, _watched: bool) -> Result<()> {
+    fn update_media_watched(&self, _media_id: IdType, _watched: bool) -> Result<()> {
         todo!()
     }
 
-    fn update_season_watched(&self, _season_id: i32, _watched: bool) -> Result<()> {
+    fn update_season_watched(&self, _season_id: IdType, _watched: bool) -> Result<()> {
         todo!()
     }
 
-    fn update_episode_watched_to_db(&self, _episode_id: i32, _watched: bool) -> Result<()> {
+    fn update_episode_watched_to_db(&self, _episode_id: IdType, _watched: bool) -> Result<()> {
         todo!()
     }
 
-    fn update_media_imdb_to_db(&self, _media_id: i32, _imdb_id: &str) -> Result<()> {
+    fn update_media_imdb_to_db(&self, _media_id: IdType, _imdb_id: &str) -> Result<()> {
         todo!()
     }
 
@@ -76,7 +76,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn get_media_by_id_from_db(&self, _media_id: i32) -> Result<Option<Media>> {
+    fn get_media_by_id_from_db(&self, _media_id: IdType) -> Result<Option<Media>> {
         todo!()
     }
 
@@ -84,7 +84,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn remove_tag_from_db(&self, _tag_id: i32) -> Result<()> {
+    fn remove_tag_from_db(&self, _tag_id: IdType) -> Result<()> {
         todo!()
     }
 
@@ -92,7 +92,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn get_medias_by_tag_from_db(&self, _tag_id: i32) -> Result<Vec<Media>> {
+    fn get_medias_by_tag_from_db(&self, _tag_id: IdType) -> Result<Vec<Media>> {
         todo!()
     }
 
@@ -100,11 +100,11 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn insert_media_tag(&self, _media_id: i32, _tag_id: i32) -> Result<()> {
+    fn insert_media_tag(&self, _media_id: IdType, _tag_id: IdType) -> Result<()> {
         todo!()
     }
 
-    fn remove_media_tag(&self, _media_id: i32, _tag_id: i32) -> Result<()> {
+    fn remove_media_tag(&self, _media_id: IdType, _tag_id: IdType) -> Result<()> {
         todo!()
     }
 }

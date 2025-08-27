@@ -1,11 +1,10 @@
-use std::path::PathBuf;
-
-use super::media_file::MediaFile;
+use super::{IdType, media_file::MediaFile};
 use itertools::Itertools;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Episode {
-    pub id: i32,
+    pub id: IdType,
     pub number: i32,
     pub watched: bool,
     pub files: Vec<MediaFile>,

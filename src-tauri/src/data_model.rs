@@ -5,6 +5,8 @@ mod media_file;
 mod season;
 mod tag;
 
+pub type IdType = i32;
+
 pub use episode::Episode;
 pub use imdb::Imdb;
 pub use media::Media;

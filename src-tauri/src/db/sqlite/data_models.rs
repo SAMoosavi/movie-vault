@@ -3,14 +3,14 @@ use super::schema::{
     imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
     medias, seasons, tags, writers,
 };
-use crate::data_model::{Episode, Imdb, LanguageFormat, Media, MediaFile, Season, Tag};
+use crate::data_model::{Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag};
 use diesel::{Identifiable, Insertable, Queryable};
 
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
 #[diesel(table_name = episodes)]
 pub struct DbEpisode {
-    pub id: i32,
-    pub season_id: i32,
+    pub id: IdType,
+    pub season_id: IdType,
     pub episode_number: i32,
     pub watched: bool,
 }
@@ -29,8 +29,8 @@ impl From<DbEpisode> for Episode {
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
 #[diesel(table_name = seasons)]
 pub struct DbSeason {
-    pub id: i32,
-    pub media_id: i32,
+    pub id: IdType,
+    pub media_id: IdType,
     pub season_number: i32,
     pub watched: bool,
 }
@@ -49,7 +49,7 @@ impl From<DbSeason> for Season {
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
 #[diesel(table_name = medias)]
 pub struct DbMedia {
-    pub id: i32,
+    pub id: IdType,
     pub name: String,
     pub year: Option<i32>,
     pub watched: bool,
@@ -126,7 +126,7 @@ impl From<DbImdb> for Imdb {
 #[derive(Debug, Clone, serde::Serialize, Queryable)]
 #[diesel(table_name = files)]
 pub struct DbFile {
-    pub id: i32,
+    pub id: IdType,
     pub media_id: Option<i32>,
     pub episode_id: Option<i32>,
     pub file_name: String,
@@ -150,7 +150,7 @@ impl From<DbFile> for MediaFile {
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
 #[diesel(table_name = tags)]
 pub struct DbTag {
-    pub id: i32,
+    pub id: IdType,
     pub name: String,
 }
 
@@ -177,7 +177,7 @@ pub struct NewMedia<'a> {
 #[derive(Insertable)]
 #[diesel(table_name = seasons)]
 pub struct NewSeason {
-    pub media_id: i32,
+    pub media_id: IdType,
     pub season_number: i32,
     pub watched: bool,
 }
@@ -185,7 +185,7 @@ pub struct NewSeason {
 #[derive(Insertable)]
 #[diesel(table_name = episodes)]
 pub struct NewEpisode {
-    pub season_id: i32,
+    pub season_id: IdType,
     pub episode_number: i32,
     pub watched: bool,
 }
@@ -231,7 +231,7 @@ pub struct NewGenre<'a> {
 #[diesel(table_name = imdb_genres)]
 pub struct NewImdbGenre<'a> {
     pub imdb_id: &'a str,
-    pub genre_id: i32,
+    pub genre_id: IdType,
 }
 #[derive(Insertable)]
 #[diesel(table_name = directors)]
@@ -243,7 +243,7 @@ pub struct NewDirector<'a> {
 #[diesel(table_name = imdb_directors)]
 pub struct NewImdbDirector<'a> {
     pub imdb_id: &'a str,
-    pub director_id: i32,
+    pub director_id: IdType,
 }
 
 #[derive(Insertable)]
@@ -256,7 +256,7 @@ pub struct NewWriter<'a> {
 #[diesel(table_name = imdb_writers)]
 pub struct NewImdbWriter<'a> {
     pub imdb_id: &'a str,
-    pub writer_id: i32,
+    pub writer_id: IdType,
 }
 
 #[derive(Insertable)]
@@ -269,7 +269,7 @@ pub struct NewActor<'a> {
 #[diesel(table_name = imdb_actors)]
 pub struct NewImdbActor<'a> {
     pub imdb_id: &'a str,
-    pub actor_id: i32,
+    pub actor_id: IdType,
 }
 
 #[derive(Insertable)]
@@ -282,7 +282,7 @@ pub struct NewLanguage<'a> {
 #[diesel(table_name = imdb_languages)]
 pub struct NewImdbLanguage<'a> {
     pub imdb_id: &'a str,
-    pub language_id: i32,
+    pub language_id: IdType,
 }
 
 #[derive(Insertable)]
@@ -295,7 +295,7 @@ pub struct NewCountry<'a> {
 #[diesel(table_name = imdb_countries)]
 pub struct NewImdbCountry<'a> {
     pub imdb_id: &'a str,
-    pub country_id: i32,
+    pub country_id: IdType,
 }
 
 #[derive(Insertable)]
@@ -307,6 +307,6 @@ pub struct NewTag<'a> {
 #[derive(Insertable)]
 #[diesel(table_name = media_tags)]
 pub struct NewMediaTag {
-    pub media_id: i32,
-    pub tag_id: i32,
+    pub media_id: IdType,
+    pub tag_id: IdType,
 }
