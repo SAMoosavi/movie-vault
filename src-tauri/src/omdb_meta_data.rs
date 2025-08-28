@@ -22,12 +22,15 @@ struct OmdbMovie {
     country: String,
     awards: String,
     poster: String,
+    #[serde(rename = "imdbRating")]
     imdb_rating: String,
+    #[serde(rename = "imdbVotes")]
     imdb_votes: String,
+    #[serde(rename = "imdbID")]
     imdb_id: String,
     box_office: Option<String>,
     total_seasons: Option<String>,
-    #[serde(rename = "type")]
+    #[serde(rename = "Type")]
     r#type: String,
 }
 
