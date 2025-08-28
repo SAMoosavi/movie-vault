@@ -1,25 +1,24 @@
-use super::{DB, FilterValues, NumericalString, Result};
+use super::{
+    ContentType, DB, FilterValues, NumericalString, Result, SortByType, SortDirectionType,
+};
 use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Season, Tag};
-use crate::db::sqlite::data_models::{DbEpisode, DbFile, DbImdb, DbMedia, DbSeason};
-use crate::db::{ContentType, SortByType, SortDirectionType};
 use anyhow::Ok;
 use data_models::{
-    NewActor, NewCountry, NewDirector, NewEpisode, NewFile, NewGenre, NewImdb, NewImdbActor,
-    NewImdbCountry, NewImdbDirector, NewImdbGenre, NewImdbLanguage, NewImdbWriter, NewLanguage,
-    NewMedia, NewMediaTag, NewSeason, NewTag, NewWriter,
+    DbEpisode, DbFile, DbImdb, DbMedia, DbSeason, NewActor, NewCountry, NewDirector, NewEpisode,
+    NewFile, NewGenre, NewImdb, NewImdbActor, NewImdbCountry, NewImdbDirector, NewImdbGenre,
+    NewImdbLanguage, NewImdbWriter, NewLanguage, NewMedia, NewMediaTag, NewSeason, NewTag,
+    NewWriter,
 };
-use diesel::dsl::exists;
-use diesel::sql_types::{Double, Text};
 use diesel::{
     BoolExpressionMethods, Connection, ExpressionMethods, NullableExpressionMethods, QueryDsl,
     RunQueryDsl, SqliteConnection,
     connection::SimpleConnection,
-    dsl::sql,
+    dsl::{exists, sql},
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
-    sql_types::BigInt,
+    sql_types::{BigInt, Double, Text},
 };
-use diesel_migrations::{MigrationHarness, embed_migrations};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 pub use schema::{
     actors, countries, directors, episodes, files, genres, imdb_actors, imdb_countries,
     imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
@@ -33,7 +32,7 @@ pub mod schema;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
-pub const MIGRATIONS: diesel_migrations::EmbeddedMigrations = embed_migrations!();
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 
 pub struct Sqlite {
     pool: DbPool,
@@ -241,6 +240,12 @@ impl Sqlite {
     }
 
     fn insert_imdb(conn: &mut SqliteConnection, imdb: &Imdb) -> Result<()> {
+        let imdb_exists = imdbs::table
+            .filter(imdbs::imdb_id.eq(imdb.imdb_id.as_str()))
+            .select(diesel::dsl::count_star())
+            .first::<i64>(conn)?
+            > 0;
+
         let new = NewImdb {
             imdb_id: imdb.imdb_id.as_str(),
             title: imdb.title.as_str(),
@@ -257,31 +262,38 @@ impl Sqlite {
             total_seasons: imdb.total_seasons.as_deref(),
             type_: imdb.r#type.as_str(),
         };
-        diesel::insert_into(imdbs::table)
+
+        diesel::insert_or_ignore_into(imdbs::table)
             .values(&new)
             .execute(conn)?;
 
         for g in &imdb.genres {
             Self::insert_imdb_genre_by_name(conn, &imdb.imdb_id, g)?;
         }
+
         for d in &imdb.directors {
             Self::insert_imdb_director_by_name(conn, &imdb.imdb_id, d)?;
         }
+
         for w in &imdb.writers {
             Self::insert_imdb_writer_by_name(conn, &imdb.imdb_id, w)?;
         }
+
         for a in &imdb.actors {
             Self::insert_imdb_actor_by_name(conn, &imdb.imdb_id, a)?;
         }
+
         for l in &imdb.languages {
             Self::insert_imdb_language_by_name(conn, &imdb.imdb_id, l)?;
         }
+
         for c in &imdb.countries {
             Self::insert_imdb_country_by_name(conn, &imdb.imdb_id, c)?;
         }
 
         Ok(())
     }
+
     fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<()> {
         let imdb_id = media.imdb.as_ref().map(|imdb| imdb.imdb_id.as_str());
 
@@ -289,21 +301,47 @@ impl Sqlite {
             Self::insert_imdb(conn, imdb)?;
         }
 
-        let new = NewMedia {
-            name: media.name.as_str(),
-            year: media.year,
-            watched: media.watched,
-            my_ranking: media.my_ranking as i32,
-            watch_list: media.watch_list,
-            imdb_id,
+        // Match by imdb_id if provided
+        let existing_media_id: Option<IdType> = if let Some(imdb_id_val) = imdb_id {
+            medias::table
+                .filter(medias::imdb_id.eq(imdb_id_val))
+                .select(medias::id)
+                .first::<IdType>(conn)
+                .optional()?
+        } else {
+            medias::table
+                .filter(
+                    medias::name
+                        .eq(media.name.as_str())
+                        .and(medias::year.eq(media.year)),
+                )
+                .select(medias::id)
+                .first::<IdType>(conn)
+                .optional()?
         };
 
-        diesel::insert_into(medias::table)
-            .values(&new)
-            .execute(conn)?;
+        let id = if let Some(id) = existing_media_id {
+            // Media already exists, use the existing ID
+            id
+        } else {
+            // Prepare new media for insertion
+            let new = NewMedia {
+                name: media.name.as_str(),
+                year: media.year,
+                watched: media.watched,
+                my_ranking: media.my_ranking as i32,
+                watch_list: media.watch_list,
+                imdb_id,
+            };
 
-        let id: i64 = diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result(conn)?;
-        let id = id as i32;
+            // Insert new media
+            diesel::insert_into(medias::table)
+                .values(&new)
+                .execute(conn)?;
+
+            // Retrieve the last inserted ID
+            diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)? as i32
+        };
 
         for season in &media.seasons {
             Self::insert_season(conn, id, season)?;
@@ -313,6 +351,7 @@ impl Sqlite {
 
         Ok(())
     }
+
     fn insert_season(conn: &mut SqliteConnection, media_id: IdType, season: &Season) -> Result<()> {
         let new_episode = NewSeason {
             media_id,
@@ -333,6 +372,7 @@ impl Sqlite {
 
         Ok(())
     }
+
     fn insert_episodes(
         conn: &mut SqliteConnection,
         season_id: IdType,
@@ -354,6 +394,7 @@ impl Sqlite {
 
         Ok(())
     }
+
     fn insert_files(
         conn: &mut SqliteConnection,
         files_in: &[MediaFile],
@@ -926,47 +967,27 @@ impl DB for Sqlite {
         }
 
         if let Some(exist_multi_file) = filters.exist_multi_file {
-            if exist_multi_file {
-                query = query.filter(diesel::dsl::exists(
-                    files::table
-                        .filter(files::media_id.eq(medias::id.nullable()))
-                        .group_by(files::media_id)
-                        .having(diesel::dsl::count_star().gt(1)),
-                ));
-            } else {
-                query = query.filter(diesel::dsl::exists(
-                    files::table
-                        .filter(files::media_id.eq(medias::id.nullable()))
-                        .group_by(files::media_id)
-                        .having(diesel::dsl::count_star().le(1)),
-                ));
-            }
-        }
+            let media_file_count = files::table
+                .select(files::media_id)
+                .filter(files::media_id.eq(medias::id.nullable()))
+                .group_by(files::media_id)
+                .having(diesel::dsl::count_star().gt(1));
 
-        if let Some(exist_multi_file) = filters.exist_multi_file {
-            if exist_multi_file {
-                query = query.filter(diesel::dsl::exists(
-                    files::table
-                        .inner_join(
-                            episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
-                        )
-                        .inner_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
-                        .filter(seasons::media_id.eq(medias::id))
-                        .group_by(files::episode_id)
-                        .having(diesel::dsl::count_star().gt(1)),
-                ));
+            let episode_file_count = files::table
+                .left_join(episodes::table.on(files::episode_id.eq(episodes::id.nullable())))
+                .left_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
+                .filter(seasons::media_id.eq(medias::id))
+                .group_by(files::episode_id)
+                .having(diesel::dsl::count_star().gt(1));
+
+            let condition =
+                diesel::dsl::exists(media_file_count).or(diesel::dsl::exists(episode_file_count));
+
+            query = if exist_multi_file {
+                query.filter(condition)
             } else {
-                query = query.filter(diesel::dsl::exists(
-                    files::table
-                        .inner_join(
-                            episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
-                        )
-                        .inner_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
-                        .filter(seasons::media_id.eq(medias::id))
-                        .group_by(files::episode_id)
-                        .having(diesel::dsl::count_star().le(1)),
-                ));
-            }
+                query.filter(diesel::dsl::not(condition))
+            };
         }
 
         // -- Boolean Filters --
