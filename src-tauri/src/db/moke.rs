@@ -20,11 +20,11 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn update_media_my_ranking_to_db(&self, _media_id: IdType, _my_ranking: u8) -> Result<usize> {
+    fn update_media_my_ranking(&self, _media_id: IdType, _my_ranking: u8) -> Result<usize> {
         todo!()
     }
 
-    fn update_watch_list_to_db(&self, _media_id: IdType, _watch_list: bool) -> Result<()> {
+    fn update_watch_list(&self, _media_id: IdType, _watch_list: bool) -> Result<()> {
         todo!()
     }
 
@@ -36,63 +36,63 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn update_episode_watched_to_db(&self, _episode_id: IdType, _watched: bool) -> Result<()> {
+    fn update_episode_watched(&self, _episode_id: IdType, _watched: bool) -> Result<()> {
         todo!()
     }
 
-    fn update_media_imdb_to_db(&self, _media_id: IdType, _imdb_id: &str) -> Result<()> {
+    fn update_media_imdb(&self, _media_id: IdType, _imdb_id: &str) -> Result<()> {
         todo!()
     }
 
-    fn insert_imdb_to_db(&self, _imdb: &Imdb) -> Result<()> {
+    fn insert_imdb(&self, _imdb: &Imdb) -> Result<()> {
         todo!()
     }
 
-    fn clear_empty_data_from_db(&self) -> Result<()> {
+    fn clear_empty_data(&self) -> Result<()> {
         todo!()
     }
 
-    fn get_genres_from_db(&self) -> Result<Vec<NumericalString>> {
+    fn get_genres(&self) -> Result<Vec<NumericalString>> {
         todo!()
     }
 
-    fn get_countries_from_db(&self) -> Result<Vec<NumericalString>> {
+    fn get_countries(&self) -> Result<Vec<NumericalString>> {
         todo!()
     }
 
-    fn get_actors_from_db(&self) -> Result<Vec<NumericalString>> {
+    fn get_actors(&self) -> Result<Vec<NumericalString>> {
         todo!()
     }
 
-    fn remove_file_by_path_from_db(&self, _paths: &[PathBuf]) -> Result<()> {
+    fn remove_file_by_path(&self, _paths: &[PathBuf]) -> Result<()> {
         todo!()
     }
 
-    fn get_all_files_from_db(&self) -> Result<Vec<MediaFile>> {
+    fn get_all_files(&self) -> Result<Vec<MediaFile>> {
         Ok(self.inserted_file.clone())
     }
 
-    fn filter_medias_on_db(&self, _filters: &super::FilterValues) -> Result<Vec<Media>> {
+    fn filter_medias(&self, _filters: &super::FilterValues) -> Result<Vec<Media>> {
         todo!()
     }
 
-    fn get_media_by_id_from_db(&self, _media_id: IdType) -> Result<Option<Media>> {
+    fn get_media_by_id(&self, _media_id: IdType) -> Result<Option<Media>> {
         todo!()
     }
 
-    fn get_tags_from_db(&self) -> Result<Vec<Tag>> {
+    fn get_tags(&self) -> Result<Vec<Tag>> {
         todo!()
     }
 
-    fn remove_tag_from_db(&self, _tag_id: IdType) -> Result<()> {
+    fn remove_tag(&self, _tag_id: IdType) -> Result<()> {
         todo!()
     }
 
-    fn update_tag_from_db(&self, _tag: &Tag) -> Result<()> {
+    fn update_tag(&self, _tag: &Tag) -> Result<()> {
         todo!()
     }
 
-    fn get_medias_by_tag_from_db(&self, _tag_id: IdType) -> Result<Vec<Media>> {
+    fn get_medias_by_tag(&self, _tag_id: IdType) -> Result<Vec<Media>> {
         todo!()
     }
 

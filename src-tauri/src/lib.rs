@@ -44,21 +44,21 @@ async fn sync_files(
 #[tauri::command]
 fn get_countries(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
     let db = &state.db;
-    db.get_countries_from_db().map_err(|e| e.to_string())
+    db.get_countries().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
     let db = &state.db;
 
-    db.get_genres_from_db().map_err(|e| e.to_string())
+    db.get_genres().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
     let db = &state.db;
 
-    db.get_actors_from_db().map_err(|e| e.to_string())
+    db.get_actors().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -67,7 +67,7 @@ fn filter_medias(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
     let db = &state.db;
-    db.filter_medias_on_db(&filters).map_err(|e| e.to_string())
+    db.filter_medias(&filters).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -76,7 +76,7 @@ fn get_media_by_id(
     state: tauri::State<'_, AppState>,
 ) -> Result<data_model::Media, String> {
     let db = &state.db;
-    db.get_media_by_id_from_db(media_id)
+    db.get_media_by_id(media_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| "movie not found".to_string())
 }
@@ -93,8 +93,8 @@ async fn update_media_imdb(
         .await
         .map_err(|e| e.to_string())?;
 
-    db.insert_imdb_to_db(&imdb).map_err(|e| e.to_string())?;
-    db.update_media_imdb_to_db(media_id, imdb_id)
+    db.insert_imdb(&imdb).map_err(|e| e.to_string())?;
+    db.update_media_imdb(media_id, imdb_id)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -106,7 +106,7 @@ fn update_watch_list(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
-    db.update_watch_list_to_db(media_id, watch_list)
+    db.update_watch_list(media_id, watch_list)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -142,7 +142,7 @@ fn update_episode_watched(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
-    db.update_episode_watched_to_db(episode_id, watched)
+    db.update_episode_watched(episode_id, watched)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -154,27 +154,27 @@ fn update_media_my_ranking(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
-    db.update_media_my_ranking_to_db(media_id, my_ranking)
+    db.update_media_my_ranking(media_id, my_ranking)
         .map_err(|e| e.to_string())?;
     Ok(())
 }
 #[tauri::command]
 fn get_tags(state: tauri::State<'_, AppState>) -> Result<Vec<Tag>, String> {
     let db = &state.db;
-    db.get_tags_from_db().map_err(|e| e.to_string())
+    db.get_tags().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn remove_tag(tag_id: i32, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let db = &state.db;
-    db.remove_tag_from_db(tag_id).map_err(|e| e.to_string())?;
+    db.remove_tag(tag_id).map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
 fn update_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let db = &state.db;
-    db.update_tag_from_db(&tag).map_err(|e| e.to_string())?;
+    db.update_tag(&tag).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -184,8 +184,7 @@ fn get_medias_by_tag(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
     let db = &state.db;
-    db.get_medias_by_tag_from_db(tag_id)
-        .map_err(|e| e.to_string())
+    db.get_medias_by_tag(tag_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

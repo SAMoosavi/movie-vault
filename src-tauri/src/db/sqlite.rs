@@ -16,11 +16,10 @@ use diesel::{
     connection::SimpleConnection,
     dsl::sql,
     prelude::*,
-    r2d2::{ConnectionManager, Pool},
+    r2d2::{ConnectionManager, Pool, PooledConnection},
     sql_types::BigInt,
 };
 use diesel_migrations::{MigrationHarness, embed_migrations};
-use r2d2::PooledConnection;
 pub use schema::{
     actors, countries, directors, episodes, files, genres, imdb_actors, imdb_countries,
     imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
@@ -59,7 +58,7 @@ impl Sqlite {
 
         let mut conn = pool.get()?;
         conn.batch_execute(
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;",
+            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;",
         )?;
         conn.run_pending_migrations(MIGRATIONS)
             .map_err(|e| anyhow::Error::msg(e.to_string()))?;
@@ -740,7 +739,7 @@ impl DB for Sqlite {
         })
     }
 
-    fn update_media_my_ranking_to_db(&self, media_id: IdType, my_ranking: u8) -> Result<usize> {
+    fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize> {
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::my_ranking.eq(my_ranking as i32))
@@ -748,7 +747,7 @@ impl DB for Sqlite {
             .map_err(Into::into)
     }
 
-    fn update_watch_list_to_db(&self, media_id: IdType, watch_list: bool) -> Result<()> {
+    fn update_watch_list(&self, media_id: IdType, watch_list: bool) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::watch_list.eq(watch_list))
@@ -766,12 +765,12 @@ impl DB for Sqlite {
             .transaction(|conn| Self::update_season_watched(conn, season_id, watched))
     }
 
-    fn update_episode_watched_to_db(&self, episode_id: IdType, watched: bool) -> Result<()> {
+    fn update_episode_watched(&self, episode_id: IdType, watched: bool) -> Result<()> {
         self.get_conn()?
             .transaction(|conn| Self::update_episode_watched(conn, episode_id, watched))
     }
 
-    fn update_media_imdb_to_db(&self, media_id: IdType, imdb_id: &str) -> Result<()> {
+    fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::imdb_id.eq(imdb_id))
@@ -780,14 +779,14 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn insert_imdb_to_db(&self, imdb: &Imdb) -> Result<()> {
+    fn insert_imdb(&self, imdb: &Imdb) -> Result<()> {
         self.get_conn()?.transaction(|conn| {
             Self::insert_imdb(conn, imdb)?;
             Ok(())
         })
     }
 
-    fn clear_empty_data_from_db(&self) -> Result<()> {
+    fn clear_empty_data(&self) -> Result<()> {
         self.get_conn()?.transaction(|conn| {
             Self::remove_empty_episodes(conn)?;
             Self::remove_empty_seasons(conn)?;
@@ -798,7 +797,7 @@ impl DB for Sqlite {
         })
     }
 
-    fn get_genres_from_db(&self) -> Result<Vec<NumericalString>> {
+    fn get_genres(&self) -> Result<Vec<NumericalString>> {
         let conn = &mut self.get_conn()?;
         let results = genres::table
             .select((genres::id, genres::name))
@@ -808,7 +807,7 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn get_countries_from_db(&self) -> Result<Vec<NumericalString>> {
+    fn get_countries(&self) -> Result<Vec<NumericalString>> {
         let conn = &mut self.get_conn()?;
         let results = countries::table
             .select((countries::id, countries::name))
@@ -818,7 +817,7 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn get_actors_from_db(&self) -> Result<Vec<NumericalString>> {
+    fn get_actors(&self) -> Result<Vec<NumericalString>> {
         let conn = &mut self.get_conn()?;
         let results = actors::table
             .select((actors::id, actors::name))
@@ -828,7 +827,7 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn remove_file_by_path_from_db(&self, paths: &[PathBuf]) -> Result<()> {
+    fn remove_file_by_path(&self, paths: &[PathBuf]) -> Result<()> {
         let conn = &mut self.get_conn()?;
 
         let path_strings = paths.iter().map(|p| p.to_string_lossy().to_string());
@@ -838,7 +837,7 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn get_all_files_from_db(&self) -> Result<Vec<MediaFile>> {
+    fn get_all_files(&self) -> Result<Vec<MediaFile>> {
         let conn = &mut self.get_conn()?;
         let db_files = files::table
             .select(files::all_columns)
@@ -847,7 +846,7 @@ impl DB for Sqlite {
         Ok(db_files.into_iter().map(MediaFile::from).collect())
     }
 
-    fn filter_medias_on_db(&self, filters: &FilterValues) -> Result<Vec<Media>> {
+    fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>> {
         let conn = &mut self.get_conn()?;
 
         let mut query = medias::table
@@ -878,37 +877,43 @@ impl DB for Sqlite {
 
         // -- Many-to-Many Filters (Country, Genre, Actor, Tags) --
         if !filters.country.is_empty() {
-            query = query.filter(exists(
-                imdb_countries::table
-                    .filter(imdb_countries::imdb_id.nullable().eq(medias::imdb_id))
-                    .filter(
-                        imdb_countries::country_id.eq_any(filters.country.iter().map(|(id, _)| id)),
-                    ),
-            ));
+            for country_id in filters.country.iter().map(|(id, _)| id) {
+                query = query.filter(exists(
+                    imdb_countries::table
+                        .filter(imdb_countries::imdb_id.nullable().eq(medias::imdb_id))
+                        .filter(imdb_countries::country_id.eq(country_id)),
+                ));
+            }
         }
 
         if !filters.genre.is_empty() {
-            query = query.filter(exists(
-                imdb_genres::table
-                    .filter(imdb_genres::imdb_id.nullable().eq(medias::imdb_id))
-                    .filter(imdb_genres::genre_id.eq_any(filters.genre.iter().map(|(id, _)| id))),
-            ));
+            for genre_id in filters.genre.iter().map(|(id, _)| id) {
+                query = query.filter(exists(
+                    imdb_genres::table
+                        .filter(imdb_genres::imdb_id.nullable().eq(medias::imdb_id))
+                        .filter(imdb_genres::genre_id.eq(genre_id)),
+                ));
+            }
         }
 
         if !filters.actor.is_empty() {
-            query = query.filter(exists(
-                imdb_actors::table
-                    .filter(imdb_actors::imdb_id.nullable().eq(medias::imdb_id))
-                    .filter(imdb_actors::actor_id.eq_any(filters.actor.iter().map(|(id, _)| id))),
-            ));
+            for actor_id in filters.actor.iter().map(|(id, _)| id) {
+                query = query.filter(exists(
+                    imdb_actors::table
+                        .filter(imdb_actors::imdb_id.nullable().eq(medias::imdb_id))
+                        .filter(imdb_actors::actor_id.eq(actor_id)),
+                ));
+            }
         }
 
         if !filters.tags.is_empty() {
-            query = query.filter(exists(
-                media_tags::table
-                    .filter(media_tags::media_id.eq(medias::id))
-                    .filter(media_tags::tag_id.eq_any(filters.tags.iter().map(|(id, _)| id))),
-            ));
+            for tag_id in filters.tags.iter().map(|(id, _)| id) {
+                query = query.filter(exists(
+                    media_tags::table
+                        .filter(media_tags::media_id.eq(medias::id))
+                        .filter(media_tags::tag_id.eq(tag_id)),
+                ));
+            }
         }
 
         // -- Existence Filters --
@@ -933,6 +938,32 @@ impl DB for Sqlite {
                     files::table
                         .filter(files::media_id.eq(medias::id.nullable()))
                         .group_by(files::media_id)
+                        .having(diesel::dsl::count_star().le(1)),
+                ));
+            }
+        }
+
+        if let Some(exist_multi_file) = filters.exist_multi_file {
+            if exist_multi_file {
+                query = query.filter(diesel::dsl::exists(
+                    files::table
+                        .inner_join(
+                            episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
+                        )
+                        .inner_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
+                        .filter(seasons::media_id.eq(medias::id))
+                        .group_by(files::episode_id)
+                        .having(diesel::dsl::count_star().gt(1)),
+                ));
+            } else {
+                query = query.filter(diesel::dsl::exists(
+                    files::table
+                        .inner_join(
+                            episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
+                        )
+                        .inner_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
+                        .filter(seasons::media_id.eq(medias::id))
+                        .group_by(files::episode_id)
                         .having(diesel::dsl::count_star().le(1)),
                 ));
             }
@@ -987,26 +1018,26 @@ impl DB for Sqlite {
             .collect::<Vec<_>>())
     }
 
-    fn get_media_by_id_from_db(&self, media_id: IdType) -> Result<Option<Media>> {
+    fn get_media_by_id(&self, media_id: IdType) -> Result<Option<Media>> {
         self.get_conn()?
             .transaction(|conn| Self::get_media_by_id(conn, media_id))
     }
 
-    fn get_tags_from_db(&self) -> Result<Vec<Tag>> {
+    fn get_tags(&self) -> Result<Vec<Tag>> {
         let conn = &mut self.get_conn()?;
 
         let results = tags::table.order(tags::id.asc()).load(conn)?;
         Ok(results)
     }
 
-    fn remove_tag_from_db(&self, tag_id: IdType) -> Result<()> {
+    fn remove_tag(&self, tag_id: IdType) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::delete(tags::table.filter(tags::id.eq(tag_id))).execute(conn)?;
 
         Ok(())
     }
 
-    fn update_tag_from_db(&self, tag: &Tag) -> Result<()> {
+    fn update_tag(&self, tag: &Tag) -> Result<()> {
         let conn = &mut self.get_conn()?;
         diesel::update(tags::table.filter(tags::id.eq(tag.id)))
             .set(tags::name.eq(&tag.name))
@@ -1015,7 +1046,7 @@ impl DB for Sqlite {
         Ok(())
     }
 
-    fn get_medias_by_tag_from_db(&self, tag_id: IdType) -> Result<Vec<Media>> {
+    fn get_medias_by_tag(&self, tag_id: IdType) -> Result<Vec<Media>> {
         self.get_conn()?.transaction(|conn| {
             media_tags::table
                 .inner_join(medias::table.on(media_tags::media_id.eq(medias::id)))

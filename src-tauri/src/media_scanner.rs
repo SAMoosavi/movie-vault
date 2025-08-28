@@ -17,7 +17,7 @@ pub async fn find_movies<T: DB + 'static>(
         return Err(format!("Directory does not exist: {}", root.display()).into());
     }
 
-    let files = db.get_all_files_from_db()?;
+    let files = db.get_all_files()?;
     let videos = task::spawn_blocking(move || {
         WalkDir::new(root)
             .into_iter()
@@ -41,13 +41,10 @@ pub async fn find_movies<T: DB + 'static>(
 async fn find_non_existent_paths<T: DB>(
     db: &T,
 ) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
-    let files = db
-        .get_all_files_from_db()?
-        .into_iter()
-        .map(|video| async move {
-            let exists = fs::try_exists(&video.path).await.unwrap_or(false);
-            if !exists { Some(video) } else { None }
-        });
+    let files = db.get_all_files()?.into_iter().map(|video| async move {
+        let exists = fs::try_exists(&video.path).await.unwrap_or(false);
+        if !exists { Some(video) } else { None }
+    });
 
     let paths = join_all(files)
         .await
@@ -61,8 +58,8 @@ async fn find_non_existent_paths<T: DB>(
 
 pub async fn sync_files<T: DB>(db: &T) -> Result<(), Box<dyn std::error::Error>> {
     let paths = find_non_existent_paths(db).await?;
-    db.remove_file_by_path_from_db(&paths)?;
-    db.clear_empty_data_from_db()?;
+    db.remove_file_by_path(&paths)?;
+    db.clear_empty_data()?;
     Ok(())
 }
 
