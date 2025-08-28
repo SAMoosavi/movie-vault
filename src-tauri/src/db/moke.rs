@@ -40,7 +40,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn update_media_imdb(&self, _media_id: IdType, _imdb_id: &str) -> Result<()> {
+    fn update_media_imdb(&self, _media_id: IdType, _imdb_id: &str) -> Result<IdType> {
         todo!()
     }
 

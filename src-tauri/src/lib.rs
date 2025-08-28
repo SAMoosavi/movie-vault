@@ -1,5 +1,6 @@
 use tauri::Manager;
 
+use crate::data_model::IdType;
 use crate::db::{NumericalString, Sqlite};
 use crate::{
     data_model::Tag,
@@ -72,7 +73,7 @@ fn filter_medias(
 
 #[tauri::command]
 fn get_media_by_id(
-    media_id: i32,
+    media_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<data_model::Media, String> {
     let db = &state.db;
@@ -83,11 +84,11 @@ fn get_media_by_id(
 
 #[tauri::command]
 async fn update_media_imdb(
-    media_id: i32,
+    media_id: IdType,
     imdb_id: &str,
     api_key: &str,
     state: tauri::State<'_, AppState>,
-) -> Result<(), String> {
+) -> Result<IdType, String> {
     let db = &state.db;
     let imdb = omdb_meta_data::get_omdb_by_id(imdb_id, api_key)
         .await
@@ -95,13 +96,12 @@ async fn update_media_imdb(
 
     db.insert_imdb(&imdb).map_err(|e| e.to_string())?;
     db.update_media_imdb(media_id, imdb_id)
-        .map_err(|e| e.to_string())?;
-    Ok(())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn update_watch_list(
-    media_id: i32,
+    media_id: IdType,
     watch_list: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -113,7 +113,7 @@ fn update_watch_list(
 
 #[tauri::command]
 fn update_media_watched(
-    media_id: i32,
+    media_id: IdType,
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -125,7 +125,7 @@ fn update_media_watched(
 
 #[tauri::command]
 fn update_season_watched(
-    season_id: i32,
+    season_id: IdType,
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -137,7 +137,7 @@ fn update_season_watched(
 
 #[tauri::command]
 fn update_episode_watched(
-    episode_id: i32,
+    episode_id: IdType,
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -149,7 +149,7 @@ fn update_episode_watched(
 
 #[tauri::command]
 fn update_media_my_ranking(
-    media_id: i32,
+    media_id: IdType,
     my_ranking: u8,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -165,7 +165,7 @@ fn get_tags(state: tauri::State<'_, AppState>) -> Result<Vec<Tag>, String> {
 }
 
 #[tauri::command]
-fn remove_tag(tag_id: i32, state: tauri::State<'_, AppState>) -> Result<(), String> {
+fn remove_tag(tag_id: IdType, state: tauri::State<'_, AppState>) -> Result<(), String> {
     let db = &state.db;
     db.remove_tag(tag_id).map_err(|e| e.to_string())?;
     Ok(())
@@ -180,7 +180,7 @@ fn update_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String>
 
 #[tauri::command]
 fn get_medias_by_tag(
-    tag_id: i32,
+    tag_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
     let db = &state.db;
@@ -195,8 +195,8 @@ fn insert_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String>
 
 #[tauri::command]
 fn insert_media_tag(
-    media_id: i32,
-    tag_id: i32,
+    media_id: IdType,
+    tag_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
@@ -206,8 +206,8 @@ fn insert_media_tag(
 
 #[tauri::command]
 fn remove_media_tag(
-    media_id: i32,
-    tag_id: i32,
+    media_id: IdType,
+    tag_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;

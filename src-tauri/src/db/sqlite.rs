@@ -240,12 +240,6 @@ impl Sqlite {
     }
 
     fn insert_imdb(conn: &mut SqliteConnection, imdb: &Imdb) -> Result<()> {
-        let imdb_exists = imdbs::table
-            .filter(imdbs::imdb_id.eq(imdb.imdb_id.as_str()))
-            .select(diesel::dsl::count_star())
-            .first::<i64>(conn)?
-            > 0;
-
         let new = NewImdb {
             imdb_id: imdb.imdb_id.as_str(),
             title: imdb.title.as_str(),
@@ -353,18 +347,31 @@ impl Sqlite {
     }
 
     fn insert_season(conn: &mut SqliteConnection, media_id: IdType, season: &Season) -> Result<()> {
-        let new_episode = NewSeason {
-            media_id,
-            season_number: season.number,
-            watched: season.watched,
+        let seasons_id = seasons::table
+            .filter(
+                seasons::media_id
+                    .eq(media_id)
+                    .and(seasons::season_number.eq(season.number)),
+            )
+            .select(seasons::id)
+            .first::<IdType>(conn)
+            .optional()?;
+
+        let id: i32 = if let Some(id) = seasons_id {
+            id
+        } else {
+            let new_episode = NewSeason {
+                media_id,
+                season_number: season.number,
+                watched: season.watched,
+            };
+
+            diesel::insert_into(seasons::table)
+                .values(&new_episode)
+                .execute(conn)?;
+
+            diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)? as i32
         };
-
-        diesel::insert_into(seasons::table)
-            .values(&new_episode)
-            .execute(conn)?;
-
-        let id: i64 = diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result(conn)?;
-        let id = id as i32;
 
         for episode in &season.episodes {
             Self::insert_episodes(conn, id, episode)?;
@@ -378,17 +385,30 @@ impl Sqlite {
         season_id: IdType,
         episode: &Episode,
     ) -> Result<()> {
-        let new_episode = NewEpisode {
-            season_id,
-            episode_number: episode.number,
-            watched: episode.watched,
-        };
-        diesel::insert_into(episodes::table)
-            .values(&new_episode)
-            .execute(conn)?;
+        let episode_id = episodes::table
+            .filter(
+                episodes::season_id
+                    .eq(season_id)
+                    .and(episodes::episode_number.eq(episode.number)),
+            )
+            .select(episodes::id)
+            .first::<IdType>(conn)
+            .optional()?;
 
-        let id: i64 = diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result(conn)?;
-        let id = id as i32;
+        let id: i32 = if let Some(id) = episode_id {
+            id
+        } else {
+            let new_episode = NewEpisode {
+                season_id,
+                episode_number: episode.number,
+                watched: episode.watched,
+            };
+            diesel::insert_into(episodes::table)
+                .values(&new_episode)
+                .execute(conn)?;
+
+            diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)? as i32
+        };
 
         Self::insert_files(conn, &episode.files, None, Some(id))?;
 
@@ -811,13 +831,46 @@ impl DB for Sqlite {
             .transaction(|conn| Self::update_episode_watched(conn, episode_id, watched))
     }
 
-    fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<()> {
-        let conn = &mut self.get_conn()?;
-        diesel::update(medias::table.filter(medias::id.eq(media_id)))
-            .set(medias::imdb_id.eq(imdb_id))
-            .execute(conn)?;
+    fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType> {
+        self.get_conn()?.transaction(|conn| {
+            let existing_media = medias::table
+                .filter(medias::imdb_id.eq(imdb_id))
+                .filter(medias::id.ne(media_id))
+                .first::<DbMedia>(conn)
+                .optional()?;
 
-        Ok(())
+            if let Some(existing) = existing_media {
+                diesel::update(seasons::table.filter(seasons::media_id.eq(media_id)))
+                    .set(seasons::media_id.eq(existing.id))
+                    .execute(conn)?;
+
+                diesel::update(files::table.filter(files::media_id.nullable().eq(media_id)))
+                    .set(files::media_id.eq(existing.id))
+                    .execute(conn)?;
+
+                let media_tags = media_tags::table
+                    .filter(media_tags::media_id.eq(media_id))
+                    .select(media_tags::tag_id)
+                    .load::<IdType>(conn)?;
+
+                for tag_id in media_tags {
+                    diesel::insert_or_ignore_into(media_tags::table)
+                        .values(&NewMediaTag {
+                            media_id: existing.id,
+                            tag_id,
+                        })
+                        .execute(conn)?;
+                }
+
+                diesel::delete(medias::table.filter(medias::id.eq(media_id))).execute(conn)?;
+                Ok(existing.id)
+            } else {
+                diesel::update(medias::table.filter(medias::id.eq(media_id)))
+                    .set(medias::imdb_id.eq(imdb_id))
+                    .execute(conn)?;
+                Ok(media_id)
+            }
+        })
     }
 
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()> {

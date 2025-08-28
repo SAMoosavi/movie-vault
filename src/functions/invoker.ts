@@ -25,7 +25,7 @@ export async function get_media_by_id(mediaId: number): Promise<Media> {
   return await invoke('get_media_by_id', { mediaId })
 }
 
-export async function update_media_imdb(mediaId: number, imdbId: string): Promise<void> {
+export async function update_media_imdb(mediaId: number, imdbId: string): Promise<number> {
   return await invoke('update_media_imdb', { mediaId, imdbId, apiKey: '4c602a26' })
 }
 

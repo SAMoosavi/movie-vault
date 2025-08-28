@@ -6,13 +6,7 @@
       Back
     </button>
 
-    <template v-if="notFound">
-      <div class="py-12 text-center">
-        <Hash class="text-error/80 mx-auto mb-4 h-16 w-16" />
-        <h3 class="mb-2 text-xl font-semibold">No movie found</h3>
-      </div>
-    </template>
-    <template v-else-if="!movie">
+    <template v-if="!movie">
       <MovieHeaderSkeleton />
       <FilesSectionSkeleton />
     </template>
@@ -39,7 +33,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { Media } from '../type'
-import { useRoute } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import {
   get_media_by_id,
   update_episode_watched,
@@ -48,7 +42,7 @@ import {
   update_media_watched,
   update_season_watched,
 } from '../functions/invoker'
-import { ArrowLeft, Hash } from 'lucide-vue-next'
+import { ArrowLeft } from 'lucide-vue-next'
 import MovieHeader from '../component/MovieHeader.vue'
 import SearchMovie from '../component/SearchMovie.vue'
 import FilesSection from '../component/FilesSection.vue'
@@ -57,17 +51,21 @@ import FilesSectionSkeleton from '../component/FilesSectionSkeleton.vue'
 import { toast } from 'vue3-toastify'
 
 const route = useRoute()
+const router = useRouter()
 
 const movie = ref<Media>()
 const change = ref(false)
-const notFound = ref(false)
 
-async function get_movie() {
+function get_movie(id:number = 0) {
+  if(id !== 0){
+    router.push({name:route.name, params:{id}}).finally(()=>change.value= false)
+  return}
+
   get_media_by_id(+route.params.id)
     .then((data) => (movie.value = data))
     .catch((e) => {
       toast.error(e)
-      notFound.value = true
+      router.back()
     })
 }
 

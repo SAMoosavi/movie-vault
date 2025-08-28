@@ -1,6 +1,6 @@
 use std::{fmt, path::PathBuf};
 
-use crate::data_model::{Imdb, Media, MediaFile, Tag};
+use crate::data_model::{IdType, Imdb, Media, MediaFile, Tag};
 
 mod sqlite;
 pub use sqlite::Sqlite;
@@ -79,12 +79,12 @@ pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
 pub trait DB {
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;
-    fn update_media_my_ranking(&self, media_id: i32, my_ranking: u8) -> Result<usize>;
-    fn update_watch_list(&self, media_id: i32, watch_list: bool) -> Result<()>;
-    fn update_media_watched(&self, media_id: i32, watched: bool) -> Result<()>;
-    fn update_season_watched(&self, season_id: i32, watched: bool) -> Result<()>;
-    fn update_episode_watched(&self, episode_id: i32, watched: bool) -> Result<()>;
-    fn update_media_imdb(&self, media_id: i32, imdb_id: &str) -> Result<()>;
+    fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize>;
+    fn update_watch_list(&self, media_id: IdType, watch_list: bool) -> Result<()>;
+    fn update_media_watched(&self, media_id: IdType, watched: bool) -> Result<()>;
+    fn update_season_watched(&self, season_id: IdType, watched: bool) -> Result<()>;
+    fn update_episode_watched(&self, episode_id: IdType, watched: bool) -> Result<()>;
+    fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType>;
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()>;
     fn clear_empty_data(&self) -> Result<()>;
     fn get_genres(&self) -> Result<Vec<NumericalString>>;
@@ -93,12 +93,12 @@ pub trait DB {
     fn remove_file_by_path(&self, paths: &[PathBuf]) -> Result<()>;
     fn get_all_files(&self) -> Result<Vec<MediaFile>>;
     fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>>;
-    fn get_media_by_id(&self, media_id: i32) -> Result<Option<Media>>;
+    fn get_media_by_id(&self, media_id: IdType) -> Result<Option<Media>>;
     fn get_tags(&self) -> Result<Vec<Tag>>;
-    fn remove_tag(&self, tag_id: i32) -> Result<()>;
+    fn remove_tag(&self, tag_id: IdType) -> Result<()>;
     fn update_tag(&self, tag: &Tag) -> Result<()>;
-    fn get_medias_by_tag(&self, tag_id: i32) -> Result<Vec<Media>>;
+    fn get_medias_by_tag(&self, tag_id: IdType) -> Result<Vec<Media>>;
     fn insert_tag(&self, tag: &Tag) -> Result<()>;
-    fn insert_media_tag(&self, media_id: i32, tag_id: i32) -> Result<()>;
-    fn remove_media_tag(&self, media_id: i32, tag_id: i32) -> Result<()>;
+    fn insert_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
+    fn remove_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
 }
