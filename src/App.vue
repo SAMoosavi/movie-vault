@@ -34,8 +34,7 @@ const startWatching = async (paths: string[]) => {
       const unwatch = await fsWatch(
         path,
         async (event) => {
-          if (event?.type && 'access' in (event.type as object))
-            return
+          if (event?.type && 'access' in (event.type as object)) return
 
           await sync_files(path)
           await videos.reload_media()
@@ -70,8 +69,7 @@ onMounted(async () => {
 
   try {
     // Sync files with better error handling
-    for (const dir of dir_path.value)
-      await sync_files(dir)
+    for (const dir of dir_path.value) await sync_files(dir)
 
     await videos.reload_media()
 

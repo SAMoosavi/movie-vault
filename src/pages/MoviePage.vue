@@ -56,10 +56,11 @@ const router = useRouter()
 const movie = ref<Media>()
 const change = ref(false)
 
-function get_movie(id:number = 0) {
-  if(id !== 0){
-    router.push({name:route.name, params:{id}}).finally(()=>change.value= false)
-  return}
+function get_movie(id: number = 0) {
+  if (id !== 0) {
+    router.push({ name: route.name, params: { id } }).finally(() => (change.value = false))
+    return
+  }
 
   get_media_by_id(+route.params.id)
     .then((data) => (movie.value = data))

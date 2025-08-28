@@ -1,3 +1,6 @@
+mod data_models;
+pub mod schema;
+
 use super::{
     ContentType, DB, FilterValues, NumericalString, Result, SortByType, SortDirectionType,
 };
@@ -26,9 +29,6 @@ pub use schema::{
 };
 use std::path::PathBuf;
 use tauri::Manager;
-
-mod data_models;
-pub mod schema;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
