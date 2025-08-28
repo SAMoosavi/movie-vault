@@ -145,7 +145,7 @@ mod test_get_omdb_of_medias {
             ..Media::default()
         };
 
-        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26")
+        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "229a288b")
             .await
             .unwrap();
 
@@ -165,7 +165,7 @@ mod test_get_omdb_of_medias {
             ..Media::default()
         };
 
-        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "4c602a26")
+        let result = get_omdb_of_medias(std::slice::from_ref(&test_video), "229a288b")
             .await
             .unwrap();
 
@@ -185,7 +185,7 @@ mod test_get_omdb_with_id {
 
     #[tokio::test]
     async fn test_get_omdb_with_id() {
-        let result = get_omdb_by_id("tt0381849", "4c602a26").await;
+        let result = get_omdb_by_id("tt0381849", "229a288b").await;
         let ans =  Imdb {
             title: "3:10 to Yuma".into(),
             year: "2007".into(),
