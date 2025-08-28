@@ -1,12 +1,8 @@
 import type { FilterValues, NumericalString, Media, Tag } from '../type'
 import { invoke } from '@tauri-apps/api/core'
 
-export async function create_table(): Promise<void> {
-  return await invoke('create_table')
-}
-
 export async function sync_files(dir: string): Promise<number> {
-  return await invoke('sync_files', { root: dir, apiKey: '4c602a26' })
+  return await invoke('sync_files', { root: dir, apiKey: '229a288b' })
 }
 
 export async function get_actors(): Promise<NumericalString[]> {
@@ -29,8 +25,8 @@ export async function get_media_by_id(mediaId: number): Promise<Media> {
   return await invoke('get_media_by_id', { mediaId })
 }
 
-export async function update_media_imdb(mediaId: number, imdbId: string): Promise<void> {
-  return await invoke('update_media_imdb', { mediaId, imdbId, apiKey: '4c602a26' })
+export async function update_media_imdb(mediaId: number, imdbId: string): Promise<number> {
+  return await invoke('update_media_imdb', { mediaId, imdbId, apiKey: '229a288b' })
 }
 
 export async function update_media_watched(mediaId: number, watched: boolean): Promise<void> {

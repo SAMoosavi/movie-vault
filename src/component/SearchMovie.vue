@@ -120,13 +120,11 @@ onMounted(() => searchMovies(movieName.value))
 
 async function selectMovie(imdb_id: string) {
   try {
-    await update_media_imdb(props.movie.id, imdb_id)
-    emit('updated')
+    const id = await update_media_imdb(props.movie.id, imdb_id)
+    emit('updated', id)
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Failed to set imdb'
     toast.error(message)
-  } finally {
-    emit('cancel')
   }
 }
 </script>

@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS genres
+(
+    id   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS imdb_genres
+(
+    imdb_id  TEXT NOT NULL,
+    genre_id INTEGER NOT NULL,
+    PRIMARY KEY (imdb_id, genre_id),
+    FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+    FOREIGN KEY (genre_id) REFERENCES genres (id) ON DELETE CASCADE
+);

@@ -1,12 +1,11 @@
-use super::episode::Episode;
-
+use super::{IdType, episode::Episode};
 use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Season {
-    pub id: i64,
+    pub id: IdType,
     pub number: i32,
     pub watched: bool,
     pub episodes: Vec<Episode>,

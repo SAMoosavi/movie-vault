@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS actors
+(
+    id   INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS imdb_actors
+(
+    imdb_id  TEXT NOT NULL,
+    actor_id INTEGER NOT NULL,
+    PRIMARY KEY (imdb_id, actor_id),
+    FOREIGN KEY (imdb_id) REFERENCES imdbs (imdb_id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES actors (id) ON DELETE CASCADE
+);

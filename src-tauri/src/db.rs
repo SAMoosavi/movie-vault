@@ -1,14 +1,8 @@
-use std::{
-    fmt,
-    path::{Path, PathBuf},
-};
+use std::{fmt, path::PathBuf};
 
-use rusqlite::Result;
-
-use crate::data_model::{Imdb, Media, MediaFile, Tag};
+use crate::data_model::{IdType, Imdb, Media, MediaFile, Tag};
 
 mod sqlite;
-
 pub use sqlite::Sqlite;
 
 #[cfg(test)]
@@ -17,7 +11,7 @@ mod moke;
 #[cfg(test)]
 pub use moke::MokeDB;
 
-type NumericalString = (i64, String);
+pub type NumericalString = (i32, String);
 
 #[derive(Debug, Clone, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -81,30 +75,30 @@ pub struct FilterValues {
     pub tags: Vec<NumericalString>,
 }
 
-pub trait DB: Default + Send + Sync + Clone {
-    fn exist_file_by_path_from_db(&self, path: &Path) -> Result<bool>;
-    fn create_table(&self) -> Result<()>;
+pub type Result<T> = std::result::Result<T, anyhow::Error>;
+
+pub trait DB {
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;
-    fn update_media_my_ranking_to_db(&self, media_id: i64, my_ranking: u8) -> Result<usize>;
-    fn update_watch_list_to_db(&self, media_id: i64, watch_list: bool) -> Result<()>;
-    fn update_media_watched_to_db(&self, media_id: i64, watched: bool) -> Result<()>;
-    fn update_season_watched_to_db(&self, season_id: i64, watched: bool) -> Result<()>;
-    fn update_episode_watched_to_db(&self, episode_id: i64, watched: bool) -> Result<()>;
-    fn update_media_imdb_to_db(&self, media_id: i64, imdb_id: &str) -> Result<()>;
-    fn insert_imdb_to_db(&self, imdb: &Imdb) -> Result<()>;
-    fn clear_empty_data_from_db(&self) -> Result<()>;
-    fn get_genres_from_db(&self) -> Result<Vec<(usize, String)>>;
-    fn get_countries_from_db(&self) -> Result<Vec<(usize, String)>>;
-    fn get_actors_from_db(&self) -> Result<Vec<(usize, String)>>;
-    fn remove_file_by_path_from_db(&self, paths: &[PathBuf]) -> Result<()>;
-    fn get_all_files_from_db(&self) -> Result<Vec<MediaFile>>;
-    fn filter_medias_on_db(&self, filters: &FilterValues) -> Result<Vec<Media>>;
-    fn get_media_by_id_from_db(&self, media_id: i64) -> Result<Option<Media>>;
-    fn get_tags_from_db(&self) -> Result<Vec<Tag>>;
-    fn remove_tag_from_db(&self, tag_id: i64) -> Result<usize>;
-    fn update_tag_from_db(&self, tag: &Tag) -> Result<()>;
-    fn get_medias_by_tag_from_db(&self, tag_id: i64) -> Result<Vec<Media>>;
+    fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize>;
+    fn update_watch_list(&self, media_id: IdType, watch_list: bool) -> Result<()>;
+    fn update_media_watched(&self, media_id: IdType, watched: bool) -> Result<()>;
+    fn update_season_watched(&self, season_id: IdType, watched: bool) -> Result<()>;
+    fn update_episode_watched(&self, episode_id: IdType, watched: bool) -> Result<()>;
+    fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType>;
+    fn insert_imdb(&self, imdb: &Imdb) -> Result<()>;
+    fn clear_empty_data(&self) -> Result<()>;
+    fn get_genres(&self) -> Result<Vec<NumericalString>>;
+    fn get_countries(&self) -> Result<Vec<NumericalString>>;
+    fn get_actors(&self) -> Result<Vec<NumericalString>>;
+    fn remove_file_by_path(&self, paths: &[PathBuf]) -> Result<()>;
+    fn get_all_files(&self) -> Result<Vec<MediaFile>>;
+    fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>>;
+    fn get_media_by_id(&self, media_id: IdType) -> Result<Option<Media>>;
+    fn get_tags(&self) -> Result<Vec<Tag>>;
+    fn remove_tag(&self, tag_id: IdType) -> Result<()>;
+    fn update_tag(&self, tag: &Tag) -> Result<()>;
+    fn get_medias_by_tag(&self, tag_id: IdType) -> Result<Vec<Media>>;
     fn insert_tag(&self, tag: &Tag) -> Result<()>;
-    fn insert_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()>;
-    fn remove_media_tag(&self, media_id: i64, tag_id: i64) -> Result<()>;
+    fn insert_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
+    fn remove_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
 }
