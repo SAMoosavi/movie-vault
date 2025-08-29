@@ -15,7 +15,7 @@ pub struct MovieSearchResult {
 #[derive(Serialize, Deserialize)]
 pub struct SearchedMovie {
     #[serde(rename = "#YEAR")]
-    pub year: i32,
+    pub year: Option<i32>,
     #[serde(rename = "#IMDB_ID")]
     pub imdb_id: String,
 }
@@ -40,9 +40,9 @@ pub struct ImdbShort {
     pub image: String,
     pub description: String,
     pub aggregate_rating: AggregateRating,
-    pub genre: Vec<String>,
-    pub date_published: String,
-    pub actor: Vec<Person>,
+    pub genre: Option<Vec<String>>,
+    pub date_published: Option<String>,
+    pub actor: Option<Vec<Person>>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -81,12 +81,26 @@ impl From<ImdbDataResponse> for Imdb {
     fn from(data: ImdbDataResponse) -> Self {
         Self {
             title: data.short.name,
-            year: data.short.date_published.chars().take(4).collect(),
-            released: data.short.date_published,
-            genres: data.short.genre,
+            year: data
+                .short
+                .date_published
+                .as_deref()
+                .unwrap_or_default()
+                .split('-')
+                .next()
+                .unwrap_or_default()
+                .to_string(),
+            released: data
+                .short
+                .date_published
+                .as_deref()
+                .unwrap_or_default()
+                .to_string(),
+            genres: data.short.genre.unwrap_or_default(),
             actors: data
                 .short
                 .actor
+                .unwrap_or_default()
                 .into_iter()
                 .map(|a| Actor {
                     id: 0,
@@ -131,7 +145,10 @@ async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
     }
 
     let matched_movie = if let Some(year) = media.year {
-        movies.iter().find(|m| m.year == year)
+        movies
+            .iter()
+            .filter(|m| m.year.is_some())
+            .find(|m| m.year.unwrap() == year)
     } else {
         Some(&movies[0])
     };
@@ -178,7 +195,9 @@ pub async fn set_imdb_data(medias: &mut [Media]) {
         }
     });
 
-    join_all(futures).await.iter().for_each(|r| {
+    let result = join_all(futures).await;
+
+    result.iter().for_each(|r| {
         if let Err(e) = r {
             eprintln!("{}", e);
         }
@@ -187,7 +206,7 @@ pub async fn set_imdb_data(medias: &mut [Media]) {
 
 pub async fn get_imdb_data_by_id(imdb_id: &str) -> Result<Imdb> {
     let client = Client::new();
-    let imdb_data = get_imdb_data(&client, &imdb_id).await?;
+    let imdb_data = get_imdb_data(&client, imdb_id).await?;
 
     Ok(imdb_data.into())
 }
@@ -213,7 +232,7 @@ mod real_api_test {
         let result = get_imdb_data(&client, &imdb_id).await.unwrap();
 
         assert_eq!(result.short.type_, "Movie");
-        assert_eq!(result.short.date_published, "2014-02-21");
+        assert_eq!(result.short.date_published.unwrap(), "2014-02-21");
         assert_eq!(
             result.main.countries_details.countries[0].text,
             "United States"
@@ -232,7 +251,7 @@ mod real_api_test {
         let result = get_imdb_data(&client, &imdb_id).await.unwrap();
 
         assert_eq!(result.short.type_, "TVSeries");
-        assert_eq!(result.short.date_published, "2011-12-04");
+        assert_eq!(result.short.date_published.unwrap(), "2011-12-04");
         assert_eq!(
             result.main.countries_details.countries[0].text,
             "United Kingdom"
