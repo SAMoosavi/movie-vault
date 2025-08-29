@@ -244,16 +244,11 @@ impl Sqlite {
             imdb_id: imdb.imdb_id.as_str(),
             title: imdb.title.as_str(),
             year: Some(imdb.year.as_str()),
-            rated: Some(imdb.rated.as_str()),
             released: Some(imdb.released.as_str()),
-            runtime: Some(imdb.runtime.as_str()),
             plot: Some(imdb.plot.as_str()),
-            awards: Some(imdb.awards.as_str()),
             poster: Some(imdb.poster.as_str()),
             imdb_rating: Some(imdb.imdb_rating.as_str()),
             imdb_votes: Some(imdb.imdb_votes.as_str()),
-            box_office: imdb.box_office.as_deref(),
-            total_seasons: imdb.total_seasons.as_deref(),
             type_: imdb.r#type.as_str(),
         };
 
@@ -265,21 +260,9 @@ impl Sqlite {
             Self::insert_imdb_genre_by_name(conn, &imdb.imdb_id, g)?;
         }
 
-        for d in &imdb.directors {
-            Self::insert_imdb_director_by_name(conn, &imdb.imdb_id, d)?;
-        }
-
-        for w in &imdb.writers {
-            Self::insert_imdb_writer_by_name(conn, &imdb.imdb_id, w)?;
-        }
-
-        for a in &imdb.actors {
-            Self::insert_imdb_actor_by_name(conn, &imdb.imdb_id, a)?;
-        }
-
-        for l in &imdb.languages {
-            Self::insert_imdb_language_by_name(conn, &imdb.imdb_id, l)?;
-        }
+        // for a in &imdb.actors {
+        //     Self::insert_imdb_actor_by_name(conn, &imdb.imdb_id, a)?;
+        // }
 
         for c in &imdb.countries {
             Self::insert_imdb_country_by_name(conn, &imdb.imdb_id, c)?;
@@ -571,29 +554,11 @@ impl Sqlite {
             .select(genres::name)
             .load(conn)?;
 
-        imdb.directors = imdb_directors::table
-            .inner_join(directors::table.on(imdb_directors::director_id.eq(directors::id)))
-            .filter(imdb_directors::imdb_id.eq(imdb_id_val))
-            .select(directors::name)
-            .load(conn)?;
-
-        imdb.writers = imdb_writers::table
-            .inner_join(writers::table.on(imdb_writers::writer_id.eq(writers::id)))
-            .filter(imdb_writers::imdb_id.eq(imdb_id_val))
-            .select(writers::name)
-            .load(conn)?;
-
-        imdb.actors = imdb_actors::table
-            .inner_join(actors::table.on(imdb_actors::actor_id.eq(actors::id)))
-            .filter(imdb_actors::imdb_id.eq(imdb_id_val))
-            .select(actors::name)
-            .load(conn)?;
-
-        imdb.languages = imdb_languages::table
-            .inner_join(languages::table.on(imdb_languages::language_id.eq(languages::id)))
-            .filter(imdb_languages::imdb_id.eq(imdb_id_val))
-            .select(languages::name)
-            .load(conn)?;
+        // imdb.actors = imdb_actors::table
+        //     .inner_join(actors::table.on(imdb_actors::actor_id.eq(actors::id)))
+        //     .filter(imdb_actors::imdb_id.eq(imdb_id_val))
+        //     .select(actors::name)
+        //     .load(conn)?;
 
         imdb.countries = imdb_countries::table
             .inner_join(countries::table.on(imdb_countries::country_id.eq(countries::id)))
