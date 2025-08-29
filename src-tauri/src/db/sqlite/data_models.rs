@@ -1,9 +1,10 @@
 use super::schema::{
-    actors, countries, directors, episodes, files, genres, imdb_actors, imdb_countries,
-    imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
-    medias, seasons, tags, writers,
+    actors, countries, episodes, files, genres, imdb_actors, imdb_countries, imdb_genres, imdbs,
+    media_tags, medias, seasons, tags,
 };
-use crate::data_model::{Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag};
+use crate::data_model::{
+    Actor, Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag,
+};
 use diesel::{Identifiable, Insertable, Queryable};
 
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
@@ -155,6 +156,30 @@ impl From<DbTag> for Tag {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, Queryable)]
+#[diesel(table_name = files)]
+pub struct DbActor {
+    pub id: IdType,
+    pub name: String,
+    pub url: String,
+}
+
+impl From<&DbActor> for Actor {
+    fn from(db: &DbActor) -> Self {
+        Self {
+            id: db.id,
+            name: db.name.clone(),
+            url: db.url.clone(),
+        }
+    }
+}
+
+impl From<DbActor> for Actor {
+    fn from(db: DbActor) -> Self {
+        Self::from(&db)
+    }
+}
+
 #[derive(Insertable)]
 #[diesel(table_name = medias)]
 pub struct NewMedia<'a> {
@@ -220,35 +245,11 @@ pub struct NewImdbGenre<'a> {
     pub imdb_id: &'a str,
     pub genre_id: IdType,
 }
-#[derive(Insertable)]
-#[diesel(table_name = directors)]
-pub struct NewDirector<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = imdb_directors)]
-pub struct NewImdbDirector<'a> {
-    pub imdb_id: &'a str,
-    pub director_id: IdType,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = writers)]
-pub struct NewWriter<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = imdb_writers)]
-pub struct NewImdbWriter<'a> {
-    pub imdb_id: &'a str,
-    pub writer_id: IdType,
-}
 
 #[derive(Insertable)]
 #[diesel(table_name = actors)]
 pub struct NewActor<'a> {
+    pub url: &'a str,
     pub name: &'a str,
 }
 
@@ -257,19 +258,6 @@ pub struct NewActor<'a> {
 pub struct NewImdbActor<'a> {
     pub imdb_id: &'a str,
     pub actor_id: IdType,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = languages)]
-pub struct NewLanguage<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = imdb_languages)]
-pub struct NewImdbLanguage<'a> {
-    pub imdb_id: &'a str,
-    pub language_id: IdType,
 }
 
 #[derive(Insertable)]

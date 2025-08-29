@@ -4,13 +4,12 @@ pub mod schema;
 use super::{
     ContentType, DB, FilterValues, NumericalString, Result, SortByType, SortDirectionType,
 };
-use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Season, Tag};
+use crate::data_model::{Actor, Episode, IdType, Imdb, Media, MediaFile, Season, Tag};
 use anyhow::Ok;
 use data_models::{
-    DbEpisode, DbFile, DbImdb, DbMedia, DbSeason, NewActor, NewCountry, NewDirector, NewEpisode,
-    NewFile, NewGenre, NewImdb, NewImdbActor, NewImdbCountry, NewImdbDirector, NewImdbGenre,
-    NewImdbLanguage, NewImdbWriter, NewLanguage, NewMedia, NewMediaTag, NewSeason, NewTag,
-    NewWriter,
+    DbActor, DbEpisode, DbFile, DbImdb, DbMedia, DbSeason, NewActor, NewCountry, NewEpisode,
+    NewFile, NewGenre, NewImdb, NewImdbActor, NewImdbCountry, NewImdbGenre, NewMedia, NewMediaTag,
+    NewSeason, NewTag,
 };
 use diesel::{
     BoolExpressionMethods, Connection, ExpressionMethods, NullableExpressionMethods, QueryDsl,
@@ -22,10 +21,10 @@ use diesel::{
     sql_types::{BigInt, Double, Text},
 };
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 pub use schema::{
-    actors, countries, directors, episodes, files, genres, imdb_actors, imdb_countries,
-    imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
-    medias, seasons, tags, writers,
+    actors, countries, episodes, files, genres, imdb_actors, imdb_countries, imdb_genres, imdbs,
+    media_tags, medias, seasons, tags,
 };
 use std::path::PathBuf;
 use tauri::Manager;
@@ -88,19 +87,6 @@ impl Sqlite {
         Ok(id)
     }
 
-    fn insert_or_get_id_director(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
-        diesel::insert_or_ignore_into(directors::table)
-            .values(&NewDirector { name: name_val })
-            .execute(conn)?;
-
-        let id = directors::table
-            .filter(directors::name.eq(name_val))
-            .select(directors::id)
-            .first(conn)?;
-
-        Ok(id)
-    }
-
     fn insert_imdb_genre_by_name(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
@@ -116,97 +102,31 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_imdb_director_by_name(
-        conn: &mut SqliteConnection,
-        imdb_id_val: &str,
-        entity_name: &str,
-    ) -> Result<()> {
-        let ent_id = Self::insert_or_get_id_director(conn, entity_name)?;
-        diesel::insert_or_ignore_into(imdb_directors::table)
-            .values(&NewImdbDirector {
-                imdb_id: imdb_id_val,
-                director_id: ent_id,
-            })
-            .execute(conn)?;
-        Ok(())
-    }
-
-    fn insert_or_get_id_writer(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
-        diesel::insert_or_ignore_into(writers::table)
-            .values(&NewWriter { name: name_val })
-            .execute(conn)?;
-
-        let id = writers::table
-            .filter(writers::name.eq(name_val))
-            .select(writers::id)
-            .first(conn)?;
-        Ok(id)
-    }
-
-    fn insert_imdb_writer_by_name(
-        conn: &mut SqliteConnection,
-        imdb_id_val: &str,
-        entity_name: &str,
-    ) -> Result<()> {
-        let ent_id = Self::insert_or_get_id_writer(conn, entity_name)?;
-        diesel::insert_or_ignore_into(imdb_writers::table)
-            .values(&NewImdbWriter {
-                imdb_id: imdb_id_val,
-                writer_id: ent_id,
-            })
-            .execute(conn)?;
-        Ok(())
-    }
-
-    fn insert_or_get_id_actor(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
+    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Actor) -> Result<i32> {
         diesel::insert_or_ignore_into(actors::table)
-            .values(&NewActor { name: name_val })
+            .values(&NewActor {
+                name: &actor.name,
+                url: &actor.url,
+            })
             .execute(conn)?;
 
         let id = actors::table
-            .filter(actors::name.eq(name_val))
+            .filter(actors::name.eq(&actor.name))
             .select(actors::id)
             .first(conn)?;
         Ok(id)
     }
 
-    fn insert_imdb_actor_by_name(
+    fn insert_imdb_actor(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
-        entity_name: &str,
+        actor: &Actor,
     ) -> Result<()> {
-        let ent_id = Self::insert_or_get_id_actor(conn, entity_name)?;
+        let ent_id = Self::insert_or_get_id_actor(conn, actor)?;
         diesel::insert_or_ignore_into(imdb_actors::table)
             .values(&NewImdbActor {
                 imdb_id: imdb_id_val,
                 actor_id: ent_id,
-            })
-            .execute(conn)?;
-        Ok(())
-    }
-
-    fn insert_or_get_id_language(conn: &mut SqliteConnection, name_val: &str) -> Result<i32> {
-        diesel::insert_or_ignore_into(languages::table)
-            .values(&NewLanguage { name: name_val })
-            .execute(conn)?;
-
-        let id = languages::table
-            .filter(languages::name.eq(name_val))
-            .select(languages::id)
-            .first(conn)?;
-        Ok(id)
-    }
-
-    fn insert_imdb_language_by_name(
-        conn: &mut SqliteConnection,
-        imdb_id_val: &str,
-        entity_name: &str,
-    ) -> Result<()> {
-        let ent_id = Self::insert_or_get_id_language(conn, entity_name)?;
-        diesel::insert_or_ignore_into(imdb_languages::table)
-            .values(&NewImdbLanguage {
-                imdb_id: imdb_id_val,
-                language_id: ent_id,
             })
             .execute(conn)?;
         Ok(())
@@ -260,9 +180,9 @@ impl Sqlite {
             Self::insert_imdb_genre_by_name(conn, &imdb.imdb_id, g)?;
         }
 
-        // for a in &imdb.actors {
-        //     Self::insert_imdb_actor_by_name(conn, &imdb.imdb_id, a)?;
-        // }
+        for a in &imdb.actors {
+            Self::insert_imdb_actor(conn, &imdb.imdb_id, a)?;
+        }
 
         for c in &imdb.countries {
             Self::insert_imdb_country_by_name(conn, &imdb.imdb_id, c)?;
@@ -554,11 +474,14 @@ impl Sqlite {
             .select(genres::name)
             .load(conn)?;
 
-        // imdb.actors = imdb_actors::table
-        //     .inner_join(actors::table.on(imdb_actors::actor_id.eq(actors::id)))
-        //     .filter(imdb_actors::imdb_id.eq(imdb_id_val))
-        //     .select(actors::name)
-        //     .load(conn)?;
+        imdb.actors = imdb_actors::table
+            .inner_join(actors::table.on(imdb_actors::actor_id.eq(actors::id)))
+            .filter(imdb_actors::imdb_id.eq(imdb_id_val))
+            .select(actors::all_columns)
+            .load::<DbActor>(conn)?
+            .par_iter()
+            .map(Into::into)
+            .collect();
 
         imdb.countries = imdb_countries::table
             .inner_join(countries::table.on(imdb_countries::country_id.eq(countries::id)))
