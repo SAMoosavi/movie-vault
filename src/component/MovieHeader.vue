@@ -62,10 +62,6 @@
             <span class="text-xs">/10</span>
           </div>
 
-          <div class="text-sm">
-            <span class="badge badge-outline mr-2">{{ media.imdb?.rated }}</span>
-            <span>{{ media.imdb?.runtime }}</span>
-          </div>
 
           <div class="text-sm">
             {{ media.imdb?.released }}
@@ -115,20 +111,8 @@
         <!-- Cast and Crew -->
         <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <h3 class="text-base-content/70 mb-1 font-semibold">Directors</h3>
-            <p>{{ media.imdb?.directors?.join(', ') || 'N/A' }}</p>
-          </div>
-          <div>
-            <h3 class="text-base-content/70 mb-1 font-semibold">Writers</h3>
-            <p>{{ media.imdb?.writers?.join(', ') || 'N/A' }}</p>
-          </div>
-          <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Stars</h3>
-            <p>{{ media.imdb?.actors?.join(', ') || 'N/A' }}</p>
-          </div>
-          <div>
-            <h3 class="text-base-content/70 mb-1 font-semibold">Languages</h3>
-            <p>{{ media.imdb?.languages?.join(', ') || 'N/A' }}</p>
+            <p>{{ media.imdb?.actors?.map(a=>a.name).join(', ') || 'N/A' }}</p>
           </div>
         </div>
 
@@ -137,20 +121,6 @@
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Country</h3>
             <p>{{ media.imdb?.country?.join(', ') || 'N/A' }}</p>
-          </div>
-
-          <div v-if="media.imdb?.type == 'movie'">
-            <h3 class="text-base-content/70 mb-1 font-semibold">Box Office</h3>
-            <p>{{ media.imdb?.box_office || 'N/A' }}</p>
-          </div>
-          <div v-else-if="media.imdb?.type == 'series'">
-            <h3 class="text-base-content/70 mb-1 font-semibold">Total Seasons</h3>
-            <p>{{ media.imdb?.total_seasons || 'N/A' }}</p>
-          </div>
-
-          <div>
-            <h3 class="text-base-content/70 mb-1 font-semibold">Awards</h3>
-            <p>{{ media.imdb?.awards }}</p>
           </div>
         </div>
       </div>
