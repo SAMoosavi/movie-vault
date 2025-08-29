@@ -2,7 +2,7 @@ import type { FilterValues, NumericalString, Media, Tag } from '../type'
 import { invoke } from '@tauri-apps/api/core'
 
 export async function sync_files(dir: string): Promise<number> {
-  return await invoke('sync_files', { root: dir, apiKey: '229a288b' })
+  return await invoke('sync_files', { root: dir })
 }
 
 export async function get_actors(): Promise<NumericalString[]> {
@@ -26,7 +26,7 @@ export async function get_media_by_id(mediaId: number): Promise<Media> {
 }
 
 export async function update_media_imdb(mediaId: number, imdbId: string): Promise<number> {
-  return await invoke('update_media_imdb', { mediaId, imdbId, apiKey: '229a288b' })
+  return await invoke('update_media_imdb', { mediaId, imdbId })
 }
 
 export async function update_media_watched(mediaId: number, watched: boolean): Promise<void> {

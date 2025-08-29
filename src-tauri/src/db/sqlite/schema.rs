@@ -4,18 +4,12 @@ diesel::table! {
     actors (id) {
         id -> Integer,
         name -> Text,
+        url -> Text,
     }
 }
 
 diesel::table! {
     countries (id) {
-        id -> Integer,
-        name -> Text,
-    }
-}
-
-diesel::table! {
-    directors (id) {
         id -> Integer,
         name -> Text,
     }
@@ -64,30 +58,9 @@ diesel::table! {
 }
 
 diesel::table! {
-    imdb_directors (imdb_id, director_id) {
-        imdb_id -> Text,
-        director_id -> Integer,
-    }
-}
-
-diesel::table! {
     imdb_genres (imdb_id, genre_id) {
         imdb_id -> Text,
         genre_id -> Integer,
-    }
-}
-
-diesel::table! {
-    imdb_languages (imdb_id, language_id) {
-        imdb_id -> Text,
-        language_id -> Integer,
-    }
-}
-
-diesel::table! {
-    imdb_writers (imdb_id, writer_id) {
-        imdb_id -> Text,
-        writer_id -> Integer,
     }
 }
 
@@ -108,13 +81,6 @@ diesel::table! {
         total_seasons -> Nullable<Text>,
         #[sql_name = "type"]
         type_ -> Text,
-    }
-}
-
-diesel::table! {
-    languages (id) {
-        id -> Integer,
-        name -> Text,
     }
 }
 
@@ -153,13 +119,6 @@ diesel::table! {
     }
 }
 
-diesel::table! {
-    writers (id) {
-        id -> Integer,
-        name -> Text,
-    }
-}
-
 diesel::joinable!(episodes -> seasons (season_id));
 diesel::joinable!(files -> episodes (episode_id));
 diesel::joinable!(files -> medias (media_id));
@@ -167,14 +126,8 @@ diesel::joinable!(imdb_actors -> actors (actor_id));
 diesel::joinable!(imdb_actors -> imdbs (imdb_id));
 diesel::joinable!(imdb_countries -> countries (country_id));
 diesel::joinable!(imdb_countries -> imdbs (imdb_id));
-diesel::joinable!(imdb_directors -> directors (director_id));
-diesel::joinable!(imdb_directors -> imdbs (imdb_id));
 diesel::joinable!(imdb_genres -> genres (genre_id));
 diesel::joinable!(imdb_genres -> imdbs (imdb_id));
-diesel::joinable!(imdb_languages -> imdbs (imdb_id));
-diesel::joinable!(imdb_languages -> languages (language_id));
-diesel::joinable!(imdb_writers -> imdbs (imdb_id));
-diesel::joinable!(imdb_writers -> writers (writer_id));
 diesel::joinable!(media_tags -> medias (media_id));
 diesel::joinable!(media_tags -> tags (tag_id));
 diesel::joinable!(medias -> imdbs (imdb_id));
@@ -183,21 +136,15 @@ diesel::joinable!(seasons -> medias (media_id));
 diesel::allow_tables_to_appear_in_same_query!(
     actors,
     countries,
-    directors,
     episodes,
     files,
     genres,
     imdb_actors,
     imdb_countries,
-    imdb_directors,
     imdb_genres,
-    imdb_languages,
-    imdb_writers,
     imdbs,
-    languages,
     media_tags,
     medias,
     seasons,
     tags,
-    writers,
 );

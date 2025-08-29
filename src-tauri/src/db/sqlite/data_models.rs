@@ -1,9 +1,10 @@
 use super::schema::{
-    actors, countries, directors, episodes, files, genres, imdb_actors, imdb_countries,
-    imdb_directors, imdb_genres, imdb_languages, imdb_writers, imdbs, languages, media_tags,
-    medias, seasons, tags, writers,
+    actors, countries, episodes, files, genres, imdb_actors, imdb_countries, imdb_genres, imdbs,
+    media_tags, medias, seasons, tags,
 };
-use crate::data_model::{Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag};
+use crate::data_model::{
+    Actor, Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag,
+};
 use diesel::{Identifiable, Insertable, Queryable};
 
 #[derive(Debug, Clone, Queryable, Identifiable, serde::Serialize)]
@@ -102,22 +103,14 @@ impl From<DbImdb> for Imdb {
             imdb_id: db.imdb_id,
             title: db.title,
             year: db.year.unwrap_or_default(),
-            rated: db.rated.unwrap_or_default(),
             released: db.released.unwrap_or_default(),
-            runtime: db.runtime.unwrap_or_default(),
             plot: db.plot.unwrap_or_default(),
-            awards: db.awards.unwrap_or_default(),
             poster: db.poster.unwrap_or_default(),
             imdb_rating: db.imdb_rating.unwrap_or_default(),
             imdb_votes: db.imdb_votes.unwrap_or_default(),
-            box_office: db.box_office,
-            total_seasons: db.total_seasons,
             r#type: db.type_,
             genres: vec![],
-            directors: vec![],
-            writers: vec![],
             actors: vec![],
-            languages: vec![],
             countries: vec![],
         }
     }
@@ -160,6 +153,30 @@ impl From<DbTag> for Tag {
             id: db.id,
             name: db.name,
         }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, Queryable)]
+#[diesel(table_name = files)]
+pub struct DbActor {
+    pub id: IdType,
+    pub name: String,
+    pub url: String,
+}
+
+impl From<&DbActor> for Actor {
+    fn from(db: &DbActor) -> Self {
+        Self {
+            id: db.id,
+            name: db.name.clone(),
+            url: db.url.clone(),
+        }
+    }
+}
+
+impl From<DbActor> for Actor {
+    fn from(db: DbActor) -> Self {
+        Self::from(&db)
     }
 }
 
@@ -207,16 +224,11 @@ pub struct NewImdb<'a> {
     pub imdb_id: &'a str,
     pub title: &'a str,
     pub year: Option<&'a str>,
-    pub rated: Option<&'a str>,
     pub released: Option<&'a str>,
-    pub runtime: Option<&'a str>,
     pub plot: Option<&'a str>,
-    pub awards: Option<&'a str>,
     pub poster: Option<&'a str>,
     pub imdb_rating: Option<&'a str>,
     pub imdb_votes: Option<&'a str>,
-    pub box_office: Option<&'a str>,
-    pub total_seasons: Option<&'a str>,
     // #[diesel(column_name = "type")]
     pub type_: &'a str,
 }
@@ -233,35 +245,11 @@ pub struct NewImdbGenre<'a> {
     pub imdb_id: &'a str,
     pub genre_id: IdType,
 }
-#[derive(Insertable)]
-#[diesel(table_name = directors)]
-pub struct NewDirector<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = imdb_directors)]
-pub struct NewImdbDirector<'a> {
-    pub imdb_id: &'a str,
-    pub director_id: IdType,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = writers)]
-pub struct NewWriter<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = imdb_writers)]
-pub struct NewImdbWriter<'a> {
-    pub imdb_id: &'a str,
-    pub writer_id: IdType,
-}
 
 #[derive(Insertable)]
 #[diesel(table_name = actors)]
 pub struct NewActor<'a> {
+    pub url: &'a str,
     pub name: &'a str,
 }
 
@@ -270,19 +258,6 @@ pub struct NewActor<'a> {
 pub struct NewImdbActor<'a> {
     pub imdb_id: &'a str,
     pub actor_id: IdType,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = languages)]
-pub struct NewLanguage<'a> {
-    pub name: &'a str,
-}
-
-#[derive(Insertable)]
-#[diesel(table_name = imdb_languages)]
-pub struct NewImdbLanguage<'a> {
-    pub imdb_id: &'a str,
-    pub language_id: IdType,
 }
 
 #[derive(Insertable)]

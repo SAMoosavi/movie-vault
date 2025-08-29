@@ -25,26 +25,24 @@ export interface Season {
   episodes: Episode[]
 }
 
+export interface Actor {
+  id: number
+  name: string
+  url: string
+}
+
 export interface Imdb {
   title: string
   year: string
-  rated: string
   released: string
-  runtime: string
   genres: string[]
-  directors: string[]
-  writers: string[]
-  actors: string[]
+  actors: Actor[]
   plot: string
-  languages: string[]
   country: string[]
-  awards: string
   poster: string
   imdb_rating: string
   imdb_votes: string
   imdb_id: string
-  box_office?: string
-  total_seasons?: string
   type: string
 }
 
