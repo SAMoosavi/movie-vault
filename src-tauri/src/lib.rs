@@ -9,20 +9,16 @@ use crate::{
 
 mod data_model;
 mod db;
+mod imdbot;
 mod media_scanner;
 mod metadata_extractor;
-mod omdb_meta_data;
 
 struct AppState {
     db: Sqlite,
 }
 
 #[tauri::command]
-async fn sync_files(
-    root: &str,
-    api_key: &str,
-    state: tauri::State<'_, AppState>,
-) -> Result<usize, String> {
+async fn sync_files(root: &str, state: tauri::State<'_, AppState>) -> Result<usize, String> {
     let db = &state.db;
 
     media_scanner::sync_files(db)
@@ -33,13 +29,11 @@ async fn sync_files(
         .await
         .map_err(|e| e.to_string())?;
 
-    let metadata = metadata_extractor::get_metadata(&found_files);
-    let data = omdb_meta_data::get_omdb_of_medias(&metadata, api_key)
-        .await
-        .map_err(|e| e.to_string())?;
+    let mut metadata = metadata_extractor::get_metadata(&found_files);
+    imdbot::set_imdb_data(&mut metadata).await;
 
-    db.insert_medias(&data).map_err(|e| e.to_string())?;
-    Ok(data.len())
+    db.insert_medias(&metadata).map_err(|e| e.to_string())?;
+    Ok(metadata.len())
 }
 
 #[tauri::command]
@@ -86,11 +80,10 @@ fn get_media_by_id(
 async fn update_media_imdb(
     media_id: IdType,
     imdb_id: &str,
-    api_key: &str,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     let db = &state.db;
-    let imdb = omdb_meta_data::get_omdb_by_id(imdb_id, api_key)
+    let imdb = imdbot::get_imdb_data_by_id(imdb_id)
         .await
         .map_err(|e| e.to_string())?;
 
