@@ -53,7 +53,12 @@
         <div class="text-base-content/80 flex items-center text-sm">
           <User class="mr-1 h-4 w-4" />
           <div class="truncate">
-            {{ movie.imdb?.actors?.slice(0, 2).map((a)=>a.name).join(', ') }}
+            {{
+              movie.imdb?.actors
+                ?.slice(0, 2)
+                .map((a) => a.name)
+                .join(', ')
+            }}
             <span v-if="(movie.imdb?.actors?.length || 0) > 2">, ...</span>
           </div>
         </div>

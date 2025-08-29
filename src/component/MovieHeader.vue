@@ -62,7 +62,6 @@
             <span class="text-xs">/10</span>
           </div>
 
-
           <div class="text-sm">
             {{ media.imdb?.released }}
           </div>
@@ -112,7 +111,7 @@
         <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <h3 class="text-base-content/70 mb-1 font-semibold">Stars</h3>
-            <p>{{ media.imdb?.actors?.map(a=>a.name).join(', ') || 'N/A' }}</p>
+            <p>{{ media.imdb?.actors?.map((a) => a.name).join(', ') || 'N/A' }}</p>
           </div>
         </div>
 
