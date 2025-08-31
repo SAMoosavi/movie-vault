@@ -14,11 +14,11 @@
             <span class="text-base-content/70 text-2xl">({{ media.imdb?.year }})</span>
           </h1>
 
-          <button class="btn btn-primary" @click="$emit('edit')">change imdb data</button>
+          <button class="btn btn-primary" @click="emit('edit')">change imdb data</button>
         </div>
         <!-- Rating and Meta Info -->
         <div class="mb-4 flex flex-wrap items-center gap-4">
-          <div class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-watched')">
+          <div class="flex cursor-pointer items-center gap-2" @click="emit('toggle-watched')">
             <div v-if="media.watched" class="badge badge-lg badge-success gap-1">
               <Eye class="h-4 w-4" />
               <span>Watched</span>
@@ -29,7 +29,7 @@
             </div>
           </div>
 
-          <div v-if="!media.watched" class="flex cursor-pointer items-center gap-2" @click="$emit('toggle-watch-list')">
+          <div v-if="!media.watched" class="flex cursor-pointer items-center gap-2" @click="emit('toggle-watch-list')">
             <div v-if="media.watch_list" class="badge badge-lg badge-primary gap-1">
               <BookmarkCheck class="h-4 w-4" />
               <span>On Watchlist</span>
@@ -51,7 +51,7 @@
                 :class="{
                   'text-warning fill-warning': i <= media.my_ranking,
                 }"
-                @click="$emit('set-ranking', i)"
+                @click="emit('set-ranking', i)"
               />
             </div>
           </div>
@@ -132,25 +132,50 @@ import { computed, onMounted, ref } from 'vue'
 import type { Media, Tag } from '../type'
 import { Star, Eye, EyeOff, BookmarkPlus, BookmarkCheck, TagsIcon, CircleX } from 'lucide-vue-next'
 import { get_tags, insert_media_tag, remove_media_tag } from '../functions/invoker'
+import { toast } from 'vue3-toastify'
 
 const props = defineProps<{ media: Media }>()
-defineEmits(['edit', 'toggle-watched', 'set-ranking', 'toggle-watch-list'])
+const emit = defineEmits<{
+  (e: 'edit'): void
+  (e: 'toggle-watched'): void
+  (e: 'set-ranking', rank: number): void
+  (e: 'toggle-watch-list'): void
+}>()
 
 const tags = ref<Tag[]>([])
-const selectedTagId = ref(0)
+const selectedTagId = ref<number>(0)
 
 onMounted(async () => {
-  tags.value = await get_tags()
+  try {
+    tags.value = await get_tags()
+  } catch (err) {
+    console.error('Failed to load tags:', err)
+  }
 })
 
-const selectableTags = computed(() => tags.value.filter((tag) => !props.media.tags.some((t) => t.id === tag.id)))
+const selectableTags = computed(() => {
+  const mediaTags = props.media?.tags ?? []
+  return tags.value.filter((t) => !mediaTags.some((mt) => mt.id === t.id))
+})
 
 async function addTagToMovie() {
-  await insert_media_tag(props.media.id, selectedTagId.value)
-  selectedTagId.value = 0
+  const tagId = selectedTagId.value
+  if (!tagId) return
+  try {
+    await insert_media_tag(props.media.id, tagId)
+    selectedTagId.value = 0
+  } catch (err) {
+    console.error('Failed to add tag:', err)
+    toast.error('Failed to add tag')
+  }
 }
 
 async function removeTag(tag_id: number) {
-  await remove_media_tag(props.media.id, tag_id)
+  try {
+    await remove_media_tag(props.media.id, tag_id)
+  } catch (err) {
+    console.error('Failed to remove tag:', err)
+    toast.error('Failed to remove tag')
+  }
 }
 </script>

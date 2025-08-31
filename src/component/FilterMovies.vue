@@ -1,21 +1,23 @@
 <template>
+  <!-- Card Container -->
   <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5">
     <div class="card bg-base-200 p-6">
-      <!-- Header -->
+      <!-- Header Section -->
       <div class="mb-6 flex items-center justify-between">
         <div class="flex items-center">
           <Filter class="text-primary mr-2 h-5 w-5" />
           <h2 class="text-base-content text-lg font-semibold">Advanced Filters</h2>
         </div>
-
+        <!-- Reset Button -->
         <button type="reset" class="btn btn-ghost btn-sm" @click="filtersStore.resetFilters()">
           <RefreshCcw class="mr-1 h-4 w-4" />
           Reset Filters
         </button>
       </div>
 
+      <!-- Filters Grid -->
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <!-- Search name -->
+        <!-- Movie Name Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Movie name</span>
@@ -26,7 +28,7 @@
           </label>
         </div>
 
-        <!-- Type -->
+        <!-- Type Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Type</span>
@@ -38,7 +40,7 @@
           </select>
         </div>
 
-        <!-- Min Rating -->
+        <!-- Minimum Rating Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Min Rating</span>
@@ -49,7 +51,7 @@
           </select>
         </div>
 
-        <!-- Country -->
+        <!-- Country Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Country</span>
@@ -57,7 +59,7 @@
           <AutocompleteSelect v-model="filters.country" :items="countries" />
         </div>
 
-        <!-- Genre -->
+        <!-- Genre Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Genre</span>
@@ -65,19 +67,19 @@
           <AutocompleteSelect v-model="filters.genre" :items="genres" />
         </div>
 
-        <!-- Actor -->
+        <!-- Actor Filter -->
         <div class="form-control">
           <label class="label"><span class="label-text">Actor</span></label>
           <AutocompleteSelect v-model="filters.actor" :items="actors" />
         </div>
 
-        <!-- Tag -->
+        <!-- Tag Filter -->
         <div class="form-control">
           <label class="label"><span class="label-text">Tag</span></label>
           <AutocompleteSelect v-model="filters.tags" :items="tags" />
         </div>
 
-        <!-- Exist IMDb -->
+        <!-- Has IMDb Filter -->
         <div class="form-control">
           <label class="label"><span class="label-text">Has IMDb</span></label>
           <select v-model="filters.existImdb" class="select select-bordered w-full pr-8">
@@ -87,7 +89,7 @@
           </select>
         </div>
 
-        <!-- Multiple Files -->
+        <!-- Multiple Files Filter -->
         <div class="form-control">
           <label class="label"><span class="label-text">Multiple Files</span></label>
           <select v-model="filters.existMultiFile" class="select select-bordered w-full pr-8">
@@ -97,9 +99,9 @@
           </select>
         </div>
 
-        <!-- watched -->
+        <!-- Watched Filter -->
         <div class="form-control">
-          <label class="label"><span class="label-text">watched</span></label>
+          <label class="label"><span class="label-text">Watched</span></label>
           <select v-model="filters.watched" class="select select-bordered w-full pr-8">
             <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
               {{ opt.label }}
@@ -107,9 +109,9 @@
           </select>
         </div>
 
-        <!-- watch list -->
+        <!-- Watch List Filter -->
         <div class="form-control">
-          <label class="label"><span class="label-text">watch list</span></label>
+          <label class="label"><span class="label-text">Watch List</span></label>
           <select v-model="filters.watchList" class="select select-bordered w-full pr-8">
             <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
               {{ opt.label }}
@@ -117,7 +119,7 @@
           </select>
         </div>
 
-        <!-- Sort By -->
+        <!-- Sort By Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Sort By</span>
@@ -129,7 +131,7 @@
           </select>
         </div>
 
-        <!-- Sort Type -->
+        <!-- Sort Direction Filter -->
         <div class="form-control">
           <label class="label">
             <span class="label-text">Sort Type</span>
@@ -146,14 +148,20 @@
 </template>
 
 <script setup lang="ts">
+// --- Icons ---
 import { Filter, RefreshCcw, Search } from 'lucide-vue-next'
+
+// --- Stores & helpers ---
 import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { get_actors, get_countries, get_genres, get_tags } from '../functions/invoker'
+
+// --- Components & types ---
 import AutocompleteSelect from './AutocompleteSelect.vue'
 import type { NumericalString } from '../type'
 
+// --- State / lifecycle ---
 const filtersStore = useFiltersStore()
 const { filters } = storeToRefs(filtersStore)
 
@@ -170,7 +178,6 @@ onMounted(async () => {
       get_actors(),
       get_tags(),
     ])
-
     genres.value = genresData
     countries.value = countriesData
     actors.value = actorsData
@@ -180,18 +187,21 @@ onMounted(async () => {
   }
 })
 
+// --- Boolean select options ---
 const boolOptions = [
   { label: 'Any', value: null },
   { label: 'Yes', value: true },
   { label: 'No', value: false },
 ]
 
+// --- Sort options ---
 const sortByOptions = [
   { label: 'Name', value: 'name' },
   { label: 'Rating', value: 'imdb' },
   { label: 'Year', value: 'year' },
 ]
 
+// --- Sort direction options ---
 const sortTypeOptions = [
   { label: 'Descending', value: 'desc' },
   { label: 'Ascending', value: 'asc' },

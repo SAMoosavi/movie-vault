@@ -1,39 +1,47 @@
 <template>
+  <!-- Main Container -->
   <div class="container mx-auto min-h-screen">
     <!-- Back Button -->
-    <button @click="$router.back()" class="btn btn-ghost my-6">
+    <button @click="goBack" class="btn btn-ghost my-6">
       <ArrowLeft class="mr-2 h-5 w-5" />
       Back
     </button>
 
+    <!-- Loading Skeletons -->
     <template v-if="!movie">
       <MovieHeaderSkeleton />
       <FilesSectionSkeleton />
     </template>
-    <template v-else>
-      <MovieHeader
-        v-if="movie.imdb && !change"
-        :media="movie"
-        @edit="() => (change = true)"
-        @toggle-watched="toggle_media_watched"
-        @set-ranking="set_ranking"
-        @toggle-watch-list="toggle_watch_list"
-      />
-      <SearchMovie v-else :movie="movie" :change="change" @cancel="() => (change = false)" @updated="get_movie" />
 
-      <FilesSection
-        :movie="movie"
-        @set-watched-episode="set_watched_episode"
-        @set-watched-season="set_watched_season"
+    <!-- Movie Content -->
+    <template v-else>
+      <!-- Movie Header or Edit/Search -->
+      <MovieHeader
+        v-if="movie.imdb && !isEditing"
+        :media="movie"
+        @edit="startEditing"
+        @toggle-watched="toggleWatched"
+        @set-ranking="setRanking"
+        @toggle-watch-list="toggleWatchList"
       />
+      <SearchMovie v-else :movie="movie" :change="isEditing" @cancel="cancelEditing" @updated="fetchMovie" />
+
+      <!-- Files Section -->
+      <FilesSection :movie="movie" @set-watched-episode="setWatchedEpisode" @set-watched-season="setWatchedSeason" />
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
+// --- External ---
 import { ref, onMounted, onUnmounted } from 'vue'
-import type { Media } from '../type'
+import { toast } from 'vue3-toastify'
+
+// --- Routing & types ---
 import { useRouter, useRoute } from 'vue-router'
+import type { Media } from '../type'
+
+// --- Functions & components ---
 import {
   get_media_by_id,
   update_episode_watched,
@@ -48,54 +56,78 @@ import SearchMovie from '../component/SearchMovie.vue'
 import FilesSection from '../component/FilesSection.vue'
 import MovieHeaderSkeleton from '../component/MovieHeaderSkeleton.vue'
 import FilesSectionSkeleton from '../component/FilesSectionSkeleton.vue'
-import { toast } from 'vue3-toastify'
 
+// --- State ---
 const route = useRoute()
 const router = useRouter()
+const movie = ref<Media | null>(null)
+const isEditing = ref(false)
+let fetchInterval: number | undefined
 
-const movie = ref<Media>()
-const change = ref(false)
+// --- Navigation ---
+function goBack() {
+  router.back()
+}
 
-function get_movie(id: number = 0) {
+// Fetch movie data by ID (safer error handling)
+async function fetchMovie(id: number = 0) {
   if (id !== 0) {
-    router.push({ name: route.name, params: { id } }).finally(() => (change.value = false))
+    // navigate to a new id, reset edit mode afterwards
+    await router.push({ name: route.name, params: { id } })
+    isEditing.value = false
     return
   }
 
-  get_media_by_id(+route.params.id)
-    .then((data) => (movie.value = data))
-    .catch((e) => {
-      toast.error(e)
-      router.back()
-    })
+  try {
+    const data = await get_media_by_id(Number(route.params.id))
+    movie.value = data
+  } catch (error) {
+    toast.error(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Failed to fetch movie')
+    goBack()
+  }
 }
 
-let interval = 0
+// --- Edit mode handlers ---
+function startEditing() {
+  isEditing.value = true
+}
+function cancelEditing() {
+  isEditing.value = false
+}
+
+// --- Movie actions ---
+async function toggleWatched() {
+  if (movie.value) {
+    await update_media_watched(movie.value.id, !movie.value.watched)
+  }
+}
+async function toggleWatchList() {
+  if (movie.value) {
+    await update_media_watch_list(movie.value.id, !movie.value.watch_list)
+  }
+}
+async function setWatchedEpisode(episodeId: number, newState: boolean) {
+  await update_episode_watched(episodeId, newState)
+}
+async function setWatchedSeason(seasonId: number, newState: boolean) {
+  await update_season_watched(seasonId, newState)
+}
+async function setRanking(rank: number) {
+  if (movie.value) {
+    await update_media_my_ranking(movie.value.id, rank)
+  }
+}
+
+// Use window.setInterval and clear it correctly
 onMounted(() => {
-  interval = setInterval(get_movie, 300)
+  // initial fetch
+  fetchMovie()
+  fetchInterval = window.setInterval(() => fetchMovie(), 300)
 })
-onUnmounted(() => clearInterval(interval))
 
-async function toggle_media_watched() {
-  if (movie.value) await update_media_watched(movie.value.id, !movie.value.watched)
-}
-async function toggle_watch_list() {
-  if (movie.value) await update_media_watch_list(movie.value.id, !movie.value.watch_list)
-}
-
-async function set_watched_episode(episode_id: number, new_state: boolean) {
-  console.log(episode_id)
-
-  await update_episode_watched(episode_id, new_state)
-}
-
-async function set_watched_season(season_id: number, new_state: boolean) {
-  console.log(season_id)
-
-  await update_season_watched(season_id, new_state)
-}
-
-async function set_ranking(rank: number) {
-  if (movie.value) await update_media_my_ranking(movie.value.id, rank)
-}
+onUnmounted(() => {
+  if (typeof fetchInterval !== 'undefined') {
+    clearInterval(fetchInterval)
+  }
+})
 </script>

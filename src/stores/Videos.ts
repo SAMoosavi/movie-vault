@@ -5,15 +5,18 @@ import { computed, ref } from 'vue'
 import { useFiltersStore } from './Filters'
 
 export const useVideosStore = defineStore('videos', () => {
-  const filterStore = useFiltersStore()
+  const filtersStore = useFiltersStore()
+  const videos = ref<Media[]>([])
 
-  const videos_metadata = ref<Media[]>([])
-
-  async function reload_media() {
-    videos_metadata.value = await filter_medias(filterStore.filters)
+  async function reload() {
+    videos.value = await filter_medias(filtersStore.filters)
   }
 
-  const number_of_videos = computed(() => videos_metadata.value.length)
+  const count = computed(() => videos.value.length)
 
-  return { videos_metadata, reload_media, number_of_videos }
+  return {
+    videos,
+    reload,
+    count,
+  }
 })

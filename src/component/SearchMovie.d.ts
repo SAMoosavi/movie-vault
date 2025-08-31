@@ -6,7 +6,7 @@ export interface MovieSearchResult {
 
 export interface SearchedMovie {
   '#TITLE': string
-  '#YEAR': number
+  '#YEAR': string | number
   '#IMDB_ID': string
   '#RANK': number
   '#ACTORS': string

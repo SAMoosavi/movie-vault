@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Media } from '../type'
 import { update_media_imdb } from '../functions/invoker'
 import { toast } from 'vue3-toastify'
@@ -92,31 +92,50 @@ import { fetch } from '@tauri-apps/plugin-http'
 import { SearchX, Search } from 'lucide-vue-next'
 import type { MovieSearchResult, SearchedMovie } from './SearchMovie'
 
-const props = defineProps<{ movie: Media; change: boolean }>()
-const emit = defineEmits(['cancel', 'updated'])
+const props = defineProps<{ movie: Media; change?: boolean }>()
+const emit = defineEmits<{ (e: 'cancel'): void; (e: 'updated', id: number): void }>()
 
-const movieName = ref(props.movie.name)
-
+const movieName = ref<string>(props.movie?.name ?? '')
 const searchItems = ref<SearchedMovie[]>([])
-const loading = ref(false)
+const loading = ref<boolean>(false)
 
-async function searchMovies(title: string) {
-  if (title.length == 0) {
-    loading.value = false
+let debounceTimer: number | undefined
+
+async function performSearch(title: string) {
+  const trimmed = title.trim()
+  if (!trimmed) {
     searchItems.value = []
+    loading.value = false
     return
   }
 
   loading.value = true
-  const response = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(title)}`)
-  const result: MovieSearchResult = await response.json()
-  searchItems.value = result.description
-  loading.value = false
+  try {
+    const response = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(trimmed)}`)
+    const result: MovieSearchResult = await response.json()
+    searchItems.value = result?.description ?? []
+  } catch (err) {
+    console.error('Search error:', err)
+    toast.error('Search failed')
+    searchItems.value = []
+  } finally {
+    loading.value = false
+  }
 }
 
-watch(movieName, searchMovies)
+watch(
+  movieName,
+  (val) => {
+    if (debounceTimer) clearTimeout(debounceTimer)
+    debounceTimer = window.setTimeout(() => performSearch(val), 350) as unknown as number
+  },
+  { immediate: false },
+)
 
-onMounted(() => searchMovies(movieName.value))
+onMounted(() => performSearch(movieName.value))
+onBeforeUnmount(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
 
 async function selectMovie(imdb_id: string) {
   try {

@@ -7,12 +7,9 @@
       <figure class="relative">
         <img :src="movie.imdb?.poster" :alt="movie.imdb?.title || movie.name" class="h-96 w-full object-cover" />
 
-        <div
-          v-if="(movie.imdb?.imdb_rating || NA) !== NA"
-          class="badge badge-neutral absolute bottom-3 left-3 flex items-center"
-        >
+        <div v-if="imdbRating !== NA" class="badge badge-neutral absolute bottom-3 left-3 flex items-center">
           <Star class="text-warning fill-warning mr-1 h-4 w-4" />
-          <span class="font-semibold">{{ movie.imdb?.imdb_rating }}</span>
+          <span class="font-semibold">{{ imdbRating }}</span>
         </div>
         <div v-if="movie.watched" class="badge badge-success absolute top-3 right-3 flex items-center">
           <Eye class="mr-1 h-4 w-4" />
@@ -37,7 +34,7 @@
           <span class="capitalize">{{ movie.imdb?.type }}</span>
         </div>
 
-        <div v-if="movie.imdb?.genres.length" class="mb-3 flex flex-wrap gap-1">
+        <div v-if="hasGenres" class="mb-3 flex flex-wrap gap-1">
           <span v-for="genre in movie.imdb?.genres" :key="genre" class="badge badge-outline badge-sm">
             {{ genre }}
           </span>
@@ -53,12 +50,7 @@
         <div class="text-base-content/80 flex items-center text-sm">
           <User class="mr-1 h-4 w-4" />
           <div class="truncate">
-            {{
-              movie.imdb?.actors
-                ?.slice(0, 2)
-                .map((a) => a.name)
-                .join(', ')
-            }}
+            {{ actorList }}
             <span v-if="(movie.imdb?.actors?.length || 0) > 2">, ...</span>
           </div>
         </div>
@@ -79,10 +71,27 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Calendar, Star, User, Eye, BookmarkCheck, Tags } from 'lucide-vue-next'
 import type { Media } from '../type'
 
-defineProps<{ movie: Media }>()
+const props = defineProps<{ movie: Media }>()
+const movie = props.movie
 
 const NA = 'N/A'
+
+const imdbRating = computed(() => {
+  const r = movie.imdb?.imdb_rating
+  return r === undefined || r === null ? NA : r
+})
+
+const hasGenres = computed(() => Array.isArray(movie.imdb?.genres) && movie.imdb!.genres.length > 0)
+
+const actorList = computed(() => {
+  const actors = movie.imdb?.actors ?? []
+  return actors
+    .slice(0, 2)
+    .map((a) => a.name)
+    .join(', ')
+})
 </script>

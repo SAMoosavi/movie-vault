@@ -1,96 +1,94 @@
 <template>
+  <!-- App Navbar -->
   <AppNavbar />
-
+  <!-- Router View -->
   <router-view />
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, onUnmounted, watch } from 'vue'
+// --- External Libraries ---
+import { onMounted, onBeforeUnmount, watch } from 'vue'
+import { toast } from 'vue3-toastify'
+
+// --- Local Components ---
 import AppNavbar from './component/AppNavbar.vue'
+
+// --- Tauri API ---
 import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
+
+// --- Stores ---
 import { useDirsStore } from './stores/Dirs'
 import { storeToRefs } from 'pinia'
-import { sync_files } from './functions/invoker'
 import { useVideosStore } from './stores/Videos'
-import { toast } from 'vue3-toastify'
+
+// --- Functions ---
+import { sync_files } from './functions/invoker'
 import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
 
+// --- State ---
 const videos = useVideosStore()
-const dir = useDirsStore()
-const { dir_path } = storeToRefs(dir)
-
+const dirsStore = useDirsStore()
+const { directoryPaths } = storeToRefs(dirsStore)
 let unwatchFns: UnwatchFn[] = []
 
-const stopWatching = () => {
+// --- Helper: Stop watching directories ---
+function stopWatching() {
   unwatchFns.forEach((fn) => fn())
   unwatchFns = []
 }
 
-const startWatching = async (paths: string[]) => {
+// --- Helper: Start watching directories ---
+async function startWatching(paths: string[]) {
   stopWatching()
-
   for (const path of paths) {
     try {
       const unwatch = await fsWatch(
         path,
-        async (event) => {
-          if (event?.type && 'access' in (event.type as object)) return
-
+        async () => {
           await sync_files(path)
-          await videos.reload_media()
+          await videos.reload()
         },
-        {
-          recursive: true,
-          delayMs: 1000,
-        },
+        { recursive: true, delayMs: 1000 },
       )
-
       unwatchFns.push(unwatch)
     } catch (error) {
-      console.error(`Failed to set up file watcher for path ${path}:`, error)
+      console.error(`Failed to set up file watcher for ${path}:`, error)
     }
   }
 }
 
-function getErrorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e)
-}
-
+// --- Lifecycle: On mount, initialize theme and sync files ---
 onMounted(async () => {
   try {
+    // Theme initialization
     const store = await initStore()
     const theme = (await loadTheme(store)) ?? getDefaultTheme()
     await setTheme(theme, store)
   } catch (e) {
-    const message = getErrorMessage(e)
-    console.error('Initialization error:', e)
-    toast.error(`Failed to initialize: ${message}`)
+    toast.error(e instanceof Error ? e.message : String(e))
   }
 
   try {
-    // Sync files with better error handling
-    for (const dir of dir_path.value) await sync_files(dir)
-
-    await videos.reload_media()
-
-    await startWatching(dir_path.value)
+    // Initial sync and watcher setup
+    for (const dir of directoryPaths.value) {
+      await sync_files(dir)
+    }
+    await videos.reload()
+    await startWatching(directoryPaths.value)
   } catch (e) {
-    const message = getErrorMessage(e)
-
-    console.error('Initialization error:', e)
-    toast.error(`Failed to initialize: ${message}`)
+    toast.error(e instanceof Error ? e.message : String(e))
   }
 })
 
+// --- Watch for changes in directory paths ---
 watch(
-  () => dir_path.value,
-  async (v) => {
-    await startWatching(v)
+  () => directoryPaths.value,
+  async (paths) => {
+    await startWatching(paths)
   },
   { immediate: true, deep: true },
 )
 
-onBeforeUnmount(() => stopWatching())
-
-onUnmounted(() => stopWatching())
+// --- Clean up watchers on unmount ---
+onBeforeUnmount(stopWatching)
 </script>

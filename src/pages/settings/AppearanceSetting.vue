@@ -1,16 +1,18 @@
 <template>
+  <!-- Appearance Settings Card -->
   <SettingCategoryCard name="Appearance Settings" description="Customize the look and feel of your application">
     <div class="card-body">
       <div class="flex flex-wrap gap-4">
+        <!-- Theme selection cards -->
         <div
           v-for="theme in themes"
           :key="theme"
           :data-theme="theme"
-          @click="themeName = theme"
+          @click="selectTheme(theme)"
           class="card cursor-pointer border transition-all"
           :class="{
-            'border-primary ring-primary/50 bg-primary/5 ring-2': themeName === theme,
-            'border-base-300 hover:border-base-400': themeName !== theme,
+            'border-primary ring-primary/50 bg-primary/5 ring-2': selectedTheme === theme,
+            'border-base-300 hover:border-base-400': selectedTheme !== theme,
           }"
         >
           <div class="card-body p-3">
@@ -26,23 +28,34 @@
     </div>
   </SettingCategoryCard>
 </template>
+
 <script setup lang="ts">
+// --- Vue & store ---
 import { ref, watch, onMounted } from 'vue'
 import { Store } from '@tauri-apps/plugin-store'
+
+// --- Theme helpers ---
 import { getDefaultTheme, initStore, loadTheme, setTheme, themes } from '../../functions/theme.ts'
+
+// --- Components ---
 import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
 
-let store: Store | null = null
-const themeName = ref('')
+// --- State ---
+let settingsStore: Store | null = null
+const selectedTheme = ref('')
+
+function selectTheme(theme: string) {
+  selectedTheme.value = theme
+}
 
 watch(
-  themeName,
-  async (newVal) => {
-    if (store) {
+  selectedTheme,
+  async (newTheme) => {
+    if (settingsStore) {
       try {
-        await setTheme(newVal, store)
-      } catch (e) {
-        console.error('Failed to save theme index:', e)
+        await setTheme(newTheme, settingsStore)
+      } catch (error) {
+        console.error('Failed to save theme:', error)
       }
     }
   },
@@ -50,12 +63,9 @@ watch(
 )
 
 onMounted(async () => {
-  store = await initStore()
-  let theme = await loadTheme(store)
-  if (!theme) {
-    theme = getDefaultTheme()
-  }
-
-  themeName.value = theme
+  settingsStore = await initStore()
+  let theme = await loadTheme(settingsStore)
+  if (!theme) theme = getDefaultTheme()
+  selectedTheme.value = theme
 })
 </script>

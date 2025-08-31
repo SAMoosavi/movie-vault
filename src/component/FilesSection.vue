@@ -1,14 +1,16 @@
 <template>
+  <!-- Files Section Card -->
   <div class="card bg-base-100 shadow-xl">
     <div class="card-body">
+      <!-- Title Section -->
       <h2 class="card-title mb-4 flex items-center gap-2">
         <FileText class="h-6 w-6" />
         <span>Available Files</span>
-        <div class="badge badge-secondary">{{ totalFileCount }} files</div>
+        <div class="badge badge-secondary">{{ fileCount }} files</div>
       </h2>
 
       <div class="border-base-200 overflow-hidden rounded-lg border shadow-sm">
-        <!-- Header -->
+        <!-- Table Header -->
         <div class="bg-primary text-primary-content hidden p-3 text-center font-bold sm:grid sm:grid-cols-4">
           <div>File Details</div>
           <div>Quality</div>
@@ -16,19 +18,19 @@
           <div>Actions</div>
         </div>
 
-        <!-- Movie Files -->
-        <template v-if="movie.files?.length">
+        <!-- If Movie Files Exist -->
+        <template v-if="hasMovieFiles">
           <FileRow v-for="file in movie.files" :key="file.path" :file="file" />
         </template>
 
-        <!-- Series -->
+        <!-- If Series (Seasons) Exist -->
         <template v-else>
           <div v-for="season in movie.seasons" :key="season.id" class="border-base-300 border-t">
             <!-- Season Accordion -->
             <div class="collapse-arrow bg-base-200 collapse rounded-none">
               <input type="checkbox" />
               <div class="collapse-title flex items-center justify-between font-semibold">
-                <span class="font-semibold"> Season {{ season.number }} </span>
+                <span>Season {{ season.number }}</span>
                 <button
                   class="z-10 flex cursor-pointer items-center gap-2"
                   @click="$emit('set-watched-season', season.id, !season.watched)"
@@ -44,6 +46,7 @@
                 </button>
               </div>
               <div class="collapse-content bg-base-100">
+                <!-- Episodes List -->
                 <div v-for="episode in season.episodes" :key="episode.id" class="border-base-300 border-t">
                   <!-- Episode Accordion -->
                   <div class="collapse-arrow collapse">
@@ -65,6 +68,7 @@
                       </button>
                     </div>
                     <div class="collapse-content">
+                      <!-- Episode Files -->
                       <FileRow v-for="file in episode.files" :key="file.path" :file="file" />
                     </div>
                   </div>
@@ -79,23 +83,36 @@
 </template>
 
 <script setup lang="ts">
+// --- External Libraries ---
 import { computed } from 'vue'
 import { FileText, Eye, EyeOff } from 'lucide-vue-next'
+
+// --- Local Components ---
 import FileRow from './FileRow.vue'
+
+// --- Types ---
 import type { Media } from '../type'
 
+// --- Props definition ---
 interface Props {
   movie: Media
 }
 const props = defineProps<Props>()
 
+// --- Emits for watched toggling ---
 defineEmits(['set-watched-season', 'set-watched-episode'])
 
-const totalFileCount = computed(() => {
-  if (props.movie.files?.length) return props.movie.files.length
-  if (props.movie.seasons?.length) {
-    return props.movie.seasons.reduce((seasonAcc, s) => {
-      return seasonAcc + s.episodes.reduce((epAcc, e) => epAcc + e.files.length, 0)
+// --- Helper: Check if movie has files ---
+const hasMovieFiles = computed(() => Array.isArray(props.movie.files) && props.movie.files.length > 0)
+
+// --- Helper: Total file count (movie or series) ---
+const fileCount = computed(() => {
+  if (hasMovieFiles.value) {
+    return props.movie.files.length
+  }
+  if (Array.isArray(props.movie.seasons)) {
+    return props.movie.seasons.reduce((seasonTotal, season) => {
+      return seasonTotal + season.episodes.reduce((episodeTotal, episode) => episodeTotal + episode.files.length, 0)
     }, 0)
   }
   return 0

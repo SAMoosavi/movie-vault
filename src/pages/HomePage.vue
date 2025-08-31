@@ -1,61 +1,73 @@
 <template>
+  <!-- Main Container -->
   <main class="container mx-auto px-4 py-6">
+    <!-- Movie filter controls -->
     <FilterMovies />
 
-    <LoadingView v-if="loading" />
-    <!-- Movie Grid -->
-    <div v-else>
-      <ResultsInfo :totalMovies="videos_metadata.length" :numberOfSearchedMovies="videos_metadata.length" />
+    <!-- Loading indicator -->
+    <LoadingView v-if="isLoading" />
 
-      <NotFoundMovies v-if="videos_metadata.length === 0" />
+    <!-- Movie results grid -->
+    <div v-else>
+      <ResultsInfo :totalMovies="movies.length" :numberOfSearchedMovies="movies.length" />
+
+      <!-- No movies found message -->
+      <NotFoundMovies v-if="movies.length === 0" />
+
+      <!-- Display movie cards in a grid -->
       <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <MovieCard v-for="movie in videos_metadata" :key="movie.id" :movie="movie" />
+        <MovieCard v-for="movie in movies" :key="movie.id" :movie="movie" />
       </div>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
+// --- Vue & toast ---
 import { onMounted, ref, watch } from 'vue'
 import { toast } from 'vue3-toastify'
+
+// --- Components ---
 import FilterMovies from '../component/FilterMovies.vue'
 import LoadingView from '../component/LoadingView.vue'
 import ResultsInfo from '../component/ResultsInfo.vue'
 import NotFoundMovies from '../component/NotFoundMovies.vue'
 import MovieCard from '../component/MovieCard.vue'
+
+// --- Stores ---
 import { useVideosStore } from '../stores/Videos'
-import { storeToRefs } from 'pinia'
 import { useFiltersStore } from '../stores/Filters'
+import { storeToRefs } from 'pinia'
 
-const loading = ref(true)
+// --- State ---
+const isLoading = ref(true)
+const videosStore = useVideosStore()
+const { videos: movies } = storeToRefs(videosStore)
+const filtersStore = useFiltersStore()
+const { filters } = storeToRefs(filtersStore)
 
-const videos = useVideosStore()
-const { videos_metadata } = storeToRefs(videos)
-
+// --- Lifecycle: initial load ---
 onMounted(async () => {
   try {
-    await videos.reload_media()
-  } catch (e) {
-    console.error('Data fetching error:', e)
-    toast.error(`Failed to load data: ${e instanceof Error ? e.message : 'Unknown error'}`)
+    await videosStore.reload()
+  } catch (error) {
+    console.error('Error loading movies:', error)
+    toast.error(`Failed to load movies: ${error instanceof Error ? error.message : 'Unknown error'}`)
   } finally {
-    loading.value = false
+    isLoading.value = false
   }
 })
 
-const filtersStore = useFiltersStore()
+watch(filters, () => fetchMovies(), { deep: true })
 
-const { filters } = storeToRefs(filtersStore)
-
-// Watch and emit on change
-watch(filters, () => search(), { deep: true })
-
-async function search() {
-  loading.value = true
-  videos
-    .reload_media()
-    .then(() => {})
-    .catch((e) => toast.error(e))
-    .finally(() => (loading.value = false))
+async function fetchMovies() {
+  isLoading.value = true
+  try {
+    await videosStore.reload()
+  } catch (error) {
+    toast.error(`Failed to reload movies: ${error}`)
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
