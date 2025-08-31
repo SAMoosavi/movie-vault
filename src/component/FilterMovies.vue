@@ -1,146 +1,279 @@
 <template>
-  <!-- Card Container -->
-  <div class="card from-primary/50 to-secondary/50 mb-8 bg-gradient-to-br p-0.5">
-    <div class="card bg-base-200 p-6">
-      <!-- Header Section -->
-      <div class="mb-6 flex items-center justify-between">
+  <!-- Modern Card Container with Enhanced Gradient -->
+  <div class="card from-primary/40 to-secondary/40 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
+    <div class="card from-base-100 to-base-200 bg-gradient-to-br p-6 ">
+      <!-- Enhanced Header Section -->
+      <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div class="flex items-center">
-          <Filter class="text-primary mr-2 h-5 w-5" />
-          <h2 class="text-base-content text-lg font-semibold">Advanced Filters</h2>
+          <div class="bg-primary/10 mr-3 rounded-lg p-2">
+            <Filter class="text-primary h-5 w-5" />
+          </div>
+          <div>
+            <h2 class="text-base-content text-xl font-bold">Movie Filters</h2>
+            <p class="text-base-content/60 text-sm">Customize your movie discovery experience</p>
+          </div>
         </div>
-        <!-- Reset Button -->
-        <button type="reset" class="btn btn-ghost btn-sm" @click="filtersStore.resetFilters()">
-          <RefreshCcw class="mr-1 h-4 w-4" />
-          Reset Filters
+        <!-- Enhanced Reset Button -->
+        <button
+          type="reset"
+          class="btn btn-outline btn-primary btn-sm flex items-center gap-2"
+          @click="filtersStore.resetFilters()"
+        >
+          <RefreshCcw class="h-4 w-4" />
+          Reset All
         </button>
       </div>
 
-      <!-- Filters Grid -->
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <!-- Movie Name Filter -->
-        <div class="form-control">
+      <!-- Enhanced Filters Grid -->
+      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <!-- Movie Name Filter with Enhanced Styling -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Movie name</span>
+            <span class="label-text font-medium">Movie name</span>
           </label>
-          <label class="input input-bordered w-full max-w-xs">
-            <Search class="h-4" />
-            <input v-model="filters.name" type="search" placeholder="Search movie name..." />
-          </label>
+          <div class="relative">
+            <Search class="text-primary absolute top-1/2 left-3 z-10 h-6 w-6 -translate-y-1/2 transform" />
+            <input
+              v-model="filters.name"
+              type="search"
+              placeholder="Search movie name..."
+              class="input input-bordered w-full pl-10 transition-all"
+            />
+          </div>
         </div>
 
-        <!-- Type Filter -->
-        <div class="form-control">
+        <!-- Country Filter with Enhanced Styling -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Type</span>
+            <span class="label-text font-medium">Country</span>
           </label>
-          <select class="select select-bordered" v-model="filters.type">
-            <option value="all">All Types</option>
-            <option value="movie">Movies</option>
-            <option value="series">Series</option>
-          </select>
+          <AutocompleteSelect v-model="filters.country" :items="countries" class="transition-all" />
         </div>
 
-        <!-- Minimum Rating Filter -->
-        <div class="form-control">
+        <!-- Genre Filter with Enhanced Styling -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Min Rating</span>
+            <span class="label-text font-medium">Genre</span>
           </label>
-          <select class="select select-bordered w-full pr-8" v-model="filters.minRating">
-            <option :value="null">Any Rating</option>
-            <option v-for="i in 9" :key="i" :value="i">{{ i }}+ Stars</option>
-          </select>
+          <AutocompleteSelect v-model="filters.genre" :items="genres" class="transition-all" />
         </div>
 
-        <!-- Country Filter -->
-        <div class="form-control">
+        <!-- Actor Filter with Enhanced Styling -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Country</span>
+            <span class="label-text font-medium">Actor</span>
           </label>
-          <AutocompleteSelect v-model="filters.country" :items="countries" />
+          <AutocompleteSelect v-model="filters.actor" :items="actors" class="transition-all" />
         </div>
 
-        <!-- Genre Filter -->
-        <div class="form-control">
+        <!-- Tag Filter with Enhanced Styling -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Genre</span>
+            <span class="label-text font-medium">Tag</span>
           </label>
-          <AutocompleteSelect v-model="filters.genre" :items="genres" />
+          <AutocompleteSelect v-model="filters.tags" :items="tags" class="transition-all" />
         </div>
 
-        <!-- Actor Filter -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Actor</span></label>
-          <AutocompleteSelect v-model="filters.actor" :items="actors" />
-        </div>
-
-        <!-- Tag Filter -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Tag</span></label>
-          <AutocompleteSelect v-model="filters.tags" :items="tags" />
-        </div>
-
-        <!-- Has IMDb Filter -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Has IMDb</span></label>
-          <select v-model="filters.existImdb" class="select select-bordered w-full pr-8">
-            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Multiple Files Filter -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Multiple Files</span></label>
-          <select v-model="filters.existMultiFile" class="select select-bordered w-full pr-8">
-            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Watched Filter -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Watched</span></label>
-          <select v-model="filters.watched" class="select select-bordered w-full pr-8">
-            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Watch List Filter -->
-        <div class="form-control">
-          <label class="label"><span class="label-text">Watch List</span></label>
-          <select v-model="filters.watchList" class="select select-bordered w-full pr-8">
-            <option v-for="opt in boolOptions" :key="opt.label" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
-        </div>
-
-        <!-- Sort By Filter -->
-        <div class="form-control">
+        <!-- Enhanced Minimum Rating Filter using Range Slider -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Sort By</span>
+            <span class="label-text flex w-full justify-between font-medium">
+              <span>Min Rating</span>
+            </span>
           </label>
-          <select class="select select-bordered" v-model="filters.sortBy">
-            <option v-for="opt in sortByOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
+
+          <div class="w-full max-w-xs">
+            <input
+              type="range"
+              :min="0"
+              :max="10"
+              v-model.number.lazy="filters.minRating"
+              class="range range-primary"
+              :step="1"
+            />
+
+            <div class="mt-2 flex justify-between px-2.5 text-xs">
+              <span>0</span>
+              <span>2</span>
+              <span>4</span>
+              <span>6</span>
+              <span>8</span>
+              <span>10</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Sort Direction Filter -->
-        <div class="form-control">
+        <!-- Enhanced Sort By Filter -->
+        <div class="form-control w-full">
           <label class="label">
-            <span class="label-text">Sort Type</span>
+            <span class="label-text font-medium">Sort By</span>
           </label>
-          <select class="select select-bordered" v-model="filters.sortDirection">
-            <option v-for="opt in sortTypeOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
+
+          <div class="join w-full">
+            <select class="join-item select select-bordered w-full transition-all" v-model="filters.sortBy">
+              <option v-for="opt in sortByOptions" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
+            <button class="btn join-item rounded-r-full">
+              <ArrowDownNarrowWide
+                v-if="filters.sortDirection === 'asc'"
+                @click="() => (filters.sortDirection = 'desc')"
+                class="text-primary h-6 w-6"
+              />
+              <ArrowDownWideNarrow v-else @click="() => (filters.sortDirection = 'asc')" class="text-primary h-6 w-6" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Type Filter with Enhanced Styling -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text font-medium">Type</span>
+          </label>
+          <div class="filter">
+            <input
+              class="btn filter-reset btn-error"
+              type="radio"
+              @click="filters.type = 'all'"
+              name="watch_list"
+              aria-label="All"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.type = 'movie'"
+              name="watch_list"
+              aria-label="Movies"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.type = 'series'"
+              name="watch_list"
+              aria-label="Series"
+            />
+          </div>
+        </div>
+
+        <!-- Enhanced Has IMDb Filter using Toggle -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text font-medium">Has IMDb</span>
+          </label>
+          <div class="filter">
+            <input
+              class="btn filter-reset btn-error"
+              type="radio"
+              @click="filters.existImdb = null"
+              name="has_imdb"
+              aria-label="All"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.existImdb = true"
+              name="has_imdb"
+              aria-label="Yes"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.existImdb = false"
+              name="has_imdb"
+              aria-label="No"
+            />
+          </div>
+        </div>
+
+        <!-- Enhanced Multiple Files Filter using Toggle -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text font-medium">Multiple Files</span>
+          </label>
+          <div class="filter">
+            <input
+              class="btn filter-reset btn-error"
+              type="radio"
+              @click="filters.existMultiFile = null"
+              name="multi_file"
+              aria-label="All"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.existMultiFile = true"
+              name="multi_file"
+              aria-label="Yes"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.existMultiFile = false"
+              name="multi_file"
+              aria-label="No"
+            />
+          </div>
+        </div>
+
+        <!-- Enhanced Watched Filter using Toggle -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text font-medium">Watched</span>
+          </label>
+          <div class="filter">
+            <input
+              class="btn filter-reset btn-error"
+              type="radio"
+              @click="filters.watched = null"
+              name="watched"
+              aria-label="All"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.watched = true"
+              name="watched"
+              aria-label="Yes"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.watched = false"
+              name="watched"
+              aria-label="No"
+            />
+          </div>
+        </div>
+
+        <!-- Enhanced Watch List Filter using Toggle -->
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text font-medium">Watch List</span>
+          </label>
+          <div class="filter">
+            <input
+              class="btn filter-reset btn-error"
+              type="radio"
+              @click="filters.watchList = null"
+              name="watch_list"
+              aria-label="All"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.watchList = true"
+              name="watch_list"
+              aria-label="Yes"
+            />
+            <input
+              class="btn checked:btn-primary transition-all duration-150"
+              type="radio"
+              @click="filters.watchList = false"
+              name="watch_list"
+              aria-label="No"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -149,7 +282,7 @@
 
 <script setup lang="ts">
 // --- Icons ---
-import { Filter, RefreshCcw, Search } from 'lucide-vue-next'
+import { ArrowDownNarrowWide, ArrowDownWideNarrow, Filter, RefreshCcw, Search } from 'lucide-vue-next'
 
 // --- Stores & helpers ---
 import { useFiltersStore } from '../stores/Filters'
@@ -187,13 +320,6 @@ onMounted(async () => {
   }
 })
 
-// --- Boolean select options ---
-const boolOptions = [
-  { label: 'Any', value: null },
-  { label: 'Yes', value: true },
-  { label: 'No', value: false },
-]
-
 // --- Sort options ---
 const sortByOptions = [
   { label: 'Name', value: 'name' },
@@ -201,9 +327,4 @@ const sortByOptions = [
   { label: 'Year', value: 'year' },
 ]
 
-// --- Sort direction options ---
-const sortTypeOptions = [
-  { label: 'Descending', value: 'desc' },
-  { label: 'Ascending', value: 'asc' },
-]
 </script>
