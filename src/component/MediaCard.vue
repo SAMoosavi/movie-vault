@@ -1,0 +1,54 @@
+<template>
+  <RouterLink
+    :to="{ name: 'movie_page', params: { id: media.id.toString() } }"
+    class="card from-primary/50 to-secondary/50 h-72 w-52 bg-gradient-to-br p-0.5 transition-transform duration-200 hover:scale-105"
+  >
+    <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
+      <figure class="relative h-full">
+        <img
+          :src="`https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`"
+          :alt="media.name"
+          class="h-full w-full object-cover"
+        />
+
+        <!-- IMDB Rating Badge -->
+        <div
+          v-if="media.imdb?.imdb_rating"
+          class="badge badge-warning absolute top-2 left-2 flex items-center gap-1 text-xs"
+        >
+          <StarIcon class="h-3 w-3" />
+          <span>{{ media.imdb?.imdb_rating || 'N/A' }}</span>
+        </div>
+
+        <!-- Year Badge -->
+        <div
+          v-if="media.year || media.imdb?.year"
+          class="badge badge-primary absolute top-2 right-2 flex items-center gap-1 text-xs"
+        >
+          <CalendarIcon class="h-3 w-3" />
+          <span>{{ media.year || media.imdb?.year }}</span>
+        </div>
+
+        <!-- Type Icon -->
+        <div class="bg-secondary absolute right-2 bottom-2 flex h-6 w-6 items-center justify-center rounded-full p-1">
+          <component :is="media.imdb?.type === 'Movie' ? FilmIcon : TvIcon" class="text-secondary-content h-3 w-3" />
+        </div>
+
+        <!-- Watched Icon -->
+        <div
+          v-if="media.watched"
+          class="bg-success absolute bottom-2 left-2 flex h-6 w-6 items-center justify-center rounded-full p-1"
+        >
+          <EyeIcon class="text-success-content h-3 w-3" />
+        </div>
+      </figure>
+    </div>
+  </RouterLink>
+</template>
+
+<script setup lang="ts">
+import { CalendarIcon, StarIcon, FilmIcon, TvIcon, EyeIcon } from 'lucide-vue-next'
+import type { Media } from '../type'
+
+defineProps<{ media: Media }>()
+</script>

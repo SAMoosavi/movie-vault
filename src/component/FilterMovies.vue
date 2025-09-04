@@ -266,14 +266,14 @@
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
-                @click="filters.type = 'movie'"
+                @click="filters.type = 'Movie'"
                 name="watch_list"
                 aria-label="Movies"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
-                @click="filters.type = 'series'"
+                @click="filters.type = 'TVSeries'"
                 name="watch_list"
                 aria-label="Series"
               />

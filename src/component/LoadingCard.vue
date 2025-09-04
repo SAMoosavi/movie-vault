@@ -1,27 +1,14 @@
 <template>
-  <div class="card shadow-md">
-    <div class="skeleton h-96 w-full"></div>
+  <div class="card from-primary/50 to-secondary/50 h-72 w-52 animate-pulse bg-gradient-to-br p-0.5">
+    <div class="card card-compact relative h-full w-full overflow-hidden shadow-lg">
+      <figure class="relative h-full">
+        <div class="skeleton h-full w-full"></div>
 
-    <div class="card-body p-4">
-      <div class="skeleton mb-2 h-6 rounded"></div>
-
-      <div class="mb-3 flex items-center text-sm">
-        <div class="skeleton mr-1 h-4 w-4 rounded-full"></div>
-        <div class="skeleton mr-2 h-3 w-16 rounded"></div>
-        <div class="skeleton mx-1 h-3 w-3 rounded-full"></div>
-        <div class="skeleton h-3 w-12 rounded"></div>
-      </div>
-
-      <div class="mb-3 flex flex-wrap gap-1">
-        <div class="skeleton h-4 w-12 rounded"></div>
-        <div class="skeleton h-4 w-16 rounded"></div>
-        <div class="skeleton h-4 w-14 rounded"></div>
-      </div>
-
-      <div class="flex items-center text-sm">
-        <div class="skeleton mr-1 h-4 w-4 rounded-full"></div>
-        <div class="skeleton h-3 w-32 rounded"></div>
-      </div>
+        <div class="badge skeleton absolute top-2 left-2 flex h-4 w-10 items-center gap-1 rounded text-xs"></div>
+        <div class="badge skeleton absolute top-2 right-2 flex h-4 w-10 items-center gap-1 rounded text-xs"></div>
+        <div class="skeleton absolute right-2 bottom-2 h-6 w-6 rounded-full p-1"></div>
+        <div class="skeleton absolute bottom-2 left-2 h-6 w-6 rounded-full p-1"></div>
+      </figure>
     </div>
   </div>
 </template>

@@ -1,6 +1,6 @@
 <template>
   <!-- Navbar Container -->
-  <div class="navbar bg-base-100 sticky top-0 z-10 shadow-lg">
+  <div class="navbar bg-base-100 sticky top-0 z-99 shadow-lg">
     <!-- Left: App Name & Mobile Menu -->
     <div class="navbar-start">
       <!-- Mobile Dropdown Menu -->
@@ -63,14 +63,14 @@ import { FolderPlus, AlignJustify } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
 
 // --- Stores ---
-import { useVideosStore } from '../stores/Videos'
+import { useMediasStore } from '../stores/medias'
 import { useDirsStore } from '../stores/Dirs'
 
 // --- Functions ---
 import { sync_files } from '../functions/invoker'
 
 // --- Store instances ---
-const videosStore = useVideosStore()
+const mediasStore = useMediasStore()
 const dirsStore = useDirsStore()
 
 /**
@@ -101,7 +101,7 @@ async function onAddDirectory() {
     toast.info('Adding directory and syncing files...')
     // Sync files and update video metadata
     const addedCount = await sync_files(selectedDirectory)
-    await videosStore.reload()
+    await mediasStore.reload()
     toast.success(`Successfully added directory with ${addedCount} items!`)
   } catch (error) {
     // Remove last directory if sync failed

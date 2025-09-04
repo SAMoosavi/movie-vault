@@ -9,14 +9,14 @@
 
     <!-- Movie results grid -->
     <div v-else>
-      <ResultsInfo :totalMovies="movies.length" :numberOfSearchedMovies="movies.length" />
+      <ResultsInfo :totalMovies="medias.length" :numberOfSearchedMovies="medias.length" />
 
       <!-- No movies found message -->
-      <NotFoundMovies v-if="movies.length === 0" />
+      <NotFoundMovies v-if="medias.length === 0" />
 
-      <!-- Display movie cards in a grid -->
-      <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <MovieCard v-for="movie in movies" :key="movie.id" :movie="movie" />
+      <!-- Display movie cards in a flex -->
+      <div v-else class="flex flex-wrap justify-center gap-2">
+        <MediaCard v-for="media in medias" :key="media.id" :media="media" />
       </div>
     </div>
   </main>
@@ -32,38 +32,29 @@ import FilterMovies from '../component/FilterMovies.vue'
 import LoadingView from '../component/LoadingView.vue'
 import ResultsInfo from '../component/ResultsInfo.vue'
 import NotFoundMovies from '../component/NotFoundMovies.vue'
-import MovieCard from '../component/MovieCard.vue'
+import MediaCard from '../component/MediaCard.vue'
 
 // --- Stores ---
-import { useVideosStore } from '../stores/Videos'
+import { useMediasStore } from '../stores/medias'
 import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
 
 // --- State ---
 const isLoading = ref(true)
-const videosStore = useVideosStore()
-const { videos: movies } = storeToRefs(videosStore)
+const mediasStore = useMediasStore()
+const { medias } = storeToRefs(mediasStore)
 const filtersStore = useFiltersStore()
 const { filters } = storeToRefs(filtersStore)
 
 // --- Lifecycle: initial load ---
-onMounted(async () => {
-  try {
-    await videosStore.reload()
-  } catch (error) {
-    console.error('Error loading movies:', error)
-    toast.error(`Failed to load movies: ${error instanceof Error ? error.message : 'Unknown error'}`)
-  } finally {
-    isLoading.value = false
-  }
-})
+onMounted(async () => await fetchMovies())
 
-watch(filters, () => fetchMovies(), { deep: true })
+watch(filters, async () => await fetchMovies(), { deep: true })
 
 async function fetchMovies() {
   isLoading.value = true
   try {
-    await videosStore.reload()
+    await mediasStore.reload()
   } catch (error) {
     toast.error(`Failed to reload movies: ${error}`)
   } finally {

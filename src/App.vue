@@ -19,14 +19,14 @@ import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
 // --- Stores ---
 import { useDirsStore } from './stores/Dirs'
 import { storeToRefs } from 'pinia'
-import { useVideosStore } from './stores/Videos'
+import { useMediasStore } from './stores/medias.ts'
 
 // --- Functions ---
 import { sync_files } from './functions/invoker'
 import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
 
 // --- State ---
-const videos = useVideosStore()
+const mediasStore = useMediasStore()
 const dirsStore = useDirsStore()
 const { directoryPaths } = storeToRefs(dirsStore)
 let unwatchFns: UnwatchFn[] = []
@@ -46,7 +46,7 @@ async function startWatching(paths: string[]) {
         path,
         async () => {
           await sync_files(path)
-          await videos.reload()
+          await mediasStore.reload()
         },
         { recursive: true, delayMs: 1000 },
       )
@@ -73,7 +73,7 @@ onMounted(async () => {
     for (const dir of directoryPaths.value) {
       await sync_files(dir)
     }
-    await videos.reload()
+    await mediasStore.reload()
     await startWatching(directoryPaths.value)
   } catch (e) {
     toast.error(e instanceof Error ? e.message : String(e))

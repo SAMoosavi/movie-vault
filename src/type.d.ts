@@ -38,7 +38,7 @@ export interface Imdb {
   genres: string[]
   actors: Actor[]
   plot: string
-  country: string[]
+  countries: string[]
   poster: string
   imdb_rating: string
   imdb_votes: string
@@ -59,7 +59,7 @@ export interface Media {
   tags: Tag[]
 }
 
-type ContentType = 'all' | 'movie' | 'series'
+type ContentType = 'all' | 'Movie' | 'TVSeries'
 type SortByType = 'name' | 'year' | 'imdb'
 type SortDirectionType = 'asc' | 'desc'
 type NullableBool = boolean | null

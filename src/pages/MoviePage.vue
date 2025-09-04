@@ -6,7 +6,6 @@
       <ArrowLeft class="mr-2 h-5 w-5" />
       Back
     </button>
-
     <!-- Loading Skeletons -->
     <template v-if="!movie">
       <MovieHeaderSkeleton />
