@@ -7,7 +7,7 @@
       <div class="relative aspect-video overflow-hidden">
         <video
           :src="`https://imdb.iamidiotareyoutoo.com/media/${media.imdb?.imdb_id}`"
-          poster="https://placehold.jp/3d4070/ffffff/1280x720.png?text=Movie+Preview"
+          :poster="`https://placehold.jp/50rem/3d4070/ffffff/1280x720.png?text=${media.imdb?.title}`"
           autoplay
           loop
           muted
@@ -54,13 +54,11 @@
               <div class="flex flex-col gap-6 md:flex-row">
                 <div class="flex-shrink-0 md:w-64">
                   <img
-                    :src="
-                      `https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}` ||
-                      'https://placehold.jp/300x450?text=No+Image'
-                    "
+                    :src="`https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`"
                     :alt="media.name"
                     class="w-full rounded-xl object-cover shadow"
                     loading="lazy"
+                    @error="e => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
                   />
                 </div>
 

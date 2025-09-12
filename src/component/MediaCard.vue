@@ -9,6 +9,8 @@
           :src="`https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`"
           :alt="media.name"
           class="h-full w-full object-cover"
+          @error="e => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
+          loading="lazy"
         />
 
         <!-- IMDB Rating Badge -->
