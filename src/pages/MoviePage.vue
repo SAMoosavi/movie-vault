@@ -23,7 +23,16 @@
         @set-ranking="setRanking"
         @toggle-watch-list="toggleWatchList"
       />
-      <SearchMovie v-else :movie="movie" :change="isEditing" @cancel="cancelEditing" @updated="fetchMovie" />
+      <SearchMovie
+        v-else
+        :movie="movie"
+        :is_editing="isEditing"
+        @toggle-watched="toggleWatched"
+        @set-ranking="setRanking"
+        @cancel="cancelEditing"
+        @toggle-watch-list="toggleWatchList"
+        @updated="fetchMovie"
+      />
 
       <!-- Files Section -->
       <FilesSection :movie="movie" @set-watched-episode="setWatchedEpisode" @set-watched-season="setWatchedSeason" />

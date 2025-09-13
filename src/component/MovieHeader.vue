@@ -58,7 +58,7 @@
                     :alt="media.name"
                     class="w-full rounded-xl object-cover shadow"
                     loading="lazy"
-                    @error="e => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
+                    @error="(e) => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
                   />
                 </div>
 

@@ -1,15 +1,19 @@
 <template>
   <RouterLink
     :to="{ name: 'movie_page', params: { id: media.id.toString() } }"
-    class="card from-primary/50 to-secondary/50 h-72 w-52 bg-gradient-to-br p-0.5 transition-transform duration-200 hover:scale-105"
+    class="card from-primary/50 to-secondary/50 h-72 w-52 bg-gradient-to-br p-0.5 transition-transform duration-200 hover:scale-[102%]"
   >
     <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
       <figure class="relative h-full">
         <img
-          :src="`https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`"
+          :src="
+            media.imdb?.imdb_id
+              ? `https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`
+              : `https://placehold.jp/20rem/3d4070/ffffff/200x280.png?text=${media.name}`
+          "
           :alt="media.name"
           class="h-full w-full object-cover"
-          @error="e => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
+          @error="(e) => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
           loading="lazy"
         />
 
@@ -33,7 +37,12 @@
 
         <!-- Type Icon -->
         <div class="bg-secondary absolute right-2 bottom-2 flex h-6 w-6 items-center justify-center rounded-full p-1">
-          <component :is="media.imdb?.type === 'Movie' ? FilmIcon : TvIcon" class="text-secondary-content h-3 w-3" />
+          <component
+            v-if="media.imdb?.type"
+            :is="media.imdb?.type === 'Movie' ? FilmIcon : TvIcon"
+            class="text-secondary-content h-3 w-3"
+          />
+          <component v-else :is="media.seasons.length ? TvIcon : FilmIcon" class="text-secondary-content h-3 w-3" />
         </div>
 
         <!-- Watched Icon -->
