@@ -8,7 +8,7 @@ mod tag;
 pub type IdType = i32;
 
 pub use episode::Episode;
-pub use imdb::{Actor, Imdb};
+pub use imdb::{Imdb, Person};
 pub use media::Media;
 pub use media_file::{LanguageFormat, MediaFile};
 pub use season::Season;

@@ -15,6 +15,7 @@ import AppNavbar from './component/AppNavbar.vue'
 
 // --- Tauri API ---
 import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
+import { listen } from '@tauri-apps/api/event'
 
 // --- Stores ---
 import { useDirsStore } from './stores/Dirs'
@@ -36,6 +37,15 @@ function stopWatching() {
   unwatchFns.forEach((fn) => fn())
   unwatchFns = []
 }
+
+interface SyncFileProgressBare {
+  inserted: number
+  total: number
+}
+
+listen<SyncFileProgressBare>('sync-progress', (event) => {
+  toast.info(`added ${event.payload.inserted} of ${event.payload.total}`)
+})
 
 // --- Helper: Start watching directories ---
 async function startWatching(paths: string[]) {

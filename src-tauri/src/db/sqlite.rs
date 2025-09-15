@@ -4,7 +4,7 @@ pub mod schema;
 use super::{
     ContentType, DB, FilterValues, NumericalString, Result, SortByType, SortDirectionType,
 };
-use crate::data_model::{Actor, Episode, IdType, Imdb, Media, MediaFile, Season, Tag};
+use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
 use data_models::{
     DbActor, DbEpisode, DbFile, DbImdb, DbMedia, DbSeason, NewActor, NewCountry, NewEpisode,
@@ -102,9 +102,10 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Actor) -> Result<i32> {
+    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Person) -> Result<String> {
         diesel::insert_or_ignore_into(actors::table)
             .values(&NewActor {
+                id: &actor.id,
                 name: &actor.name,
                 url: &actor.url,
             })
@@ -120,13 +121,13 @@ impl Sqlite {
     fn insert_imdb_actor(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
-        actor: &Actor,
+        actor: &Person,
     ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_actor(conn, actor)?;
         diesel::insert_or_ignore_into(imdb_actors::table)
             .values(&NewImdbActor {
                 imdb_id: imdb_id_val,
-                actor_id: ent_id,
+                actor_id: &ent_id,
             })
             .execute(conn)?;
         Ok(())
@@ -633,6 +634,7 @@ impl Sqlite {
 }
 
 // remove
+#[allow(dead_code)]
 impl Sqlite {
     fn remove_empty_imdb(conn: &mut SqliteConnection) -> Result<()> {
         diesel::delete(imdbs::table.filter(diesel::dsl::not(diesel::dsl::exists(
@@ -799,7 +801,7 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn get_actors(&self) -> Result<Vec<NumericalString>> {
+    fn get_actors(&self) -> Result<Vec<(String, String)>> {
         let conn = &mut self.get_conn()?;
         let results = actors::table
             .select((actors::id, actors::name))
