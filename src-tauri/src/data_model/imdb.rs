@@ -1,5 +1,3 @@
-use crate::data_model::IdType;
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Imdb {
     pub title: String,
@@ -18,7 +16,7 @@ pub struct Imdb {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Actor {
-    pub id: IdType,
+    pub id: String,
     pub name: String,
     pub url: String,
 }

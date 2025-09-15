@@ -102,9 +102,10 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Actor) -> Result<i32> {
+    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Actor) -> Result<String> {
         diesel::insert_or_ignore_into(actors::table)
             .values(&NewActor {
+                id: &actor.id,
                 name: &actor.name,
                 url: &actor.url,
             })
@@ -126,7 +127,7 @@ impl Sqlite {
         diesel::insert_or_ignore_into(imdb_actors::table)
             .values(&NewImdbActor {
                 imdb_id: imdb_id_val,
-                actor_id: ent_id,
+                actor_id: &ent_id,
             })
             .execute(conn)?;
         Ok(())
@@ -799,7 +800,7 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn get_actors(&self) -> Result<Vec<NumericalString>> {
+    fn get_actors(&self) -> Result<Vec<(String, String)>> {
         let conn = &mut self.get_conn()?;
         let results = actors::table
             .select((actors::id, actors::name))
