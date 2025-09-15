@@ -12,8 +12,7 @@ use crate::{
 
 mod data_model;
 mod db;
-mod freeimdb;
-mod imdbot;
+mod fetch_imdb;
 mod media_scanner;
 mod metadata_extractor;
 
@@ -53,7 +52,7 @@ async fn sync_files(
     for chunk in metadata.chunks(chunk_size) {
         let mut chunk = chunk.to_vec();
 
-        imdbot::set_imdb_data(&mut chunk).await;
+        fetch_imdb::set_imdb_data(&mut chunk).await;
 
         db.insert_medias(&chunk).map_err(|e| e.to_string())?;
 
@@ -114,7 +113,7 @@ async fn update_media_imdb(
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     let db = &state.db;
-    let imdb = freeimdb::get_imdb_data_by_id(imdb_id)
+    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
         .await
         .map_err(|e| e.to_string())?;
 

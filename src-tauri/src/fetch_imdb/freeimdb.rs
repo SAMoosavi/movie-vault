@@ -26,13 +26,15 @@ struct Title {
     rating: Option<Rating>,
     plot: Option<String>,
     #[serde(default)]
-    directors: Vec<Person>,
-    #[serde(default)]
-    writers: Vec<Person>,
-    #[serde(default)]
     stars: Vec<Person>,
     #[serde(default)]
     origin_countries: Vec<Country>,
+    #[allow(dead_code)]
+    #[serde(default)]
+    directors: Vec<Person>,
+    #[allow(dead_code)]
+    #[serde(default)]
+    writers: Vec<Person>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -170,7 +172,6 @@ pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
 
     Ok(imdbs)
 }
-
 
 pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
     let client = Client::new();
