@@ -2,9 +2,9 @@
 
 diesel::table! {
     actors (id) {
-        id -> Integer,
+        id -> Text,
         name -> Text,
-        url -> Text,
+        url -> Nullable<Text>,
     }
 }
 
@@ -46,7 +46,7 @@ diesel::table! {
 diesel::table! {
     imdb_actors (imdb_id, actor_id) {
         imdb_id -> Text,
-        actor_id -> Integer,
+        actor_id -> Text,
     }
 }
 

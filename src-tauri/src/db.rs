@@ -65,7 +65,7 @@ pub struct FilterValues {
     pub min_rating: Option<f64>,
     pub country: Vec<NumericalString>,
     pub genre: Vec<NumericalString>,
-    pub actor: Vec<NumericalString>,
+    pub actor: Vec<(String, String)>,
     pub exist_imdb: Option<bool>,
     pub exist_multi_file: Option<bool>,
     pub watched: Option<bool>,
@@ -86,10 +86,11 @@ pub trait DB {
     fn update_episode_watched(&self, episode_id: IdType, watched: bool) -> Result<()>;
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType>;
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()>;
+    #[allow(dead_code)]
     fn clear_empty_data(&self) -> Result<()>;
     fn get_genres(&self) -> Result<Vec<NumericalString>>;
     fn get_countries(&self) -> Result<Vec<NumericalString>>;
-    fn get_actors(&self) -> Result<Vec<NumericalString>>;
+    fn get_actors(&self) -> Result<Vec<(String, String)>>;
     fn remove_file_by_path(&self, paths: &[PathBuf]) -> Result<()>;
     fn get_all_files(&self) -> Result<Vec<MediaFile>>;
     fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>>;

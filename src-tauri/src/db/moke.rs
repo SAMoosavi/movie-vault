@@ -60,7 +60,7 @@ impl DB for MokeDB {
         todo!()
     }
 
-    fn get_actors(&self) -> Result<Vec<NumericalString>> {
+    fn get_actors(&self) -> Result<Vec<(String, String)>> {
         todo!()
     }
 

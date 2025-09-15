@@ -3,7 +3,7 @@ use super::schema::{
     media_tags, medias, seasons, tags,
 };
 use crate::data_model::{
-    Actor, Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag,
+    Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Person, Season, Tag,
 };
 use diesel::{Identifiable, Insertable, Queryable};
 
@@ -159,22 +159,22 @@ impl From<DbTag> for Tag {
 #[derive(Debug, Clone, serde::Serialize, Queryable)]
 #[diesel(table_name = files)]
 pub struct DbActor {
-    pub id: IdType,
+    pub id: String,
     pub name: String,
-    pub url: String,
+    pub url: Option<String>,
 }
 
-impl From<&DbActor> for Actor {
+impl From<&DbActor> for Person {
     fn from(db: &DbActor) -> Self {
         Self {
-            id: db.id,
+            id: db.id.clone(),
             name: db.name.clone(),
-            url: db.url.clone(),
+            url: db.url.clone().unwrap_or_default(),
         }
     }
 }
 
-impl From<DbActor> for Actor {
+impl From<DbActor> for Person {
     fn from(db: DbActor) -> Self {
         Self::from(&db)
     }
@@ -249,6 +249,7 @@ pub struct NewImdbGenre<'a> {
 #[derive(Insertable)]
 #[diesel(table_name = actors)]
 pub struct NewActor<'a> {
+    pub id: &'a str,
     pub url: &'a str,
     pub name: &'a str,
 }
@@ -257,7 +258,7 @@ pub struct NewActor<'a> {
 #[diesel(table_name = imdb_actors)]
 pub struct NewImdbActor<'a> {
     pub imdb_id: &'a str,
-    pub actor_id: IdType,
+    pub actor_id: &'a str,
 }
 
 #[derive(Insertable)]

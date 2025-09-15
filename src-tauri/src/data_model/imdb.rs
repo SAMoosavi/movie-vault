@@ -1,12 +1,10 @@
-use crate::data_model::IdType;
-
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Imdb {
     pub title: String,
     pub year: String,
     pub released: String,
     pub genres: Vec<String>,
-    pub actors: Vec<Actor>,
+    pub actors: Vec<Person>,
     pub plot: String,
     pub countries: Vec<String>,
     pub poster: String,
@@ -17,8 +15,8 @@ pub struct Imdb {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
-pub struct Actor {
-    pub id: IdType,
+pub struct Person {
+    pub id: String,
     pub name: String,
     pub url: String,
 }
