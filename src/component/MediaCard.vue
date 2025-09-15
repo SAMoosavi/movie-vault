@@ -6,14 +6,14 @@
     <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
       <figure class="relative h-full">
         <img
-          :src="
-            media.imdb?.imdb_id
-              ? `https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`
-              : `https://placehold.jp/20rem/3d4070/ffffff/200x280.png?text=${media.name}`
-          "
+          :src="media.imdb?.poster"
           :alt="media.name"
           class="h-full w-full object-cover"
-          @error="(e) => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
+          @error="
+            (e) =>
+              ((e.target as HTMLImageElement).src =
+                `https://placehold.jp/20rem/3d4070/ffffff/200x280.png?text=${media.name}`)
+          "
           loading="lazy"
         />
 

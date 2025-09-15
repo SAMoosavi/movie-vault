@@ -1,14 +1,14 @@
 <template>
   <!-- File Row -->
   <div
-    class="odd:bg-base-200/50 even:bg-base-100 hover:bg-base-300 grid grid-cols-1 items-center gap-4 p-3 transition-colors sm:grid-cols-4"
+    class="odd:bg-base-200/50 even:bg-base-100 hover:bg-base-300 grid grid-cols-1 items-center gap-4 p-3 transition-colors md:grid-cols-3 xl:grid-cols-4"
   >
     <!-- File Details -->
-    <div class="flex flex-col">
-      <div class="font-medium">{{ file.file_name }}.{{ fileExtension }}</div>
+    <div class="col-span-1 flex flex-col md:col-span-3 xl:col-span-1">
+      <div class="hidden font-medium xl:visible">{{ file.file_name }}.{{ fileExtension }}</div>
       <div class="tooltip tooltip-primary" data-tip="Click to copy path">
         <button
-          class="link link-hover max-w-xs truncate text-left transition-all duration-300 hover:max-w-full"
+          class="link link-hover max-w-full truncate text-left text-wrap transition-all duration-300 hover:max-w-full xl:max-w-xs xl:text-nowrap"
           @click="copyPathToClipboard"
         >
           {{ file.path }}

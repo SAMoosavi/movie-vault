@@ -1,48 +1,5 @@
 <template>
   <div class="container mx-auto px-4 py-8">
-    <!-- Hero Section with Cinematic Feel -->
-    <div class="relative mb-8 overflow-hidden rounded-3xl shadow-2xl">
-      <div class="from-base-900/90 absolute inset-0 z-10 bg-gradient-to-t to-transparent"></div>
-
-      <div class="relative aspect-video overflow-hidden">
-        <video
-          :src="`https://imdb.iamidiotareyoutoo.com/media/${media.imdb?.imdb_id}`"
-          :poster="`https://placehold.jp/50rem/3d4070/ffffff/1280x720.png?text=${media.imdb?.title}`"
-          autoplay
-          loop
-          muted
-          playsinline
-          class="h-full w-full object-cover"
-          loading="lazy"
-        ></video>
-
-        <div class="absolute inset-x-0 bottom-0 z-20 p-6 md:p-10">
-          <div class="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h1 class="mb-2 text-3xl font-bold text-white drop-shadow-lg md:text-5xl">
-                {{ media.imdb?.title || media.name }}
-              </h1>
-              <div class="flex flex-wrap items-center gap-3 text-white/90">
-                <span class="text-lg font-medium">{{ media.year || media.imdb?.year }}</span>
-                <div v-for="genre in media.imdb?.genres" :key="genre" class="badge badge-outline">
-                  {{ genre }}
-                </div>
-              </div>
-            </div>
-
-            <div class="flex flex-wrap gap-3">
-              <button class="btn btn-ghost hover:btn-primary btn-circle" @click="$emit('toggle-watched')">
-                <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
-              </button>
-              <button class="btn btn-ghost hover:btn-secondary btn-circle" @click="$emit('edit')">
-                <EditIcon class="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Main Content -->
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <!-- Left Column -->
@@ -54,15 +11,17 @@
               <div class="flex flex-col gap-6 md:flex-row">
                 <div class="flex-shrink-0 md:w-64">
                   <img
-                    :src="`https://imdb.iamidiotareyoutoo.com/photo/${media.imdb?.imdb_id}`"
+                    :src="media.imdb?.poster"
                     :alt="media.name"
                     class="w-full rounded-xl object-cover shadow"
                     loading="lazy"
-                    @error="(e) => ((e.target as HTMLImageElement).src = media.imdb?.poster || '')"
                   />
                 </div>
 
                 <div class="flex-1">
+                  <h1 class="mb-4 flex items-center gap-2 text-4xl font-bold">
+                    {{ media.imdb?.title || media.name }}
+                  </h1>
                   <h2 class="mb-4 flex items-center gap-2 text-2xl font-bold">
                     <InfoIcon class="text-primary h-6 w-6" />
                     Overview
@@ -72,33 +31,49 @@
                   </p>
 
                   <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div>
+                    <div class="md:col-span-2">
                       <h3 class="mb-2 flex items-center gap-2 font-semibold">
-                        <UsersIcon class="h-5 w-5" />
+                        <UsersIcon class="text-primary h-5 w-5" />
                         Cast
                       </h3>
                       <div class="flex flex-wrap gap-2">
                         <a
                           v-for="actor in media.imdb?.actors"
                           :key="actor.id"
-                          :href="actor.url"
                           target="_blank"
-                          rel="noopener"
-                          class="badge badge-outline hover:badge-primary transition-transform hover:scale-105"
+                          :href="`https://www.imdb.com/name/${actor.id}`"
+                          class="flex cursor-pointer flex-col items-center gap-1"
                         >
-                          {{ actor.name }}
+                          <div class="avatar">
+                            <div class="h-12 w-12 rounded-full">
+                              <img :alt="actor.name" :src="actor.url" />
+                            </div>
+                          </div>
+                          <span> {{ actor.name }} </span>
                         </a>
                       </div>
                     </div>
 
                     <div>
                       <h3 class="mb-2 flex items-center gap-2 font-semibold">
-                        <GlobeIcon class="h-5 w-5" />
+                        <GlobeIcon class="text-primary h-5 w-5" />
                         Countries
                       </h3>
                       <div class="flex flex-wrap gap-2">
                         <span v-for="country in media.imdb?.countries" :key="country" class="badge badge-secondary">
                           {{ country }}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                        <PuzzleIcon class="text-primary h-5 w-5" />
+                        genres
+                      </h3>
+                      <div class="flex flex-wrap gap-2">
+                        <span v-for="genre in media.imdb?.genres" :key="genre" class="badge badge-secondary">
+                          {{ genre }}
                         </span>
                       </div>
                     </div>
@@ -155,21 +130,19 @@
               <h2 class="mb-4 text-xl font-bold">Manage Media</h2>
 
               <div class="space-y-3">
-                <button
-                  class="btn btn-outline hover:bg-base-200 w-full justify-between transition-colors"
-                  @click="$emit('edit')"
-                >
+                <button class="btn btn-outline w-full justify-between" @click="$emit('edit')">
                   <span>Edit Details</span>
                   <PencilIcon class="h-5 w-5" />
                 </button>
 
-                <button
-                  class="btn w-full justify-between"
-                  :class="media.watch_list ? 'btn-secondary' : 'btn-outline'"
-                  @click="$emit('toggle-watch-list')"
-                >
+                <button class="btn btn-outline w-full justify-between" @click="$emit('toggle-watch-list')">
                   <span>{{ media.watch_list ? 'Remove from Watchlist' : 'Add to Watchlist' }}</span>
-                  <BookmarkIcon class="h-5 w-5" />
+                  <component :is="media.watch_list ? BookmarkMinusIcon : BookmarkPlusIcon" class="h-5 w-5" />
+                </button>
+
+                <button class="btn btn-outline w-full justify-between" @click="$emit('toggle-watched')">
+                  <span>{{ media.watched ? 'Watched' : 'Not watched' }}</span>
+                  <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
                 </button>
 
                 <div class="divider my-4"></div>
@@ -212,6 +185,9 @@ import {
   EyeIcon,
   EyeOffIcon,
   XCircleIcon,
+  BookmarkMinusIcon,
+  BookmarkPlusIcon,
+  PuzzleIcon,
 } from 'lucide-vue-next'
 import type { Media, Tag } from '../type'
 import { get_tags, insert_media_tag, remove_media_tag } from '../functions/invoker'
