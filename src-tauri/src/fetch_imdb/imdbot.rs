@@ -6,14 +6,14 @@ use tauri_plugin_http::reqwest::Client;
 use super::freeimdb;
 use crate::data_model::Media;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct MovieSearchResult {
     ok: bool,
     description: Vec<SearchedMovie>,
     error_code: i32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct SearchedMovie {
     #[serde(rename = "#YEAR")]
     year: Option<i32>,
@@ -22,74 +22,56 @@ struct SearchedMovie {
 }
 
 async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
-    let response = client
+    let result: MovieSearchResult = client
         .get("https://imdb.iamidiotareyoutoo.com/search")
         .query(&[("q", &media.name)])
         .send()
+        .await?
+        .json()
         .await?;
-
-    let result: MovieSearchResult = response.json().await?;
 
     if !result.ok {
         return Err(anyhow!("API error: {}", result.error_code));
     }
 
-    let movies = &result.description;
+    let movies = result.description;
+    let matched = media
+        .year
+        .and_then(|year| movies.iter().find(|m| m.year == Some(year)))
+        .or_else(|| movies.first());
 
-    if movies.is_empty() {
-        return Err(anyhow!("No movies found"));
-    }
-
-    let matched_movie = if let Some(year) = media.year {
-        movies
-            .iter()
-            .filter(|m| m.year.is_some())
-            .find(|m| m.year.unwrap() == year)
-    } else {
-        Some(&movies[0])
-    };
-
-    let imdb = match matched_movie {
-        Some(movie) => movie.imdb_id.clone(),
-        None => movies[0].imdb_id.clone(),
-    };
-
-    Ok(imdb)
+    matched
+        .map(|m| m.imdb_id.clone())
+        .ok_or_else(|| anyhow!("No movies found"))
 }
 
 pub async fn set_imdb_data(medias: &mut [Media]) {
     let client = Client::new();
 
-    let futures = medias.iter_mut().map(|media| {
+    let results = join_all(medias.iter_mut().map(|media| {
         let client = client.clone();
         async move {
-            let imdb = get_imdb_id(&client, &*media).await?;
-            anyhow::Ok((imdb, media))
+            get_imdb_id(&client, media)
+                .await
+                .map(|imdb_id| (imdb_id, media))
         }
-    });
+    }))
+    .await;
 
-    let result = join_all(futures).await;
+    let mut pairs: Vec<_> = results.into_iter().filter_map(Result::ok).collect();
 
-    let mut pairs = Vec::new();
-    for (searched_movie, media) in result.into_iter().flatten() {
-        pairs.push((searched_movie, media));
-    }
-
-    let ids: Vec<String> = pairs.iter().map(|(imdb_id, _)| imdb_id.clone()).collect();
+    let ids: Vec<_> = pairs.iter().map(|(id, _)| id.clone()).collect();
 
     match freeimdb::process_movies(ids).await {
         Ok(imdbs) => {
             for imdb in imdbs {
-                if let Some((_, media)) = pairs
-                    .iter_mut()
-                    .find(|(imdb_id, _)| *imdb_id == imdb.imdb_id)
-                {
+                if let Some((_, media)) = pairs.iter_mut().find(|(id, _)| id == &imdb.imdb_id) {
                     media.imdb = Some(imdb);
                 }
             }
         }
-        Err(e) => {
-            eprintln!("Failed to fetch movies batch: {}", e);
+        Err(err) => {
+            eprintln!("Failed to fetch movies batch: {err}");
         }
     }
 }
