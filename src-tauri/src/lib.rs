@@ -1,4 +1,7 @@
-use tauri::Manager;
+use std::path::PathBuf;
+
+use serde::Serialize;
+use tauri::{Emitter, Manager};
 
 use crate::data_model::IdType;
 use crate::db::{NumericalString, Sqlite};
@@ -9,6 +12,7 @@ use crate::{
 
 mod data_model;
 mod db;
+mod freeimdb;
 mod imdbot;
 mod media_scanner;
 mod metadata_extractor;
@@ -17,23 +21,50 @@ struct AppState {
     db: Sqlite,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SyncFileProgressBare {
+    inserted: usize,
+    total: usize,
+}
+
 #[tauri::command]
-async fn sync_files(root: &str, state: tauri::State<'_, AppState>) -> Result<usize, String> {
+async fn sync_files(
+    root: String,
+    state: tauri::State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+) -> Result<usize, String> {
     let db = &state.db;
 
     media_scanner::sync_files(db)
         .await
         .map_err(|e| e.to_string())?;
 
-    let found_files = media_scanner::find_movies(db, root.into())
+    let found_files = media_scanner::find_movies(db, PathBuf::from(root))
         .await
         .map_err(|e| e.to_string())?;
 
-    let mut metadata = metadata_extractor::get_metadata(&found_files);
-    imdbot::set_imdb_data(&mut metadata).await;
+    let metadata = metadata_extractor::get_metadata(&found_files);
 
-    db.insert_medias(&metadata).map_err(|e| e.to_string())?;
-    Ok(metadata.len())
+    let chunk_size = 50;
+    let mut inserted = 0;
+    let total = metadata.len();
+
+    for (i, chunk) in metadata.chunks(chunk_size).enumerate() {
+        let mut chunk = chunk.to_vec();
+
+        imdbot::set_imdb_data(&mut chunk).await;
+
+        db.insert_medias(&chunk).map_err(|e| e.to_string())?;
+
+        inserted += chunk.len();
+
+        app_handle
+            .emit("sync-progress", SyncFileProgressBare { inserted, total })
+            .unwrap();
+    }
+
+    Ok(inserted)
 }
 
 #[tauri::command]
@@ -50,7 +81,7 @@ fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>,
 }
 
 #[tauri::command]
-fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
+fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
     let db = &state.db;
 
     db.get_actors().map_err(|e| e.to_string())
@@ -83,7 +114,7 @@ async fn update_media_imdb(
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     let db = &state.db;
-    let imdb = imdbot::get_imdb_data_by_id(imdb_id)
+    let imdb = freeimdb::get_imdb_data_by_id(imdb_id)
         .await
         .map_err(|e| e.to_string())?;
 
