@@ -14,7 +14,7 @@ import { sync_files } from './functions/invoker'
 import { useVideosStore } from './stores/Videos'
 import { toast } from 'vue3-toastify'
 import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
-import { listen } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event'
 
 const videos = useVideosStore()
 const dir = useDirsStore()
@@ -30,13 +30,11 @@ const stopWatching = () => {
 interface SyncFileProgressBare {
   inserted: number
   total: number
-};
+}
 
 listen<SyncFileProgressBare>('sync-progress', (event) => {
-  toast.info(
-    `added ${event.payload.inserted} of ${event.payload.total}`
-  );
-});
+  toast.info(`added ${event.payload.inserted} of ${event.payload.total}`)
+})
 
 const startWatching = async (paths: string[]) => {
   stopWatching()
