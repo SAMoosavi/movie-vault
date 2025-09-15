@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use futures::stream::{self, StreamExt, TryStreamExt};
 use serde::Deserialize;
 use std::time::Duration;
@@ -115,47 +115,47 @@ async fn fetch_movies(client: &Client, ids: &[String]) -> Result<Response> {
     let url = "https://api.imdbapi.dev/titles:batchGet";
     let query: Vec<(&str, &str)> = ids.iter().map(|id| ("titleIds", id.as_str())).collect();
 
-    let mut retries = 0;
-    loop {
-        let resp = client.get(url).query(&query).send().await;
-
-        match resp {
-            Ok(r) if r.status().is_success() => {
-                let movies = r.json::<Response>().await?;
-                return Ok(movies);
+    for attempt in 1..=MAX_RETRIES {
+        match client.get(url).query(&query).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                return Ok(resp.json::<Response>().await?);
             }
-            Ok(r) if r.status() == StatusCode::TOO_MANY_REQUESTS => {
-                eprintln!("Rate limited (429). Waiting before retry...");
+            Ok(resp) if resp.status() == StatusCode::TOO_MANY_REQUESTS => {
+                eprintln!("429 Too Many Requests — retrying after {}s", DELAY_S);
+                if attempt == MAX_RETRIES {
+                    return Err(anyhow!("429 Too Many Requests"));
+                }
                 sleep(Duration::from_secs(DELAY_S)).await;
             }
-            Ok(r) => {
-                eprintln!("Error: API returned {}", r.status());
-                if retries >= MAX_RETRIES {
-                    return Err(r.error_for_status().unwrap_err().into());
+            Ok(resp) => {
+                eprintln!("Request failed: {}", resp.status());
+                if attempt == MAX_RETRIES {
+                    return Err(resp.error_for_status().unwrap_err().into());
                 }
             }
             Err(err) => {
                 eprintln!("Network error: {}", err);
-                if retries >= MAX_RETRIES {
+                if attempt == MAX_RETRIES {
                     return Err(err.into());
                 }
             }
         }
 
-        retries += 1;
-        eprintln!("Retrying {}/{}", retries, MAX_RETRIES);
+        eprintln!("Retry {}/{}", attempt, MAX_RETRIES);
     }
+
+    unreachable!("Loop must return or error out before reaching here")
 }
 
 pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
     let client = Client::builder().build()?;
 
-    let batches: Vec<Vec<String>> = movie_ids
+    let batches = movie_ids
         .chunks(BATCH_SIZE)
         .map(|chunk| chunk.to_vec())
-        .collect();
+        .collect::<Vec<_>>();
 
-    let imdbs: Vec<Imdb> = stream::iter(batches)
+    let imdbs = stream::iter(batches)
         .map(|ids| {
             let client = client.clone();
             async move {
@@ -164,7 +164,7 @@ pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
             }
         })
         .buffer_unordered(CONCURRENCY)
-        .try_collect::<Vec<Vec<Imdb>>>()
+        .try_collect::<Vec<_>>()
         .await?
         .into_iter()
         .flatten()
@@ -178,34 +178,34 @@ pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
 
     let url = format!("https://api.imdbapi.dev/titles/{id}");
 
-    let mut retries = 0;
-    loop {
-        let resp = client.get(&url).send().await;
-
-        match resp {
-            Ok(r) if r.status().is_success() => {
-                let movies = r.json::<Title>().await?;
-                return Ok(movies.into());
+    for attempt in 1..=MAX_RETRIES {
+        match client.get(&url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                return Ok(resp.json::<Title>().await?.into());
             }
-            Ok(r) if r.status() == StatusCode::TOO_MANY_REQUESTS => {
-                eprintln!("Rate limited (429). Waiting before retry...");
+            Ok(resp) if resp.status() == StatusCode::TOO_MANY_REQUESTS => {
+                eprintln!("429 Too Many Requests — retrying after {}s", DELAY_S);
+                if attempt == MAX_RETRIES {
+                    return Err(anyhow!("429 Too Many Requests"));
+                }
                 sleep(Duration::from_secs(DELAY_S)).await;
             }
-            Ok(r) => {
-                eprintln!("Error: API returned {}", r.status());
-                if retries >= MAX_RETRIES {
-                    return Err(r.error_for_status().unwrap_err().into());
+            Ok(resp) => {
+                eprintln!("Request failed: {}", resp.status());
+                if attempt == MAX_RETRIES {
+                    return Err(resp.error_for_status().unwrap_err().into());
                 }
             }
             Err(err) => {
                 eprintln!("Network error: {}", err);
-                if retries >= MAX_RETRIES {
+                if attempt == MAX_RETRIES {
                     return Err(err.into());
                 }
             }
         }
 
-        retries += 1;
-        eprintln!("Retrying {}/{}", retries, MAX_RETRIES);
+        eprintln!("Retry {}/{}", attempt, MAX_RETRIES);
     }
+
+    unreachable!("Loop must return or error out before reaching here")
 }
