@@ -63,6 +63,20 @@ struct Country {
     name: String,
 }
 
+impl From<&Person> for data_model::Person {
+    fn from(value: &Person) -> Self {
+        Self {
+            id: value.id.clone(),
+            name: value.display_name.clone(),
+            url: value
+                .primary_image
+                .as_ref()
+                .map(|img| img.url.clone())
+                .unwrap_or_default(),
+        }
+    }
+}
+
 impl From<Title> for Imdb {
     fn from(value: Title) -> Self {
         Self {
@@ -70,19 +84,7 @@ impl From<Title> for Imdb {
             year: value.start_year.map(|y| y.to_string()).unwrap_or_default(),
             released: value.start_year.map(|y| y.to_string()).unwrap_or_default(),
             genres: value.genres,
-            actors: value
-                .stars
-                .iter()
-                .map(|f| data_model::Person {
-                    id: f.id.clone(),
-                    name: f.display_name.clone(),
-                    url: f
-                        .primary_image
-                        .as_ref()
-                        .map(|img| img.url.clone())
-                        .unwrap_or_default(),
-                })
-                .collect(),
+            actors: value.stars.iter().map(Into::into).collect(),
             plot: value.plot.unwrap_or_default(),
             countries: value
                 .origin_countries
