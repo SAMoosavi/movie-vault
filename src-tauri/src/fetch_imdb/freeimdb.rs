@@ -5,7 +5,7 @@ use std::time::Duration;
 use tauri_plugin_http::reqwest::{Client, StatusCode};
 use tokio::time::sleep;
 
-use crate::data_model::{Actor, Imdb};
+use crate::data_model::{self, Imdb};
 
 #[derive(Deserialize, Debug)]
 struct Response {
@@ -73,7 +73,7 @@ impl From<Title> for Imdb {
             actors: value
                 .stars
                 .iter()
-                .map(|f| Actor {
+                .map(|f| data_model::Person {
                     id: f.id.clone(),
                     name: f.display_name.clone(),
                     url: f

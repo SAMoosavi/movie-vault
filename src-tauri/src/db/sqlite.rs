@@ -4,7 +4,7 @@ pub mod schema;
 use super::{
     ContentType, DB, FilterValues, NumericalString, Result, SortByType, SortDirectionType,
 };
-use crate::data_model::{Actor, Episode, IdType, Imdb, Media, MediaFile, Season, Tag};
+use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
 use data_models::{
     DbActor, DbEpisode, DbFile, DbImdb, DbMedia, DbSeason, NewActor, NewCountry, NewEpisode,
@@ -102,7 +102,7 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Actor) -> Result<String> {
+    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Person) -> Result<String> {
         diesel::insert_or_ignore_into(actors::table)
             .values(&NewActor {
                 id: &actor.id,
@@ -121,7 +121,7 @@ impl Sqlite {
     fn insert_imdb_actor(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
-        actor: &Actor,
+        actor: &Person,
     ) -> Result<()> {
         let ent_id = Self::insert_or_get_id_actor(conn, actor)?;
         diesel::insert_or_ignore_into(imdb_actors::table)

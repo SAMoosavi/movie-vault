@@ -3,7 +3,7 @@ use super::schema::{
     media_tags, medias, seasons, tags,
 };
 use crate::data_model::{
-    Actor, Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Season, Tag,
+    Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Person, Season, Tag,
 };
 use diesel::{Identifiable, Insertable, Queryable};
 
@@ -164,7 +164,7 @@ pub struct DbActor {
     pub url: Option<String>,
 }
 
-impl From<&DbActor> for Actor {
+impl From<&DbActor> for Person {
     fn from(db: &DbActor) -> Self {
         Self {
             id: db.id.clone(),
@@ -174,7 +174,7 @@ impl From<&DbActor> for Actor {
     }
 }
 
-impl From<DbActor> for Actor {
+impl From<DbActor> for Person {
     fn from(db: DbActor) -> Self {
         Self::from(&db)
     }
