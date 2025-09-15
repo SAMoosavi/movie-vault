@@ -86,6 +86,7 @@ pub trait DB {
     fn update_episode_watched(&self, episode_id: IdType, watched: bool) -> Result<()>;
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType>;
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()>;
+    #[allow(dead_code)]
     fn clear_empty_data(&self) -> Result<()>;
     fn get_genres(&self) -> Result<Vec<NumericalString>>;
     fn get_countries(&self) -> Result<Vec<NumericalString>>;

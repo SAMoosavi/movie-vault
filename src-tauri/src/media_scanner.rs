@@ -59,7 +59,7 @@ async fn find_non_existent_paths<T: DB>(
 pub async fn sync_files<T: DB>(db: &T) -> Result<(), Box<dyn std::error::Error>> {
     let paths = find_non_existent_paths(db).await?;
     db.remove_file_by_path(&paths)?;
-    db.clear_empty_data()?;
+    // db.clear_empty_data()?;
     Ok(())
 }
 

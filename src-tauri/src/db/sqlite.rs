@@ -634,6 +634,7 @@ impl Sqlite {
 }
 
 // remove
+#[allow(dead_code)]
 impl Sqlite {
     fn remove_empty_imdb(conn: &mut SqliteConnection) -> Result<()> {
         diesel::delete(imdbs::table.filter(diesel::dsl::not(diesel::dsl::exists(

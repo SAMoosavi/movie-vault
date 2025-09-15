@@ -50,7 +50,7 @@ async fn sync_files(
     let mut inserted = 0;
     let total = metadata.len();
 
-    for (i, chunk) in metadata.chunks(chunk_size).enumerate() {
+    for chunk in metadata.chunks(chunk_size) {
         let mut chunk = chunk.to_vec();
 
         imdbot::set_imdb_data(&mut chunk).await;
