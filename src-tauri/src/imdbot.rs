@@ -1,9 +1,9 @@
-use anyhow::{Ok, Result, anyhow};
+use anyhow::{Result, anyhow};
 use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use tauri_plugin_http::reqwest::Client;
 
-use crate::data_model::{Actor, Imdb, Media};
+use crate::{data_model::{Actor, Imdb, Media}, freeimdb::process_movies};
 
 #[derive(Serialize, Deserialize)]
 pub struct MovieSearchResult {
@@ -103,7 +103,7 @@ impl From<ImdbDataResponse> for Imdb {
                 .unwrap_or_default()
                 .into_iter()
                 .map(|a| Actor {
-                    id: 0,
+                    id: String::new(),
                     name: a.name,
                     url: a.url,
                 })
@@ -153,12 +153,12 @@ async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
         Some(&movies[0])
     };
 
-    let imdb_id = match matched_movie {
+    let imdb = match matched_movie {
         Some(movie) => movie.imdb_id.clone(),
         None => movies[0].imdb_id.clone(),
     };
 
-    Ok(imdb_id)
+    Ok(imdb)
 }
 
 async fn get_imdb_data(client: &Client, imdb_id: &str) -> Result<ImdbDataResponse> {
@@ -187,21 +187,34 @@ pub async fn set_imdb_data(medias: &mut [Media]) {
     let futures = medias.iter_mut().map(|media| {
         let client = client.clone();
         async move {
-            let imdb_id = get_imdb_id(&client, &*media).await?;
-            let imdb_data = get_imdb_data(&client, &imdb_id).await?;
-            let imdb: Imdb = imdb_data.into();
-            media.imdb = Some(imdb);
-            Ok(())
+            let imdb = get_imdb_id(&client, &*media).await?;
+            anyhow::Ok((imdb, media))
         }
     });
 
     let result = join_all(futures).await;
 
-    result.iter().for_each(|r| {
-        if let Err(e) = r {
-            eprintln!("{}", e);
+    let mut pairs = Vec::new();
+    for res in result {
+        if let Ok((searched_movie, media)) = res {
+            pairs.push((searched_movie, media));
         }
-    });
+    }
+
+    let ids: Vec<String> = pairs.iter().map(|(imdb_id, _)| imdb_id.clone()).collect();
+
+    match process_movies(ids).await {
+        Ok(imdbs) => {
+            for imdb in imdbs {
+                if let Some((_, media)) = pairs.iter_mut().find(|(imdb_id, _)| *imdb_id == imdb.imdb_id) {
+                    media.imdb = Some(imdb);
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to fetch movies batch: {}", e);
+        }
+    }
 }
 
 pub async fn get_imdb_data_by_id(imdb_id: &str) -> Result<Imdb> {
@@ -250,7 +263,7 @@ mod real_api_test {
 
         let result = get_imdb_data(&client, &imdb_id).await.unwrap();
 
-        assert_eq!(result.short.type_, "TVSeries");
+        assert_eq!(result.short.type_, "tVSeries");
         assert_eq!(result.short.date_published.unwrap(), "2011-12-04");
         assert_eq!(
             result.main.countries_details.countries[0].text,
@@ -272,14 +285,14 @@ mod real_api_test {
         assert_eq!(new_m1.name, "black mirror");
 
         let imdb = new_m1.imdb.as_ref().unwrap();
-        assert_eq!(imdb.r#type, "TVSeries");
+        assert_eq!(imdb.r#type, "tvSeries");
         assert_eq!(imdb.year, "2011");
 
         let new_m2 = &medias[1];
         assert_eq!(new_m2.name, "3 days to kill");
 
         let imdb = new_m2.imdb.as_ref().unwrap();
-        assert_eq!(imdb.r#type, "Movie");
+        assert_eq!(imdb.r#type, "movie");
         assert_eq!(imdb.year, "2014");
     }
 }
