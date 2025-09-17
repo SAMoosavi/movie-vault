@@ -50,20 +50,23 @@ listen<SyncFileProgressBare>('sync-progress', (event) => {
 // --- Helper: Start watching directories ---
 async function startWatching(paths: string[]) {
   stopWatching()
-  for (const path of paths) {
-    try {
-      const unwatch = await fsWatch(
-        path,
-        async () => {
-          await sync_files(path)
-          await mediasStore.reload()
-        },
-        { recursive: true, delayMs: 1000 },
-      )
-      unwatchFns.push(unwatch)
-    } catch (error) {
-      console.error(`Failed to set up file watcher for ${path}:`, error)
-    }
+  try {
+    const unwatch = await fsWatch(
+      paths,
+      async (e) => {
+        if (typeof e.type === 'object' && 'access' in e.type) {
+          if (e.type.access.kind !== 'open') {
+            for (const path of e.paths) await sync_files(path)
+
+            await mediasStore.reload()
+          }
+        }
+      },
+      { recursive: true, delayMs: 1000 },
+    )
+    unwatchFns.push(unwatch)
+  } catch (error) {
+    console.error(`Failed to set up file watcher for ${paths}:`, error)
   }
 }
 
@@ -84,7 +87,6 @@ onMounted(async () => {
       await sync_files(dir)
     }
     await mediasStore.reload()
-    await startWatching(directoryPaths.value)
   } catch (e) {
     toast.error(e instanceof Error ? e.message : String(e))
   }
