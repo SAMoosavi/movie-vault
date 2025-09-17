@@ -1,14 +1,13 @@
 <template>
   <!-- File Row -->
   <div
-    class="odd:bg-base-200/50 even:bg-base-100 hover:bg-base-300 grid grid-cols-1 items-center gap-4 p-3 transition-colors md:grid-cols-3 xl:grid-cols-4"
+    class="odd:bg-base-200/50 even:bg-base-100 hover:bg-base-300 flex flex-wrap items-center justify-between gap-4 py-3 px-10  transition-colors"
   >
     <!-- File Details -->
-    <div class="col-span-1 flex flex-col md:col-span-3 xl:col-span-1">
-      <div class="hidden font-medium xl:visible">{{ file.file_name }}.{{ fileExtension }}</div>
+    <div class="flex flex-col ">
       <div class="tooltip tooltip-primary" data-tip="Click to copy path">
         <button
-          class="link link-hover max-w-full truncate text-left text-wrap transition-all duration-300 hover:max-w-full xl:max-w-xs xl:text-nowrap"
+          class="link link-hover max-w-full truncate text-left text-wrap transition-all duration-300"
           @click="copyPathToClipboard"
         >
           {{ file.path }}
@@ -16,23 +15,24 @@
       </div>
     </div>
 
+    <div class="flex flex-wrap gap-4">
     <!-- Quality Badge -->
-    <div class="flex justify-start sm:justify-center">
+    <div v-if="file.quality" class="flex justify-start sm:justify-center">
       <div class="badge badge-lg badge-outline">
-        {{ file.quality || 'N/A' }}
+        {{ file.quality }}
       </div>
     </div>
 
     <!-- Language Format Badge -->
-    <div class="flex justify-start sm:justify-center">
+    <div v-if="file.language_format && file.language_format !== 'Unknown'"  class="flex justify-start sm:justify-center">
       <div class="badge badge-md badge-primary gap-1">
-        <span v-if="file.language_format">{{ file.language_format }}</span>
-        <span v-else>unknown</span>
+        {{ file.language_format }}
       </div>
+    </div>
     </div>
 
     <!-- Action Buttons -->
-    <div class="flex flex-wrap justify-start gap-1 sm:justify-center">
+    <div class="flex flex-wrap justify-start gap-1 sm:justify-center ">
       <button
         class="btn btn-xs btn-square btn-primary btn-outline tooltip tooltip-top"
         data-tip="Play"
@@ -88,9 +88,6 @@ const props = defineProps<{ file: File }>()
 const emit = defineEmits(['reload'])
 const filePath = props.file.path
 
-// --- Helper: Get file extension from path ---
-const fileExtension = filePath.split('.').pop() ?? ''
-
 // --- Function: Play the file using system default ---
 function playFile() {
   openPath(filePath).catch((e) => console.error('Error playing file:', e))
@@ -112,7 +109,7 @@ async function moveFile() {
     const targetDir = await open({
       directory: true,
       multiple: false,
-      title: 'Select target folder',
+      title: 'Select target dir',
     })
     if (!targetDir) return
 

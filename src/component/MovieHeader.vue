@@ -1,5 +1,5 @@
 <template>
-  <div class="container mx-auto px-4 py-8">
+  <div class="w-full py-8">
     <!-- Main Content -->
     <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
       <!-- Left Column -->

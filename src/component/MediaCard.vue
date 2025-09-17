@@ -52,6 +52,13 @@
         >
           <EyeIcon class="text-success-content h-3 w-3" />
         </div>
+
+        <div
+        v-if="media.imdb?.title"
+          class="badge badge-primary absolute bottom-2 left-1/2 -translate-x-1/2 text-nowrap max-w-max "
+        >
+          {{ media.imdb?.title}}
+        </div>
       </figure>
     </div>
   </RouterLink>
