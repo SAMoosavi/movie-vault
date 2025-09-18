@@ -81,7 +81,7 @@ impl Season {
 
 impl Season {
     fn detect_series(input: &str) -> Result<(i32, i32), Box<dyn std::error::Error>> {
-        let re = Regex::new(r"(?i)s(\d{1,2})[\s._-]?e(\d{1,2})")?;
+        let re = Regex::new(r"(?i)s(\d+)[\s._-]?e(\d+)")?;
 
         re.captures(input)
             .and_then(|caps| {
