@@ -181,6 +181,7 @@ async function selectMovie(imdb_id: string) {
     emit('updated', id)
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'Failed to set imdb')
+    console.error(e);
   }
 }
 </script>

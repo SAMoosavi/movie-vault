@@ -234,7 +234,6 @@ fn remove_media_tag(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let db = &state.db;
-    println!("{media_id} {tag_id}");
     db.remove_media_tag(media_id, tag_id)
         .map_err(|e| e.to_string())
 }

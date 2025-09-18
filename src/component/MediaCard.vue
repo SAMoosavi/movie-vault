@@ -54,10 +54,10 @@
         </div>
 
         <div
-        v-if="media.imdb?.title"
-          class="badge badge-primary absolute bottom-2 left-1/2 -translate-x-1/2 text-nowrap max-w-max "
+          v-if="media.imdb?.title"
+          class="badge badge-primary absolute bottom-2 left-1/2 max-w-max -translate-x-1/2 text-nowrap"
         >
-          {{ media.imdb?.title}}
+          {{ media.imdb?.title }}
         </div>
       </figure>
     </div>

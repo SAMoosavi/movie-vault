@@ -31,7 +31,7 @@
         @set-ranking="setRanking"
         @cancel="cancelEditing"
         @toggle-watch-list="toggleWatchList"
-        @updated="fetchMovie"
+        @updated="updated"
       />
 
       <!-- Files Section -->
@@ -132,6 +132,12 @@ async function setRanking(rank: number) {
     await update_media_my_ranking(movie.value.id, rank)
     fetchMovie()
   }
+}
+
+async function updated(id:number) {
+  await router.push({name:"movie_page", params:{id}})
+  fetchMovie()
+  cancelEditing()
 }
 
 onMounted(() => {
