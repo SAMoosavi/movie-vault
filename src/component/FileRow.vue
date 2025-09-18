@@ -1,10 +1,10 @@
 <template>
   <!-- File Row -->
   <div
-    class="odd:bg-base-200/50 even:bg-base-100 hover:bg-base-300 flex flex-wrap items-center justify-between gap-4 py-3 px-10  transition-colors"
+    class="odd:bg-base-200/50 even:bg-base-100 hover:bg-base-300 flex flex-wrap items-center justify-between gap-4 px-10 py-3 transition-colors"
   >
     <!-- File Details -->
-    <div class="flex flex-col ">
+    <div class="flex flex-col">
       <div class="tooltip tooltip-primary" data-tip="Click to copy path">
         <button
           class="link link-hover max-w-full truncate text-left text-wrap transition-all duration-300"
@@ -16,23 +16,26 @@
     </div>
 
     <div class="flex flex-wrap gap-4">
-    <!-- Quality Badge -->
-    <div v-if="file.quality" class="flex justify-start sm:justify-center">
-      <div class="badge badge-lg badge-outline">
-        {{ file.quality }}
+      <!-- Quality Badge -->
+      <div v-if="file.quality" class="flex justify-start sm:justify-center">
+        <div class="badge badge-lg badge-outline">
+          {{ file.quality }}
+        </div>
       </div>
-    </div>
 
-    <!-- Language Format Badge -->
-    <div v-if="file.language_format && file.language_format !== 'Unknown'"  class="flex justify-start sm:justify-center">
-      <div class="badge badge-md badge-primary gap-1">
-        {{ file.language_format }}
+      <!-- Language Format Badge -->
+      <div
+        v-if="file.language_format && file.language_format !== 'Unknown'"
+        class="flex justify-start sm:justify-center"
+      >
+        <div class="badge badge-md badge-primary gap-1">
+          {{ file.language_format }}
+        </div>
       </div>
-    </div>
     </div>
 
     <!-- Action Buttons -->
-    <div class="flex flex-wrap justify-start gap-1 sm:justify-center ">
+    <div class="flex flex-wrap justify-start gap-1 sm:justify-center">
       <button
         class="btn btn-xs btn-square btn-primary btn-outline tooltip tooltip-top"
         data-tip="Play"

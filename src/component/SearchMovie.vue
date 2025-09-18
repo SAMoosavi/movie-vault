@@ -4,8 +4,8 @@
       <!-- Header -->
       <div class="flex flex-wrap items-center gap-4">
         <label class="label flex gap-2">
-          <span class="label-text font-semibold">Search IMDb of {{ movie.name }}</span>
-          <span v-if="movie.year" class="opacity-70">({{ movie.year }})</span>
+          <span class="label-text font-semibold">Search IMDb of {{ media.name }}</span>
+          <span v-if="media.year" class="opacity-70">({{ media.year }})</span>
         </label>
 
         <template v-if="!is_editing">
@@ -15,19 +15,19 @@
               v-for="i in 5"
               :key="i"
               class="text-warning h-5 w-5 cursor-pointer transition-colors"
-              :class="{ 'fill-warning': movie.my_ranking >= i }"
+              :class="{ 'fill-warning': media.my_ranking >= i }"
               @click="$emit('set-ranking', i)"
             />
           </div>
 
           <!-- Watched toggle -->
           <button class="btn btn-circle btn-ghost hover:btn-primary" @click="$emit('toggle-watched')">
-            <component :is="movie.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
+            <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
           </button>
 
           <!-- Watchlist toggle -->
           <button class="btn btn-circle btn-ghost hover:btn-primary" @click="$emit('toggle-watch-list')">
-            <component :is="movie.watch_list ? BookmarkCheckIcon : BookmarkIcon" class="h-5 w-5" />
+            <component :is="media.watch_list ? BookmarkCheckIcon : BookmarkIcon" class="h-5 w-5" />
           </button>
         </template>
       </div>
@@ -132,7 +132,7 @@ import type { Media } from '../type'
 import { update_media_imdb } from '../functions/invoker'
 import type { MovieSearchResult, SearchedMovie } from './SearchMovie'
 
-const props = defineProps<{ movie: Media; is_editing?: boolean }>()
+const props = defineProps<{ media: Media; is_editing?: boolean }>()
 const emit = defineEmits<{
   (e: 'cancel'): void
   (e: 'updated', id: number): void
@@ -141,7 +141,7 @@ const emit = defineEmits<{
   (e: 'toggle-watch-list'): void
 }>()
 
-const movieName = ref(props.movie?.name ?? '')
+const movieName = ref(props.media?.name ?? '')
 const searchItems = ref<SearchedMovie[]>([])
 const loading = ref(false)
 
@@ -177,7 +177,7 @@ onBeforeUnmount(() => clearTimeout(debounceTimer))
 
 async function selectMovie(imdb_id: string) {
   try {
-    const id = await update_media_imdb(props.movie.id, imdb_id)
+    const id = await update_media_imdb(props.media.id, imdb_id)
     emit('updated', id)
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'Failed to set imdb')

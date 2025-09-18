@@ -20,7 +20,7 @@
           <template v-else>
             <div v-for="season in movie.seasons" :key="season.id" class="border-base-300 border-t">
               <!-- Season Accordion -->
-              <div class="collapse-arrow bg-base-200 collapse border overflow-hidden border-primary/30 rounded-none">
+              <div class="collapse-arrow bg-base-200 border-primary/30 collapse overflow-hidden rounded-none border">
                 <input type="checkbox" />
                 <div class="collapse-title flex items-center justify-between font-semibold">
                   <span>Season {{ season.number }}</span>
@@ -38,11 +38,11 @@
                     </div>
                   </button>
                 </div>
-                <div class="collapse-content p-0 bg-base-100">
+                <div class="collapse-content bg-base-100 p-0">
                   <!-- Episodes List -->
                   <div v-for="episode in season.episodes" :key="episode.id" class="border-base-300 border-t">
                     <!-- Episode Accordion -->
-                    <div class="collapse-arrow collapse border-t rounded-none overflow-hidden border-secondary/30">
+                    <div class="collapse-arrow border-secondary/30 collapse overflow-hidden rounded-none border-t">
                       <input type="checkbox" />
                       <div class="collapse-title flex items-center justify-between text-sm font-medium">
                         <span>Episode {{ episode.number }}</span>
@@ -62,7 +62,12 @@
                       </div>
                       <div class="collapse-content p-0">
                         <!-- Episode Files -->
-                        <FileRow v-for="file in episode.files" :key="file.path" :file="file" class="border-t rounded-none border-accent/30"/>
+                        <FileRow
+                          v-for="file in episode.files"
+                          :key="file.path"
+                          :file="file"
+                          class="border-accent/30 rounded-none border-t"
+                        />
                       </div>
                     </div>
                   </div>
