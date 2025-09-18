@@ -25,7 +25,7 @@
       />
       <SearchMovie
         v-else
-        :movie="movie"
+        :media="movie"
         :is_editing="isEditing"
         @toggle-watched="toggleWatched"
         @set-ranking="setRanking"
@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 // --- External ---
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { toast } from 'vue3-toastify'
 
 // --- Routing & types ---
@@ -70,7 +70,6 @@ const route = useRoute()
 const router = useRouter()
 const movie = ref<Media | null>(null)
 const isEditing = ref(false)
-let fetchInterval: number | undefined
 
 // --- Navigation ---
 function goBack() {
@@ -99,6 +98,7 @@ async function fetchMovie(id: number = 0) {
 function startEditing() {
   isEditing.value = true
 }
+
 function cancelEditing() {
   isEditing.value = false
 }
@@ -107,35 +107,34 @@ function cancelEditing() {
 async function toggleWatched() {
   if (movie.value) {
     await update_media_watched(movie.value.id, !movie.value.watched)
+    fetchMovie()
   }
 }
 async function toggleWatchList() {
   if (movie.value) {
     await update_media_watch_list(movie.value.id, !movie.value.watch_list)
+    fetchMovie()
   }
 }
+
 async function setWatchedEpisode(episodeId: number, newState: boolean) {
   await update_episode_watched(episodeId, newState)
+  fetchMovie()
 }
+
 async function setWatchedSeason(seasonId: number, newState: boolean) {
   await update_season_watched(seasonId, newState)
+  fetchMovie()
 }
+
 async function setRanking(rank: number) {
   if (movie.value) {
     await update_media_my_ranking(movie.value.id, rank)
+    fetchMovie()
   }
 }
 
-// Use window.setInterval and clear it correctly
 onMounted(() => {
-  // initial fetch
   fetchMovie()
-  fetchInterval = window.setInterval(() => fetchMovie(), 300)
-})
-
-onUnmounted(() => {
-  if (typeof fetchInterval !== 'undefined') {
-    clearInterval(fetchInterval)
-  }
 })
 </script>
