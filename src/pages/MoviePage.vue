@@ -134,8 +134,8 @@ async function setRanking(rank: number) {
   }
 }
 
-async function updated(id:number) {
-  await router.push({name:"movie_page", params:{id}})
+async function updated(id: number) {
+  await router.push({ name: 'movie_page', params: { id } })
   fetchMovie()
   cancelEditing()
 }

@@ -1,13 +1,22 @@
 <template>
   <!-- App Navbar -->
   <AppNavbar />
+
+  <!-- Sync-progress banner -->
+  <div v-if="showProgress" class="fixed top-16 right-0 left-0 z-50 px-4 py-2">
+    <div class="alert alert-info shadow-lg">
+      <span>Syncing media… {{ progress }}%</span>
+      <progress class="progress progress-primary w-full" :value="progress" max="100"></progress>
+    </div>
+  </div>
+
   <!-- Router View -->
   <router-view />
 </template>
 
 <script setup lang="ts">
 // --- External Libraries ---
-import { onMounted, onBeforeUnmount, watch } from 'vue'
+import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import { toast } from 'vue3-toastify'
 
 // --- Local Components ---
@@ -43,8 +52,18 @@ interface SyncFileProgressBare {
   total: number
 }
 
+const progress = ref(0)
+const showProgress = ref(false)
+
 listen<SyncFileProgressBare>('sync-progress', (event) => {
-  toast.info(`added ${event.payload.inserted} of ${event.payload.total}`)
+  const { inserted, total } = event.payload
+  progress.value = total > 0 ? Math.round((inserted / total) * 100) : 0
+  showProgress.value = true
+  console.log(`Sync progress: ${progress.value}%`)
+
+  if (inserted === total) {
+    setTimeout(() => (showProgress.value = false), 500)
+  }
 })
 
 // --- Helper: Start watching directories ---

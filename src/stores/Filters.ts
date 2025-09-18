@@ -22,7 +22,7 @@ export const useFiltersStore = defineStore('filters', () => {
   const filters = ref<FilterValues>(structuredClone(defaultFilters))
 
   function resetFilters() {
-    filters.value = structuredClone(defaultFilters);
+    filters.value = structuredClone(defaultFilters)
   }
 
   return { filters, resetFilters }
