@@ -142,6 +142,7 @@
                 @click="filters.existImdb = null"
                 name="has_imdb"
                 aria-label="All"
+                :checked="filters.existImdb === null"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
@@ -172,6 +173,7 @@
                 @click="filters.existMultiFile = null"
                 name="multi_file"
                 aria-label="All"
+                :checked="filters.existMultiFile === null"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
@@ -202,6 +204,7 @@
                 @click="filters.watched = null"
                 name="watched"
                 aria-label="All"
+                :checked="filters.watched === null"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
@@ -232,6 +235,7 @@
                 @click="filters.watchList = null"
                 name="watch_list"
                 aria-label="All"
+                :checked="filters.watchList === null"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
@@ -262,6 +266,7 @@
                 @click="filters.type = 'all'"
                 name="watch_list"
                 aria-label="All"
+                :checked="filters.type === null"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"

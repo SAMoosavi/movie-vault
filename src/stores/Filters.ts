@@ -8,7 +8,7 @@ const defaultFilters: FilterValues = {
   country: [],
   genre: [],
   actor: [],
-  minRating: null,
+  minRating: 0,
   existImdb: null,
   existMultiFile: null,
   watched: null,
@@ -19,10 +19,10 @@ const defaultFilters: FilterValues = {
 }
 
 export const useFiltersStore = defineStore('filters', () => {
-  const filters = ref<FilterValues>({ ...defaultFilters })
+  const filters = ref<FilterValues>(structuredClone(defaultFilters))
 
   function resetFilters() {
-    Object.assign(filters.value, defaultFilters)
+    filters.value = structuredClone(defaultFilters);
   }
 
   return { filters, resetFilters }
