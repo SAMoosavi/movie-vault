@@ -7,29 +7,6 @@
           <span class="label-text font-semibold">Search IMDb of {{ media.name }}</span>
           <span v-if="media.year" class="opacity-70">({{ media.year }})</span>
         </label>
-
-        <template v-if="!is_editing">
-          <!-- Rating -->
-          <div class="flex items-center gap-1">
-            <StarIcon
-              v-for="i in 5"
-              :key="i"
-              class="text-warning h-5 w-5 cursor-pointer transition-colors"
-              :class="{ 'fill-warning': media.my_ranking >= i }"
-              @click="$emit('set-ranking', i)"
-            />
-          </div>
-
-          <!-- Watched toggle -->
-          <button class="btn btn-circle btn-ghost hover:btn-primary" @click="$emit('toggle-watched')">
-            <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
-          </button>
-
-          <!-- Watchlist toggle -->
-          <button class="btn btn-circle btn-ghost hover:btn-primary" @click="$emit('toggle-watch-list')">
-            <component :is="media.watch_list ? BookmarkCheckIcon : BookmarkIcon" class="h-5 w-5" />
-          </button>
-        </template>
       </div>
 
       <!-- Search Input -->
@@ -40,14 +17,13 @@
           placeholder="Enter media name..."
           class="join-item input input-bordered w-full"
         />
-        <button v-if="is_editing" class="join-item btn btn-primary" @click="$emit('cancel')">Cancel</button>
       </div>
 
       <!-- Results -->
       <div v-if="loading || searchItems.length" class="mt-8">
         <h3 class="mb-4 text-xl font-semibold">Search Results</h3>
 
-        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-8">
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           <!-- Skeletons -->
           <template v-if="loading">
             <div
@@ -89,7 +65,9 @@
                   </div>
 
                   <!-- Title -->
-                  <div class="badge badge-secondary absolute bottom-2 left-1/2 -translate-x-1/2 text-xs text-nowrap">
+                  <div
+                    class="bg-secondary text-secondary-content card absolute bottom-2 left-1/2 max-w-3/4 -translate-x-1/2 p-1 text-center text-xs text-wrap"
+                  >
                     {{ item['#TITLE'] }}
                   </div>
                 </figure>
@@ -118,27 +96,14 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { fetch } from '@tauri-apps/plugin-http'
 import { toast } from 'vue3-toastify'
-import {
-  SearchX,
-  Search,
-  EyeIcon,
-  EyeOffIcon,
-  StarIcon,
-  BookmarkIcon,
-  BookmarkCheckIcon,
-  CalendarIcon,
-} from 'lucide-vue-next'
+import { SearchX, Search, CalendarIcon } from 'lucide-vue-next'
 import type { Media } from '../../type'
 import { update_media_imdb } from '../../functions/invoker'
 import type { MediaSearchResult, SearchedMedia } from './SearchMediaImdb'
 
-const props = defineProps<{ media: Media; is_editing?: boolean }>()
+const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{
-  (e: 'cancel'): void
   (e: 'updated', id: number): void
-  (e: 'set-ranking', rank: number): void
-  (e: 'toggle-watched'): void
-  (e: 'toggle-watch-list'): void
 }>()
 
 const mediaName = ref(props.media?.name ?? '')

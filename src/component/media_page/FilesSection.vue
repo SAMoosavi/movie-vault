@@ -26,7 +26,7 @@
                   <span>Season {{ season.number }}</span>
                   <button
                     class="z-10 flex cursor-pointer items-center gap-2"
-                    @click="$emit('set-watched-season', season.id, !season.watched)"
+                    @click="setWatchedSeason(season.id, !season.watched)"
                   >
                     <div v-if="season.watched" class="badge badge-lg badge-success gap-1">
                       <Eye class="h-4 w-4" />
@@ -48,7 +48,7 @@
                         <span>Episode {{ episode.number }}</span>
                         <button
                           class="z-10 flex cursor-pointer items-center gap-2"
-                          @click="$emit('set-watched-episode', episode.id, !episode.watched)"
+                          @click="setWatchedEpisode(episode.id, !episode.watched)"
                         >
                           <div v-if="episode.watched" class="badge badge-lg badge-success gap-1">
                             <Eye class="h-4 w-4" />
@@ -91,6 +91,7 @@ import FileRow from './FileRow.vue'
 
 // --- Types ---
 import type { Media } from '../../type'
+import { update_episode_watched, update_season_watched } from '../../functions/invoker'
 
 // --- Props definition ---
 interface Props {
@@ -99,7 +100,23 @@ interface Props {
 const props = defineProps<Props>()
 
 // --- Emits for watched toggling ---
-defineEmits(['set-watched-season', 'set-watched-episode'])
+const emit = defineEmits<{
+  (e: 'fetch-media'): void
+}>()
+
+function fetchMedia() {
+  emit('fetch-media')
+}
+
+async function setWatchedEpisode(episodeId: number, newState: boolean) {
+  await update_episode_watched(episodeId, newState)
+  fetchMedia()
+}
+
+async function setWatchedSeason(seasonId: number, newState: boolean) {
+  await update_season_watched(seasonId, newState)
+  fetchMedia()
+}
 
 // --- Helper: Check if media has files ---
 const hasMediaFiles = computed(() => Array.isArray(props.media.files) && props.media.files.length > 0)

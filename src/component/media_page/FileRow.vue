@@ -73,7 +73,7 @@
 
 <script setup lang="ts">
 // --- External types & icons ---
-import type { File } from '../type'
+import type { File } from '../../type'
 import { Files, FolderOpen, Play, Scissors, Trash2 } from 'lucide-vue-next'
 
 // --- Tauri APIs (rename copyFile import to avoid collision with local function) ---
