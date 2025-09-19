@@ -11,14 +11,14 @@
         </h2>
 
         <div class="border-base-200 overflow-hidden rounded-lg border shadow-sm">
-          <!-- If Movie Files Exist -->
-          <template v-if="hasMovieFiles">
-            <FileRow v-for="file in movie.files" :key="file.path" :file="file" />
+          <!-- If Media Files Exist -->
+          <template v-if="hasMediaFiles">
+            <FileRow v-for="file in media.files" :key="file.path" :file="file" />
           </template>
 
           <!-- If Series (Seasons) Exist -->
           <template v-else>
-            <div v-for="season in movie.seasons" :key="season.id" class="border-base-300 border-t">
+            <div v-for="season in media.seasons" :key="season.id" class="border-base-300 border-t">
               <!-- Season Accordion -->
               <div class="collapse-arrow bg-base-200 border-primary/30 collapse overflow-hidden rounded-none border">
                 <input type="checkbox" />
@@ -90,27 +90,27 @@ import { FileText, Eye, EyeOff } from 'lucide-vue-next'
 import FileRow from './FileRow.vue'
 
 // --- Types ---
-import type { Media } from '../type'
+import type { Media } from '../../type'
 
 // --- Props definition ---
 interface Props {
-  movie: Media
+  media: Media
 }
 const props = defineProps<Props>()
 
 // --- Emits for watched toggling ---
 defineEmits(['set-watched-season', 'set-watched-episode'])
 
-// --- Helper: Check if movie has files ---
-const hasMovieFiles = computed(() => Array.isArray(props.movie.files) && props.movie.files.length > 0)
+// --- Helper: Check if media has files ---
+const hasMediaFiles = computed(() => Array.isArray(props.media.files) && props.media.files.length > 0)
 
-// --- Helper: Total file count (movie or series) ---
+// --- Helper: Total file count (media or series) ---
 const fileCount = computed(() => {
-  if (hasMovieFiles.value) {
-    return props.movie.files.length
+  if (hasMediaFiles.value) {
+    return props.media.files.length
   }
-  if (Array.isArray(props.movie.seasons)) {
-    return props.movie.seasons.reduce((seasonTotal, season) => {
+  if (Array.isArray(props.media.seasons)) {
+    return props.media.seasons.reduce((seasonTotal, season) => {
       return seasonTotal + season.episodes.reduce((episodeTotal, episode) => episodeTotal + episode.files.length, 0)
     }, 0)
   }

@@ -35,9 +35,9 @@
       <!-- Search Input -->
       <div class="join mt-4 w-full">
         <input
-          v-model="movieName"
+          v-model="mediaName"
           type="text"
-          placeholder="Enter movie name..."
+          placeholder="Enter media name..."
           class="join-item input input-bordered w-full"
         />
         <button v-if="is_editing" class="join-item btn btn-primary" @click="$emit('cancel')">Cancel</button>
@@ -69,7 +69,7 @@
               v-for="item in searchItems"
               :key="item['#IMDB_ID']"
               class="card from-primary/50 to-secondary/50 cursor-pointer bg-gradient-to-br p-0.5 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
-              @click="selectMovie(item['#IMDB_ID'])"
+              @click="selectMedia(item['#IMDB_ID'])"
             >
               <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
                 <figure class="relative h-full">
@@ -100,15 +100,15 @@
       </div>
 
       <!-- No Results -->
-      <div v-else-if="movieName" class="py-12 text-center">
+      <div v-else-if="mediaName" class="py-12 text-center">
         <SearchX class="mx-auto mb-4 h-16 w-16 opacity-60" />
-        <p class="text-base-content/70">No movies found for "{{ movieName }}"</p>
+        <p class="text-base-content/70">No medias found for "{{ mediaName }}"</p>
       </div>
 
       <!-- Empty State -->
       <div v-else class="py-16 text-center">
         <Search class="mx-auto mb-4 h-16 w-16 opacity-60" />
-        <p class="text-base-content/70">Enter a movie name to search</p>
+        <p class="text-base-content/70">Enter a media name to search</p>
       </div>
     </div>
   </div>
@@ -128,9 +128,9 @@ import {
   BookmarkCheckIcon,
   CalendarIcon,
 } from 'lucide-vue-next'
-import type { Media } from '../type'
-import { update_media_imdb } from '../functions/invoker'
-import type { MovieSearchResult, SearchedMovie } from './SearchMovie'
+import type { Media } from '../../type'
+import { update_media_imdb } from '../../functions/invoker'
+import type { MediaSearchResult, SearchedMedia } from './SearchMediaImdb'
 
 const props = defineProps<{ media: Media; is_editing?: boolean }>()
 const emit = defineEmits<{
@@ -141,8 +141,8 @@ const emit = defineEmits<{
   (e: 'toggle-watch-list'): void
 }>()
 
-const movieName = ref(props.media?.name ?? '')
-const searchItems = ref<SearchedMovie[]>([])
+const mediaName = ref(props.media?.name ?? '')
+const searchItems = ref<SearchedMedia[]>([])
 const loading = ref(false)
 
 let debounceTimer: number | undefined
@@ -156,7 +156,7 @@ async function performSearch(query: string) {
   loading.value = true
   try {
     const res = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(title)}`)
-    const data: MovieSearchResult = await res.json()
+    const data: MediaSearchResult = await res.json()
     searchItems.value = data?.description ?? []
   } catch (err) {
     console.error(err)
@@ -167,15 +167,15 @@ async function performSearch(query: string) {
   }
 }
 
-watch(movieName, (val) => {
+watch(mediaName, (val) => {
   clearTimeout(debounceTimer)
   debounceTimer = window.setTimeout(() => performSearch(val), 350)
 })
 
-onMounted(() => performSearch(movieName.value))
+onMounted(() => performSearch(mediaName.value))
 onBeforeUnmount(() => clearTimeout(debounceTimer))
 
-async function selectMovie(imdb_id: string) {
+async function selectMedia(imdb_id: string) {
   try {
     const id = await update_media_imdb(props.media.id, imdb_id)
     emit('updated', id)

@@ -1,6 +1,6 @@
 <template>
   <RouterLink
-    :to="{ name: 'movie_page', params: { id: media.id.toString() } }"
+    :to="{ name: 'media_page', params: { id: media.id.toString() } }"
     class="card from-primary/50 to-secondary/50 h-72 w-52 bg-gradient-to-br p-0.5 transition-transform duration-200 hover:scale-[102%]"
   >
     <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">

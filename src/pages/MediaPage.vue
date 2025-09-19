@@ -7,25 +7,25 @@
       Back
     </button>
     <!-- Loading Skeletons -->
-    <template v-if="!movie">
-      <MovieHeaderSkeleton />
+    <template v-if="!media">
+      <MediaHeaderSkeleton />
       <FilesSectionSkeleton />
     </template>
 
-    <!-- Movie Content -->
+    <!-- Media Content -->
     <template v-else>
-      <!-- Movie Header or Edit/Search -->
-      <MovieHeader
-        v-if="movie.imdb && !isEditing"
-        :media="movie"
+      <!-- Media Header or Edit/Search -->
+      <MediaHeader
+        v-if="media.imdb && !isEditing"
+        :media="media"
         @edit="startEditing"
         @toggle-watched="toggleWatched"
         @set-ranking="setRanking"
         @toggle-watch-list="toggleWatchList"
       />
-      <SearchMovie
+      <SearchMediaImdb
         v-else
-        :media="movie"
+        :media="media"
         :is_editing="isEditing"
         @toggle-watched="toggleWatched"
         @set-ranking="setRanking"
@@ -35,7 +35,7 @@
       />
 
       <!-- Files Section -->
-      <FilesSection :movie="movie" @set-watched-episode="setWatchedEpisode" @set-watched-season="setWatchedSeason" />
+      <FilesSection :media="media" @set-watched-episode="setWatchedEpisode" @set-watched-season="setWatchedSeason" />
     </template>
   </div>
 </template>
@@ -58,17 +58,19 @@ import {
   update_media_watched,
   update_season_watched,
 } from '../functions/invoker'
+
 import { ArrowLeft } from 'lucide-vue-next'
-import MovieHeader from '../component/MovieHeader.vue'
-import SearchMovie from '../component/SearchMovie.vue'
-import FilesSection from '../component/FilesSection.vue'
-import MovieHeaderSkeleton from '../component/MovieHeaderSkeleton.vue'
-import FilesSectionSkeleton from '../component/FilesSectionSkeleton.vue'
+
+import MediaHeader from '../component/media_page/MediaHeader.vue'
+import SearchMediaImdb from '../component/media_page/SearchMediaImdb.vue'
+import MediaHeaderSkeleton from '../component/media_page/MediaHeaderSkeleton.vue'
+import FilesSectionSkeleton from '../component/media_page/FilesSectionSkeleton.vue'
+import FilesSection from '../component/media_page/FilesSection.vue'
 
 // --- State ---
 const route = useRoute()
 const router = useRouter()
-const movie = ref<Media | null>(null)
+const media = ref<Media | null>(null)
 const isEditing = ref(false)
 
 // --- Navigation ---
@@ -76,8 +78,8 @@ function goBack() {
   router.back()
 }
 
-// Fetch movie data by ID (safer error handling)
-async function fetchMovie(id: number = 0) {
+// Fetch media data by ID (safer error handling)
+async function fetchMedia(id: number = 0) {
   if (id !== 0) {
     // navigate to a new id, reset edit mode afterwards
     await router.push({ name: route.name, params: { id } })
@@ -87,9 +89,9 @@ async function fetchMovie(id: number = 0) {
 
   try {
     const data = await get_media_by_id(Number(route.params.id))
-    movie.value = data
+    media.value = data
   } catch (error) {
-    toast.error(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Failed to fetch movie')
+    toast.error(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Failed to fetch media')
     goBack()
   }
 }
@@ -103,44 +105,44 @@ function cancelEditing() {
   isEditing.value = false
 }
 
-// --- Movie actions ---
+// --- Media actions ---
 async function toggleWatched() {
-  if (movie.value) {
-    await update_media_watched(movie.value.id, !movie.value.watched)
-    fetchMovie()
+  if (media.value) {
+    await update_media_watched(media.value.id, !media.value.watched)
+    fetchMedia()
   }
 }
 async function toggleWatchList() {
-  if (movie.value) {
-    await update_media_watch_list(movie.value.id, !movie.value.watch_list)
-    fetchMovie()
+  if (media.value) {
+    await update_media_watch_list(media.value.id, !media.value.watch_list)
+    fetchMedia()
   }
 }
 
 async function setWatchedEpisode(episodeId: number, newState: boolean) {
   await update_episode_watched(episodeId, newState)
-  fetchMovie()
+  fetchMedia()
 }
 
 async function setWatchedSeason(seasonId: number, newState: boolean) {
   await update_season_watched(seasonId, newState)
-  fetchMovie()
+  fetchMedia()
 }
 
 async function setRanking(rank: number) {
-  if (movie.value) {
-    await update_media_my_ranking(movie.value.id, rank)
-    fetchMovie()
+  if (media.value) {
+    await update_media_my_ranking(media.value.id, rank)
+    fetchMedia()
   }
 }
 
 async function updated(id: number) {
-  await router.push({ name: 'movie_page', params: { id } })
-  fetchMovie()
+  await router.push({ name: 'media_page', params: { id } })
+  fetchMedia()
   cancelEditing()
 }
 
 onMounted(() => {
-  fetchMovie()
+  fetchMedia()
 })
 </script>

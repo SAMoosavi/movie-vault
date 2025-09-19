@@ -1,10 +1,10 @@
-export interface MovieSearchResult {
+export interface MediaSearchResult {
   ok: boolean
-  description: SearchedMovie[]
+  description: SearchedMedia[]
   error_code: number
 }
 
-export interface SearchedMovie {
+export interface SearchedMedia {
   '#TITLE': string
   '#YEAR': string | number
   '#IMDB_ID': string

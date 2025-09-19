@@ -99,7 +99,7 @@
                     <option value="0">Select tag</option>
                     <option v-for="tag in selectableTags" :key="tag.id" :value="tag.id">{{ tag.name }}</option>
                   </select>
-                  <button class="btn btn-primary join-item" @click="addTagToMovie" :disabled="selectedTagId === 0">
+                  <button class="btn btn-primary join-item" @click="addTagToMedia" :disabled="selectedTagId === 0">
                     <PlusIcon class="h-4 w-4" />
                   </button>
                 </div>
@@ -189,8 +189,8 @@ import {
   BookmarkPlusIcon,
   PuzzleIcon,
 } from 'lucide-vue-next'
-import type { Media, Tag } from '../type'
-import { get_tags, insert_media_tag, remove_media_tag } from '../functions/invoker'
+import type { Media, Tag } from '../../type'
+import { get_tags, insert_media_tag, remove_media_tag } from '../../functions/invoker'
 import { toast } from 'vue3-toastify'
 
 const props = defineProps<{ media: Media }>()
@@ -218,7 +218,7 @@ const selectableTags = computed(() => {
   return tags.value.filter((t) => !mediaTags.some((mt) => mt.id === t.id))
 })
 
-async function addTagToMovie() {
+async function addTagToMedia() {
   const tagId = selectedTagId.value
   if (!tagId) return
   try {
