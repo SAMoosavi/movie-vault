@@ -55,7 +55,7 @@
 
         <div
           v-if="media.imdb?.title"
-          class="badge badge-primary absolute bottom-2 left-1/2 max-w-max -translate-x-1/2 text-nowrap"
+          class="bg-primary text-primary-content card absolute bottom-2 left-1/2 max-w-1/2 -translate-x-1/2 p-1 text-center text-xs text-wrap"
         >
           {{ media.imdb?.title }}
         </div>
