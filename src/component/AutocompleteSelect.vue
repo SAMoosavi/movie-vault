@@ -54,13 +54,18 @@
 <script setup lang="ts">
 import { CircleX } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
-import type { NumericalString } from '../type'
+
+type KeyType = string | number
+type ItemType = [KeyType, string]
 
 // Props: list of items to select from
-const props = defineProps<{ items: NumericalString[] }>()
+const props = defineProps<{ items: ItemType[] }>()
+const emit = defineEmits<{
+  (e: 'selected-items', value: KeyType[]): void
+}>()
 
-// v-model for selected items
-const selectedItems = defineModel<NumericalString[]>({ default: () => [] })
+// Ref for selected items
+const selectedItems = ref<ItemType[]>([])
 
 // Search input value
 const searchTerm = ref('')
@@ -79,15 +84,23 @@ const filteredItems = computed(() => {
 })
 
 // Add item to selected list
-function selectItem(item: NumericalString) {
+function selectItem(item: ItemType) {
   if (!selectedItems.value.includes(item)) {
     selectedItems.value.push(item)
+    emit(
+      'selected-items',
+      selectedItems.value.map((i) => i[0]),
+    )
   }
   searchTerm.value = ''
 }
 
 // Remove item from selected list
-function removeItem(item: NumericalString) {
+function removeItem(item: ItemType) {
   selectedItems.value = selectedItems.value.filter((i) => i[0] !== item[0])
+  emit(
+    'selected-items',
+    selectedItems.value.map((i) => i[0]),
+  )
 }
 </script>

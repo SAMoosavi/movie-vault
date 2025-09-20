@@ -5,8 +5,8 @@ export async function sync_files(dir: string): Promise<number> {
   return await invoke('sync_files', { root: dir })
 }
 
-export async function get_actors(): Promise<NumericalString[]> {
-  return await invoke('get_actors')
+export async function get_people(): Promise<NumericalString[]> {
+  return await invoke('get_people')
 }
 
 export async function get_genres(): Promise<NumericalString[]> {
