@@ -1,6 +1,6 @@
 use super::schema::{
-    people, countries, episodes, files, genres, imdb_people, imdb_countries, imdb_genres, imdbs,
-    media_tags, medias, seasons, tags,
+    countries, episodes, files, genres, imdb_countries, imdb_genres, imdb_people, imdbs,
+    media_tags, medias, people, seasons, tags,
 };
 use crate::data_model::{
     Episode, IdType, Imdb, LanguageFormat, Media, MediaFile, Person, Season, Tag,
