@@ -8,20 +8,11 @@
         <div class="rounded-badge skeleton h-5 w-16"></div>
       </div>
 
-      <div class="text-primary-content hidden p-3 font-bold sm:grid sm:grid-cols-4">
-        <div class="skeleton mx-auto h-4 w-32"></div>
-        <div class="skeleton mx-auto h-4 w-32"></div>
-        <div class="skeleton mx-auto h-4 w-32"></div>
-        <div class="skeleton mx-auto h-4 w-32"></div>
-      </div>
       <!-- List Skeleton (flex/grid) -->
       <div class="flex flex-col gap-4">
         <div v-for="row in 3" :key="row" class="grid grid-cols-4 items-center gap-4">
           <!-- Column 1 -->
-          <div>
-            <div class="skeleton mb-1 h-4 w-80 rounded"></div>
-            <div class="skeleton h-3 w-96 rounded"></div>
-          </div>
+          <div class="skeleton mb-1 h-6 w-96 rounded"></div>
 
           <!-- Column 2 -->
           <div class="rounded-badge skeleton mx-auto h-6 w-16"></div>

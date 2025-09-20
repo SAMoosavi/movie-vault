@@ -1,5 +1,6 @@
 import { Store } from '@tauri-apps/plugin-store'
 
+// List of available theme names
 export const themes = [
   'dracula',
   'winter',
@@ -23,20 +24,27 @@ export const themes = [
   'night',
 ]
 
+// Returns the default theme based on user's system preference
 export function getDefaultTheme(): string {
-  const num = window.matchMedia('(prefers-color-scheme: dark)').matches ? 0 : 1
-  return themes[num]
+  // If user prefers dark mode, use the first theme ('dracula')
+  // Otherwise, use the second theme ('winter')
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  return prefersDark ? themes[0] : themes[1]
 }
 
+// Sets the theme for the document and saves it in the store
 export async function setTheme(theme: string, store: Store) {
   document.documentElement.setAttribute('data-theme', theme)
   await store.set('theme', theme)
 }
 
+// Initializes and returns the settings store
 export async function initStore(): Promise<Store> {
+  // Loads 'settings.json' with autoSave enabled
   return await Store.load('settings.json', { autoSave: true })
 }
 
+// Loads the saved theme from the store, if any
 export async function loadTheme(store: Store): Promise<string | undefined> {
   return await store.get<string>('theme')
 }

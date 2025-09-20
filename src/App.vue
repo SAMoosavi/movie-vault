@@ -1,28 +1,48 @@
 <template>
+  <!-- App Navbar -->
   <AppNavbar />
 
+  <!-- Sync-progress banner -->
+  <div v-if="showProgress" class="fixed top-16 right-0 left-0 z-50 px-4 py-2">
+    <div class="alert alert-info shadow-lg">
+      <span>Syncing media… {{ progress }}%</span>
+      <progress class="progress progress-primary w-full" :value="progress" max="100"></progress>
+    </div>
+  </div>
+
+  <!-- Router View -->
   <router-view />
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, onUnmounted, watch } from 'vue'
-import AppNavbar from './component/AppNavbar.vue'
-import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
-import { useDirsStore } from './stores/Dirs'
-import { storeToRefs } from 'pinia'
-import { sync_files } from './functions/invoker'
-import { useVideosStore } from './stores/Videos'
+// --- External Libraries ---
+import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import { toast } from 'vue3-toastify'
-import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
+
+// --- Local Components ---
+import AppNavbar from './component/AppNavbar.vue'
+
+// --- Tauri API ---
+import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
 import { listen } from '@tauri-apps/api/event'
 
-const videos = useVideosStore()
-const dir = useDirsStore()
-const { dir_path } = storeToRefs(dir)
+// --- Stores ---
+import { useDirsStore } from './stores/Dirs'
+import { storeToRefs } from 'pinia'
+import { useMediasStore } from './stores/medias.ts'
 
+// --- Functions ---
+import { sync_files } from './functions/invoker'
+import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
+
+// --- State ---
+const mediasStore = useMediasStore()
+const dirsStore = useDirsStore()
+const { directoryPaths } = storeToRefs(dirsStore)
 let unwatchFns: UnwatchFn[] = []
 
-const stopWatching = () => {
+// --- Helper: Stop watching directories ---
+function stopWatching() {
   unwatchFns.forEach((fn) => fn())
   unwatchFns = []
 }
@@ -32,75 +52,74 @@ interface SyncFileProgressBare {
   total: number
 }
 
+const progress = ref(0)
+const showProgress = ref(false)
+
 listen<SyncFileProgressBare>('sync-progress', (event) => {
-  toast.info(`added ${event.payload.inserted} of ${event.payload.total}`)
+  const { inserted, total } = event.payload
+  progress.value = total > 0 ? Math.round((inserted / total) * 100) : 0
+  showProgress.value = true
+  console.log(`Sync progress: ${progress.value}%`)
+
+  if (inserted === total) {
+    setTimeout(() => (showProgress.value = false), 500)
+  }
 })
 
-const startWatching = async (paths: string[]) => {
+// --- Helper: Start watching directories ---
+async function startWatching(paths: string[]) {
   stopWatching()
+  try {
+    const unwatch = await fsWatch(
+      paths,
+      async (e) => {
+        if (typeof e.type === 'object' && 'access' in e.type) {
+          if (e.type.access.kind !== 'open') {
+            for (const path of e.paths) await sync_files(path)
 
-  for (const path of paths) {
-    try {
-      const unwatch = await fsWatch(
-        path,
-        async (event) => {
-          if (event?.type && 'access' in (event.type as object)) return
-
-          await sync_files(path)
-          await videos.reload_media()
-        },
-        {
-          recursive: true,
-          delayMs: 1000,
-        },
-      )
-
-      unwatchFns.push(unwatch)
-    } catch (error) {
-      console.error(`Failed to set up file watcher for path ${path}:`, error)
-    }
+            await mediasStore.reload()
+          }
+        }
+      },
+      { recursive: true, delayMs: 1000 },
+    )
+    unwatchFns.push(unwatch)
+  } catch (error) {
+    console.error(`Failed to set up file watcher for ${paths}:`, error)
   }
 }
 
-function getErrorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : String(e)
-}
-
+// --- Lifecycle: On mount, initialize theme and sync files ---
 onMounted(async () => {
   try {
+    // Theme initialization
     const store = await initStore()
     const theme = (await loadTheme(store)) ?? getDefaultTheme()
     await setTheme(theme, store)
   } catch (e) {
-    const message = getErrorMessage(e)
-    console.error('Initialization error:', e)
-    toast.error(`Failed to initialize: ${message}`)
+    toast.error(e instanceof Error ? e.message : String(e))
   }
 
   try {
-    // Sync files with better error handling
-    for (const dir of dir_path.value) await sync_files(dir)
-
-    await videos.reload_media()
-
-    await startWatching(dir_path.value)
+    // Initial sync and watcher setup
+    for (const dir of directoryPaths.value) {
+      await sync_files(dir)
+    }
+    await mediasStore.reload()
   } catch (e) {
-    const message = getErrorMessage(e)
-
-    console.error('Initialization error:', e)
-    toast.error(`Failed to initialize: ${message}`)
+    toast.error(e instanceof Error ? e.message : String(e))
   }
 })
 
+// --- Watch for changes in directory paths ---
 watch(
-  () => dir_path.value,
-  async (v) => {
-    await startWatching(v)
+  () => directoryPaths.value,
+  async (paths) => {
+    await startWatching(paths)
   },
   { immediate: true, deep: true },
 )
 
-onBeforeUnmount(() => stopWatching())
-
-onUnmounted(() => stopWatching())
+// --- Clean up watchers on unmount ---
+onBeforeUnmount(stopWatching)
 </script>

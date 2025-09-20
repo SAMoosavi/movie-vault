@@ -2,28 +2,27 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { FilterValues } from '../type'
 
+const defaultFilters: FilterValues = {
+  name: '',
+  type: 'all',
+  country: [],
+  genre: [],
+  actor: [],
+  minRating: 0,
+  existImdb: null,
+  existMultiFile: null,
+  watched: null,
+  sortBy: 'name',
+  sortDirection: 'asc',
+  watchList: null,
+  tags: [],
+}
+
 export const useFiltersStore = defineStore('filters', () => {
-  const defaultFilters: FilterValues = {
-    name: '',
-    type: 'all',
-    country: [],
-    genre: [],
-    actor: [],
-    minRating: null,
-    existImdb: null,
-    existMultiFile: null,
-    watched: null,
-    sortBy: 'name',
-    sortDirection: 'asc',
-    watchList: null,
-    tags: [],
-  }
+  const filters = ref<FilterValues>(structuredClone(defaultFilters))
 
-  const filters = ref<FilterValues>({ ...defaultFilters })
-
-  // Reset to defaults
   function resetFilters() {
-    filters.value = { ...defaultFilters }
+    filters.value = structuredClone(defaultFilters)
   }
 
   return { filters, resetFilters }

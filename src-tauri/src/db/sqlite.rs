@@ -192,7 +192,7 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<()> {
+    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<IdType> {
         let imdb_id = media.imdb.as_ref().map(|imdb| imdb.imdb_id.as_str());
 
         if let Some(imdb) = &media.imdb {
@@ -247,7 +247,7 @@ impl Sqlite {
 
         Self::insert_files(conn, &media.files, Some(id), None)?;
 
-        Ok(())
+        Ok(id)
     }
 
     fn insert_season(conn: &mut SqliteConnection, media_id: IdType, season: &Season) -> Result<()> {
@@ -723,43 +723,12 @@ impl DB for Sqlite {
 
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType> {
         self.get_conn()?.transaction(|conn| {
-            let existing_media = medias::table
-                .filter(medias::imdb_id.eq(imdb_id))
-                .filter(medias::id.ne(media_id))
-                .first::<DbMedia>(conn)
-                .optional()?;
+            let mut media = Self::get_media_by_id(conn, media_id)?.unwrap();
+            diesel::delete(medias::table.filter(medias::id.eq(media.id))).execute(conn)?;
+            let imdb = Self::get_imdb(conn, Some(imdb_id.into()))?;
+            media.imdb = imdb;
 
-            if let Some(existing) = existing_media {
-                diesel::update(seasons::table.filter(seasons::media_id.eq(media_id)))
-                    .set(seasons::media_id.eq(existing.id))
-                    .execute(conn)?;
-
-                diesel::update(files::table.filter(files::media_id.nullable().eq(media_id)))
-                    .set(files::media_id.eq(existing.id))
-                    .execute(conn)?;
-
-                let media_tags = media_tags::table
-                    .filter(media_tags::media_id.eq(media_id))
-                    .select(media_tags::tag_id)
-                    .load::<IdType>(conn)?;
-
-                for tag_id in media_tags {
-                    diesel::insert_or_ignore_into(media_tags::table)
-                        .values(&NewMediaTag {
-                            media_id: existing.id,
-                            tag_id,
-                        })
-                        .execute(conn)?;
-                }
-
-                diesel::delete(medias::table.filter(medias::id.eq(media_id))).execute(conn)?;
-                Ok(existing.id)
-            } else {
-                diesel::update(medias::table.filter(medias::id.eq(media_id)))
-                    .set(medias::imdb_id.eq(imdb_id))
-                    .execute(conn)?;
-                Ok(media_id)
-            }
+            Self::insert_media(conn, &media)
         })
     }
 
@@ -830,7 +799,7 @@ impl DB for Sqlite {
         Ok(db_files.into_iter().map(MediaFile::from).collect())
     }
 
-    fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>> {
+    fn filter_medias(&self, filters: &FilterValues, page: u32) -> Result<Vec<Media>> {
         let conn = &mut self.get_conn()?;
 
         let mut query = medias::table
@@ -971,8 +940,18 @@ impl DB for Sqlite {
             }
         };
 
+        // -- Pagination --
+        let limit = 50;
+        let offset = page * limit;
+
         // Execute the query and return the results
-        let media_ids = query.select(medias::id).distinct().load::<i32>(conn)?;
+        let media_ids = query
+            .select(medias::id)
+            .distinct()
+            .limit(limit as i64)
+            .offset(offset as i64)
+            .load::<i32>(conn)?;
+
         Ok(media_ids
             .into_iter()
             .map(|id| Self::get_media_by_id(conn, id))

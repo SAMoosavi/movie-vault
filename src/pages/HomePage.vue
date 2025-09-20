@@ -1,61 +1,91 @@
 <template>
-  <main class="container mx-auto px-4 py-6">
+  <!-- Main Container -->
+  <main class="container mx-auto px-4 py-6" ref="scrollContainer">
+    <!-- Movie filter controls -->
     <FilterMovies />
 
-    <LoadingView v-if="loading" />
-    <!-- Movie Grid -->
-    <div v-else>
-      <ResultsInfo :totalMovies="videos_metadata.length" :numberOfSearchedMovies="videos_metadata.length" />
+    <!-- Loading indicator -->
+    <LoadingView v-if="isLoading" />
 
-      <NotFoundMovies v-if="videos_metadata.length === 0" />
-      <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        <MovieCard v-for="movie in videos_metadata" :key="movie.id" :movie="movie" />
+    <!-- Movie results grid -->
+    <div v-else>
+      <ResultsInfo :totalMovies="medias.length" :numberOfSearchedMovies="medias.length" />
+
+      <!-- No movies found message -->
+      <NotFoundMovies v-if="medias.length === 0" />
+
+      <!-- Display movie cards -->
+      <div v-else class="flex flex-wrap justify-center gap-2">
+        <MediaCard v-for="media in medias" :key="media.id" :media="media" />
       </div>
+
+      <!-- Infinite scroll loading indicator -->
+      <div v-if="isFetchingMore" class="py-4 text-center">Loading more movies...</div>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+// --- Vue & toast ---
+import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { toast } from 'vue3-toastify'
+
+// --- Components ---
 import FilterMovies from '../component/FilterMovies.vue'
 import LoadingView from '../component/LoadingView.vue'
 import ResultsInfo from '../component/ResultsInfo.vue'
 import NotFoundMovies from '../component/NotFoundMovies.vue'
-import MovieCard from '../component/MovieCard.vue'
-import { useVideosStore } from '../stores/Videos'
-import { storeToRefs } from 'pinia'
+import MediaCard from '../component/MediaCard.vue'
+
+// --- Stores ---
+import { useMediasStore } from '../stores/medias'
 import { useFiltersStore } from '../stores/Filters'
+import { storeToRefs } from 'pinia'
 
-const loading = ref(true)
-
-const videos = useVideosStore()
-const { videos_metadata } = storeToRefs(videos)
-
-onMounted(async () => {
-  try {
-    await videos.reload_media()
-  } catch (e) {
-    console.error('Data fetching error:', e)
-    toast.error(`Failed to load data: ${e instanceof Error ? e.message : 'Unknown error'}`)
-  } finally {
-    loading.value = false
-  }
-})
-
+// --- State ---
+const isLoading = ref(true)
+const isFetchingMore = ref(false)
+const mediasStore = useMediasStore()
+const { medias } = storeToRefs(mediasStore)
 const filtersStore = useFiltersStore()
-
 const { filters } = storeToRefs(filtersStore)
 
-// Watch and emit on change
-watch(filters, () => search(), { deep: true })
+// --- Lifecycle: initial load ---
+onMounted(async () => {
+  await fetchMovies()
+  window.addEventListener('scroll', handleScroll)
+})
 
-async function search() {
-  loading.value = true
-  videos
-    .reload_media()
-    .then(() => {})
-    .catch((e) => toast.error(e))
-    .finally(() => (loading.value = false))
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
+
+watch(filters, async () => await fetchMovies(), { deep: true })
+
+async function fetchMovies() {
+  isLoading.value = true
+  try {
+    await mediasStore.reload()
+  } catch (error) {
+    toast.error(`Failed to reload movies: ${error}`)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// --- Infinite scroll handler ---
+async function handleScroll() {
+  const bottomOfWindow = window.innerHeight + window.scrollY >= document.body.offsetHeight - 100
+
+  if (bottomOfWindow && !isFetchingMore.value && !isLoading.value) {
+    isFetchingMore.value = true
+    try {
+      await mediasStore.get_next_page()
+    } catch (error) {
+      toast.error(`Failed to load more movies: ${error}`)
+    } finally {
+      isFetchingMore.value = false
+    }
+  }
 }
 </script>
