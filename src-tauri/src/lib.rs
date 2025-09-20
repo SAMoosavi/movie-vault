@@ -89,10 +89,11 @@ fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<(String, String)>
 #[tauri::command]
 fn filter_medias(
     filters: FilterValues,
+    page: u32,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
     let db = &state.db;
-    db.filter_medias(&filters).map_err(|e| e.to_string())
+    db.filter_medias(&filters, page).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

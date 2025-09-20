@@ -17,8 +17,8 @@ export async function get_countries(): Promise<NumericalString[]> {
   return await invoke('get_countries')
 }
 
-export async function filter_medias(filters: FilterValues): Promise<Media[]> {
-  return await invoke('filter_medias', { filters })
+export async function filter_medias(filters: FilterValues, page: number): Promise<Media[]> {
+  return await invoke('filter_medias', { filters, page })
 }
 
 export async function get_media_by_id(mediaId: number): Promise<Media> {

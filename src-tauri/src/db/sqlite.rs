@@ -799,7 +799,7 @@ impl DB for Sqlite {
         Ok(db_files.into_iter().map(MediaFile::from).collect())
     }
 
-    fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>> {
+    fn filter_medias(&self, filters: &FilterValues, page: u32) -> Result<Vec<Media>> {
         let conn = &mut self.get_conn()?;
 
         let mut query = medias::table
@@ -940,8 +940,18 @@ impl DB for Sqlite {
             }
         };
 
+        // -- Pagination --
+        let limit = 50;
+        let offset = page * limit;
+
         // Execute the query and return the results
-        let media_ids = query.select(medias::id).distinct().load::<i32>(conn)?;
+        let media_ids = query
+            .select(medias::id)
+            .distinct()
+            .limit(limit as i64)
+            .offset(offset as i64)
+            .load::<i32>(conn)?;
+
         Ok(media_ids
             .into_iter()
             .map(|id| Self::get_media_by_id(conn, id))

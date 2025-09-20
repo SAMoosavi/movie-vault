@@ -93,7 +93,7 @@ pub trait DB {
     fn get_actors(&self) -> Result<Vec<(String, String)>>;
     fn remove_file_by_path(&self, paths: &[PathBuf]) -> Result<()>;
     fn get_all_files(&self) -> Result<Vec<MediaFile>>;
-    fn filter_medias(&self, filters: &FilterValues) -> Result<Vec<Media>>;
+    fn filter_medias(&self, filters: &FilterValues, page: u32) -> Result<Vec<Media>>;
     fn get_media_by_id(&self, media_id: IdType) -> Result<Option<Media>>;
     fn get_tags(&self) -> Result<Vec<Tag>>;
     fn remove_tag(&self, tag_id: IdType) -> Result<()>;
