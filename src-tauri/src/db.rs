@@ -63,16 +63,16 @@ pub struct FilterValues {
     pub name: String,
     pub r#type: ContentType,
     pub min_rating: Option<f64>,
-    pub country: Vec<NumericalString>,
-    pub genre: Vec<NumericalString>,
-    pub actor: Vec<(String, String)>,
+    pub country: Vec<i32>,
+    pub genre: Vec<i32>,
+    pub people: Vec<String>,
     pub exist_imdb: Option<bool>,
     pub exist_multi_file: Option<bool>,
     pub watched: Option<bool>,
     pub sort_by: SortByType,
     pub sort_direction: SortDirectionType,
     pub watch_list: Option<bool>,
-    pub tags: Vec<NumericalString>,
+    pub tags: Vec<i32>,
 }
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
@@ -90,7 +90,7 @@ pub trait DB {
     fn clear_empty_data(&self) -> Result<()>;
     fn get_genres(&self) -> Result<Vec<NumericalString>>;
     fn get_countries(&self) -> Result<Vec<NumericalString>>;
-    fn get_actors(&self) -> Result<Vec<(String, String)>>;
+    fn get_people(&self) -> Result<Vec<(String, String)>>;
     fn remove_file_by_path(&self, paths: &[PathBuf]) -> Result<()>;
     fn get_all_files(&self) -> Result<Vec<MediaFile>>;
     fn filter_medias(&self, filters: &FilterValues, page: u32) -> Result<Vec<Media>>;

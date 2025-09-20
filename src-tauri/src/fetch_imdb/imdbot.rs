@@ -120,13 +120,13 @@ mod real_api_test {
 
         let imdb = new_m1.imdb.as_ref().unwrap();
         assert_eq!(imdb.r#type, "tvSeries");
-        assert_eq!(imdb.year, "2011");
+        assert_eq!(imdb.year, 2011);
 
         let new_m2 = &medias[1];
         assert_eq!(new_m2.name, "3 days to kill");
 
         let imdb = new_m2.imdb.as_ref().unwrap();
         assert_eq!(imdb.r#type, "movie");
-        assert_eq!(imdb.year, "2014");
+        assert_eq!(imdb.year, 2014);
     }
 }

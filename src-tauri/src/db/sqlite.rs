@@ -7,9 +7,9 @@ use super::{
 use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
 use data_models::{
-    DbActor, DbEpisode, DbFile, DbImdb, DbMedia, DbSeason, NewActor, NewCountry, NewEpisode,
-    NewFile, NewGenre, NewImdb, NewImdbActor, NewImdbCountry, NewImdbGenre, NewMedia, NewMediaTag,
-    NewSeason, NewTag,
+    DbEpisode, DbFile, DbImdb, DbMedia, DbPerson, DbSeason, NewCountry, NewEpisode, NewFile,
+    NewGenre, NewImdb, NewImdbCountry, NewImdbGenre, NewImdbPerson, NewMedia, NewMediaTag,
+    NewPerson, NewSeason, NewTag,
 };
 use diesel::{
     BoolExpressionMethods, Connection, ExpressionMethods, NullableExpressionMethods, QueryDsl,
@@ -18,20 +18,35 @@ use diesel::{
     dsl::{exists, sql},
     prelude::*,
     r2d2::{ConnectionManager, Pool, PooledConnection},
-    sql_types::{BigInt, Double, Text},
+    sql_types::{BigInt, Double, Integer},
 };
 use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 pub use schema::{
-    actors, countries, episodes, files, genres, imdb_actors, imdb_countries, imdb_genres, imdbs,
-    media_tags, medias, seasons, tags,
+    countries, episodes, files, genres, imdb_countries, imdb_genres, imdb_people, imdbs,
+    media_tags, medias, people, seasons, tags,
 };
-use std::path::PathBuf;
+use std::{fmt, path::PathBuf};
 use tauri::Manager;
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
+enum PersonType {
+    Actor,
+    Writer,
+    Director,
+}
+
+impl fmt::Display for PersonType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PersonType::Actor => write!(f, "Actor"),
+            PersonType::Writer => write!(f, "Writer"),
+            PersonType::Director => write!(f, "Director"),
+        }
+    }
+}
 
 pub struct Sqlite {
     pool: DbPool,
@@ -102,32 +117,30 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_or_get_id_actor(conn: &mut SqliteConnection, actor: &Person) -> Result<String> {
-        diesel::insert_or_ignore_into(actors::table)
-            .values(&NewActor {
-                id: &actor.id,
-                name: &actor.name,
-                url: &actor.url,
+    fn insert_person(conn: &mut SqliteConnection, person: &Person) -> Result<()> {
+        diesel::insert_or_ignore_into(people::table)
+            .values(&NewPerson {
+                id: &person.id,
+                name: &person.name,
+                url: &person.url,
             })
             .execute(conn)?;
 
-        let id = actors::table
-            .filter(actors::name.eq(&actor.name))
-            .select(actors::id)
-            .first(conn)?;
-        Ok(id)
+        Ok(())
     }
 
-    fn insert_imdb_actor(
+    fn insert_imdb_person(
         conn: &mut SqliteConnection,
         imdb_id_val: &str,
-        actor: &Person,
+        person: &Person,
+        person_type: &PersonType,
     ) -> Result<()> {
-        let ent_id = Self::insert_or_get_id_actor(conn, actor)?;
-        diesel::insert_or_ignore_into(imdb_actors::table)
-            .values(&NewImdbActor {
+        Self::insert_person(conn, person)?;
+        diesel::insert_or_ignore_into(imdb_people::table)
+            .values(&NewImdbPerson {
                 imdb_id: imdb_id_val,
-                actor_id: &ent_id,
+                person_id: person.id.as_str(),
+                person_type: person_type.to_string().as_str(),
             })
             .execute(conn)?;
         Ok(())
@@ -164,12 +177,11 @@ impl Sqlite {
         let new = NewImdb {
             imdb_id: imdb.imdb_id.as_str(),
             title: imdb.title.as_str(),
-            year: Some(imdb.year.as_str()),
-            released: Some(imdb.released.as_str()),
+            year: imdb.year,
             plot: Some(imdb.plot.as_str()),
             poster: Some(imdb.poster.as_str()),
             imdb_rating: Some(imdb.imdb_rating.as_str()),
-            imdb_votes: Some(imdb.imdb_votes.as_str()),
+            imdb_votes: imdb.imdb_votes,
             type_: imdb.r#type.as_str(),
         };
 
@@ -182,7 +194,15 @@ impl Sqlite {
         }
 
         for a in &imdb.actors {
-            Self::insert_imdb_actor(conn, &imdb.imdb_id, a)?;
+            Self::insert_imdb_person(conn, &imdb.imdb_id, a, &PersonType::Actor)?;
+        }
+
+        for w in &imdb.writers {
+            Self::insert_imdb_person(conn, &imdb.imdb_id, w, &PersonType::Writer)?;
+        }
+
+        for d in &imdb.directors {
+            Self::insert_imdb_person(conn, &imdb.imdb_id, d, &PersonType::Director)?;
         }
 
         for c in &imdb.countries {
@@ -475,11 +495,41 @@ impl Sqlite {
             .select(genres::name)
             .load(conn)?;
 
-        imdb.actors = imdb_actors::table
-            .inner_join(actors::table.on(imdb_actors::actor_id.eq(actors::id)))
-            .filter(imdb_actors::imdb_id.eq(imdb_id_val))
-            .select(actors::all_columns)
-            .load::<DbActor>(conn)?
+        imdb.actors = imdb_people::table
+            .inner_join(people::table.on(imdb_people::person_id.eq(people::id)))
+            .filter(
+                imdb_people::imdb_id
+                    .eq(imdb_id_val)
+                    .and(imdb_people::person_type.eq(&PersonType::Actor.to_string())),
+            )
+            .select(people::all_columns)
+            .load::<DbPerson>(conn)?
+            .par_iter()
+            .map(Into::into)
+            .collect();
+
+        imdb.writers = imdb_people::table
+            .inner_join(people::table.on(imdb_people::person_id.eq(people::id)))
+            .filter(
+                imdb_people::imdb_id
+                    .eq(imdb_id_val)
+                    .and(imdb_people::person_type.eq(&PersonType::Writer.to_string())),
+            )
+            .select(people::all_columns)
+            .load::<DbPerson>(conn)?
+            .par_iter()
+            .map(Into::into)
+            .collect();
+
+        imdb.directors = imdb_people::table
+            .inner_join(people::table.on(imdb_people::person_id.eq(people::id)))
+            .filter(
+                imdb_people::imdb_id
+                    .eq(imdb_id_val)
+                    .and(imdb_people::person_type.eq(&PersonType::Director.to_string())),
+            )
+            .select(people::all_columns)
+            .load::<DbPerson>(conn)?
             .par_iter()
             .map(Into::into)
             .collect();
@@ -770,11 +820,11 @@ impl DB for Sqlite {
         Ok(results)
     }
 
-    fn get_actors(&self) -> Result<Vec<(String, String)>> {
+    fn get_people(&self) -> Result<Vec<(String, String)>> {
         let conn = &mut self.get_conn()?;
-        let results = actors::table
-            .select((actors::id, actors::name))
-            .order(actors::name.asc())
+        let results = people::table
+            .select((people::id, people::name))
+            .order(people::name.asc())
             .load(conn)?;
 
         Ok(results)
@@ -830,7 +880,7 @@ impl DB for Sqlite {
 
         // -- Many-to-Many Filters (Country, Genre, Actor, Tags) --
         if !filters.country.is_empty() {
-            for country_id in filters.country.iter().map(|(id, _)| id) {
+            for country_id in &filters.country {
                 query = query.filter(exists(
                     imdb_countries::table
                         .filter(imdb_countries::imdb_id.nullable().eq(medias::imdb_id))
@@ -840,7 +890,7 @@ impl DB for Sqlite {
         }
 
         if !filters.genre.is_empty() {
-            for genre_id in filters.genre.iter().map(|(id, _)| id) {
+            for genre_id in &filters.genre {
                 query = query.filter(exists(
                     imdb_genres::table
                         .filter(imdb_genres::imdb_id.nullable().eq(medias::imdb_id))
@@ -849,18 +899,18 @@ impl DB for Sqlite {
             }
         }
 
-        if !filters.actor.is_empty() {
-            for actor_id in filters.actor.iter().map(|(id, _)| id) {
+        if !filters.people.is_empty() {
+            for person_id in &filters.people {
                 query = query.filter(exists(
-                    imdb_actors::table
-                        .filter(imdb_actors::imdb_id.nullable().eq(medias::imdb_id))
-                        .filter(imdb_actors::actor_id.eq(actor_id)),
+                    imdb_people::table
+                        .filter(imdb_people::imdb_id.nullable().eq(medias::imdb_id))
+                        .filter(imdb_people::person_id.eq(person_id)),
                 ));
             }
         }
 
         if !filters.tags.is_empty() {
-            for tag_id in filters.tags.iter().map(|(id, _)| id) {
+            for tag_id in &filters.tags {
                 query = query.filter(exists(
                     media_tags::table
                         .filter(media_tags::media_id.eq(medias::id))
@@ -923,7 +973,7 @@ impl DB for Sqlite {
                 }
             }
             SortByType::Year => {
-                let year_sql = sql::<Text>("NULLIF(imdbs.year, '')");
+                let year_sql = sql::<Integer>("imdbs.year");
                 if is_asc {
                     query.order((year_sql.asc(), medias::year.asc()))
                 } else {

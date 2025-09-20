@@ -80,10 +80,10 @@ fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>,
 }
 
 #[tauri::command]
-fn get_actors(state: tauri::State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
+fn get_people(state: tauri::State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
     let db = &state.db;
 
-    db.get_actors().map_err(|e| e.to_string())
+    db.get_people().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -254,7 +254,7 @@ pub fn run() {
             get_genres,
             filter_medias,
             get_media_by_id,
-            get_actors,
+            get_people,
             update_media_imdb,
             update_media_watched,
             update_season_watched,
