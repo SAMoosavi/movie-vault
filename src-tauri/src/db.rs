@@ -25,8 +25,8 @@ impl fmt::Display for ContentType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let content_type = match self {
             ContentType::All => "all",
-            ContentType::Movie => "Movie",
-            ContentType::Series => "TVSeries",
+            ContentType::Movie => "movie",
+            ContentType::Series => "tvSeries",
         };
         write!(f, "{content_type}")
     }

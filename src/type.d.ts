@@ -59,7 +59,7 @@ export interface Media {
   tags: Tag[]
 }
 
-type ContentType = 'all' | 'Movie' | 'TVSeries'
+type ContentType = 'all' | 'movie' | 'series'
 type SortByType = 'name' | 'year' | 'imdb'
 type SortDirectionType = 'asc' | 'desc'
 type NullableBool = boolean | null
