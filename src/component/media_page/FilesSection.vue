@@ -1,7 +1,7 @@
 <template>
   <!-- Files Section Card -->
   <div class="card from-primary/40 to-secondary/40 mb-8 bg-gradient-to-br p-0.5 shadow-xl">
-    <div class="card bg-base-100 overflow-hidden shadow-lg">
+    <div class="card bg-base-100 shadow-lg">
       <div class="card-body">
         <!-- Title Section -->
         <h2 class="card-title mb-4 flex items-center gap-2">
@@ -10,7 +10,7 @@
           <div class="badge badge-secondary">{{ fileCount }} files</div>
         </h2>
 
-        <div class="border-base-200 overflow-hidden rounded-lg border shadow-sm">
+        <div class="border-base-200 rounded-lg border shadow-sm">
           <!-- If Media Files Exist -->
           <template v-if="hasMediaFiles">
             <FileRow v-for="file in media.files" :key="file.path" :file="file" />
@@ -20,7 +20,7 @@
           <template v-else>
             <div v-for="season in media.seasons" :key="season.id" class="border-base-300 border-t">
               <!-- Season Accordion -->
-              <div class="collapse-arrow bg-base-200 border-primary/30 collapse overflow-hidden rounded-none border">
+              <div class="collapse-arrow bg-base-200 border-primary/30 collapse rounded-none border">
                 <input type="checkbox" />
                 <div class="collapse-title flex items-center justify-between font-semibold">
                   <span>Season {{ season.number }}</span>
@@ -42,7 +42,7 @@
                   <!-- Episodes List -->
                   <div v-for="episode in season.episodes" :key="episode.id" class="border-base-300 border-t">
                     <!-- Episode Accordion -->
-                    <div class="collapse-arrow border-secondary/30 collapse overflow-hidden rounded-none border-t">
+                    <div class="collapse-arrow border-secondary/30 collapse rounded-none border-t">
                       <input type="checkbox" />
                       <div class="collapse-title flex items-center justify-between text-sm font-medium">
                         <span>Episode {{ episode.number }}</span>
