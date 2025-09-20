@@ -72,7 +72,7 @@ impl DB for MokeDB {
         Ok(self.inserted_file.clone())
     }
 
-    fn filter_medias(&self, filters: &super::FilterValues, page: u32) -> Result<Vec<Media>> {
+    fn filter_medias(&self, _filters: &super::FilterValues, _page: u32) -> Result<Vec<Media>> {
         todo!()
     }
 
