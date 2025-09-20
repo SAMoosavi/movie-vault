@@ -88,7 +88,9 @@ import { toast } from 'vue3-toastify'
 
 // --- Props & emits ---
 const props = defineProps<{ file: File }>()
-const emit = defineEmits(['reload'])
+const emit = defineEmits<{
+  (e: 'reload'): void
+}>()
 const filePath = props.file.path
 
 // --- Function: Play the file using system default ---

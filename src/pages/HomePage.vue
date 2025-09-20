@@ -20,9 +20,7 @@
       </div>
 
       <!-- Infinite scroll loading indicator -->
-      <div v-if="isFetchingMore" class="text-center py-4">
-        Loading more movies...
-      </div>
+      <div v-if="isFetchingMore" class="py-4 text-center">Loading more movies...</div>
     </div>
   </main>
 </template>
@@ -77,8 +75,7 @@ async function fetchMovies() {
 
 // --- Infinite scroll handler ---
 async function handleScroll() {
-  const bottomOfWindow =
-    window.innerHeight + window.scrollY >= document.body.offsetHeight - 100
+  const bottomOfWindow = window.innerHeight + window.scrollY >= document.body.offsetHeight - 100
 
   if (bottomOfWindow && !isFetchingMore.value && !isLoading.value) {
     isFetchingMore.value = true

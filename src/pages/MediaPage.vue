@@ -24,7 +24,7 @@
         />
         <ManageSectionSkeleton v-else />
 
-        <TagSection v-if="media" :media="media" />
+        <TagSection v-if="media" :media="media" @fetch-media="fetchMedia" />
         <TagSectionSkeleton v-else />
       </div>
     </div>

@@ -14,7 +14,7 @@
           <!-- Add-tag controls -->
           <div class="join">
             <select v-model="selectedTagId" aria-label="Select a tag to add" class="select select-bordered join-item">
-              <option :value="0">Select tag</option>
+              <option disabled :value="0">Select tag</option>
               <option v-for="tag in selectableTags" :key="tag.id" :value="tag.id">
                 {{ tag.name }}
               </option>
@@ -58,6 +58,13 @@ import { TagIcon, PlusIcon, XCircleIcon } from 'lucide-vue-next'
 
 /* Props */
 const props = defineProps<{ media: Media }>()
+const emit = defineEmits<{
+  (e: 'fetch-media'): void
+}>()
+
+function fetchMedia() {
+  emit('fetch-media')
+}
 
 /* State */
 const tags = ref<Tag[]>([])
@@ -75,6 +82,7 @@ async function addTagToMedia() {
   try {
     await insert_media_tag(props.media.id, selectedTagId.value)
     selectedTagId.value = 0 // Reset selector
+    fetchMedia()
   } catch (err) {
     toast.error('Failed to add tag')
     console.error(err)
@@ -84,6 +92,7 @@ async function addTagToMedia() {
 async function removeTag(tagId: number) {
   try {
     await remove_media_tag(props.media.id, tagId)
+    fetchMedia()
   } catch (err) {
     toast.error('Failed to remove tag')
     console.error(err)

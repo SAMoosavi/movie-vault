@@ -18,7 +18,6 @@ export const useMediasStore = defineStore('medias', () => {
     return await filter_medias(filtersStore.filters, page.value)
   }
 
-
   async function reload() {
     page.value = 0
     medias.value = await get_data()
@@ -30,6 +29,6 @@ export const useMediasStore = defineStore('medias', () => {
     medias,
     reload,
     count,
-    get_next_page
+    get_next_page,
   }
 })

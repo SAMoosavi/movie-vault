@@ -13,7 +13,7 @@
         <div class="border-base-200 rounded-lg border shadow-sm">
           <!-- If Media Files Exist -->
           <template v-if="hasMediaFiles">
-            <FileRow v-for="file in media.files" :key="file.path" :file="file" />
+            <FileRow v-for="file in media.files" :key="file.path" :file="file" @reload="fetchMedia" />
           </template>
 
           <!-- If Series (Seasons) Exist -->
@@ -66,6 +66,7 @@
                           v-for="file in episode.files"
                           :key="file.path"
                           :file="file"
+                          @reload="fetchMedia"
                           class="border-accent/30 rounded-none border-t"
                         />
                       </div>
