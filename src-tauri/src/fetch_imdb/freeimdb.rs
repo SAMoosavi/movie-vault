@@ -21,7 +21,7 @@ struct Title {
     primary_title: Option<String>,
     #[serde(default)]
     primary_image: Option<Image>,
-    start_year: Option<u16>,
+    start_year: Option<i32>,
     genres: Vec<String>,
     rating: Option<Rating>,
     plot: Option<String>,
@@ -29,10 +29,8 @@ struct Title {
     stars: Vec<Person>,
     #[serde(default)]
     origin_countries: Vec<Country>,
-    #[allow(dead_code)]
     #[serde(default)]
     directors: Vec<Person>,
-    #[allow(dead_code)]
     #[serde(default)]
     writers: Vec<Person>,
 }
@@ -46,7 +44,7 @@ struct Image {
 #[serde(rename_all = "camelCase")]
 struct Rating {
     aggregate_rating: f64,
-    vote_count: u32,
+    vote_count: i32,
 }
 
 #[derive(Deserialize, Debug)]
@@ -81,10 +79,11 @@ impl From<Title> for Imdb {
     fn from(value: Title) -> Self {
         Self {
             title: value.primary_title.unwrap_or_default(),
-            year: value.start_year.map(|y| y.to_string()).unwrap_or_default(),
-            released: value.start_year.map(|y| y.to_string()).unwrap_or_default(),
+            year: value.start_year.unwrap_or_default(),
             genres: value.genres,
             actors: value.stars.iter().map(Into::into).collect(),
+            writers: value.writers.iter().map(Into::into).collect(),
+            directors: value.directors.iter().map(Into::into).collect(),
             plot: value.plot.unwrap_or_default(),
             countries: value
                 .origin_countries
@@ -100,7 +99,7 @@ impl From<Title> for Imdb {
             imdb_votes: value
                 .rating
                 .as_ref()
-                .map(|r| r.vote_count.to_string())
+                .map(|r| r.vote_count)
                 .unwrap_or_default(),
             imdb_id: value.id,
             r#type: value.title_type.unwrap_or_default(),

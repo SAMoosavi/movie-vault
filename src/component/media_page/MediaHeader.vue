@@ -50,6 +50,52 @@
 
               <div>
                 <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                  <UsersIcon class="text-primary h-5 w-5" />
+                  Directors
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  <a
+                    v-for="director in media.imdb?.directors"
+                    :key="director.id"
+                    target="_blank"
+                    :href="`https://www.imdb.com/name/${director.id}`"
+                    class="flex cursor-pointer flex-col items-center gap-1"
+                  >
+                    <div class="avatar">
+                      <div class="h-12 w-12 rounded-full">
+                        <img :alt="director.name" :src="director.url" />
+                      </div>
+                    </div>
+                    <span> {{ director.name }} </span>
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="mb-2 flex items-center gap-2 font-semibold">
+                  <UsersIcon class="text-primary h-5 w-5" />
+                  writers
+                </h3>
+                <div class="flex flex-wrap gap-2">
+                  <a
+                    v-for="writer in media.imdb?.writers"
+                    :key="writer.id"
+                    target="_blank"
+                    :href="`https://www.imdb.com/name/${writer.id}`"
+                    class="flex cursor-pointer flex-col items-center gap-1"
+                  >
+                    <div class="avatar">
+                      <div class="h-12 w-12 rounded-full">
+                        <img :alt="writer.name" :src="writer.url" />
+                      </div>
+                    </div>
+                    <span> {{ writer.name }} </span>
+                  </a>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="mb-2 flex items-center gap-2 font-semibold">
                   <GlobeIcon class="text-primary h-5 w-5" />
                   Countries
                 </h3>

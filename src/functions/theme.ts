@@ -29,7 +29,7 @@ export function getDefaultTheme(): string {
   // If user prefers dark mode, use the first theme ('dracula')
   // Otherwise, use the second theme ('winter')
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  return prefersDark ? themes[0] : themes[1]
+  return prefersDark ? themes[0]! : themes[1]!
 }
 
 // Sets the theme for the document and saves it in the store
@@ -41,7 +41,7 @@ export async function setTheme(theme: string, store: Store) {
 // Initializes and returns the settings store
 export async function initStore(): Promise<Store> {
   // Loads 'settings.json' with autoSave enabled
-  return await Store.load('settings.json', { autoSave: true })
+  return await Store.load('settings.json', { defaults: { theme: 'light' }, autoSave: true })
 }
 
 // Loads the saved theme from the store, if any

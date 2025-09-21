@@ -48,7 +48,11 @@
             <label class="label">
               <span class="label-text font-medium">Country</span>
             </label>
-            <AutocompleteSelect v-model="filters.country" :items="countries" class="transition-all" />
+            <AutocompleteSelect
+              @selected-items="(v) => (filters.country = v as number[])"
+              :items="countries"
+              class="transition-all"
+            />
           </div>
 
           <!-- Genre Filter with Enhanced Styling -->
@@ -56,15 +60,23 @@
             <label class="label">
               <span class="label-text font-medium">Genre</span>
             </label>
-            <AutocompleteSelect v-model="filters.genre" :items="genres" class="transition-all" />
+            <AutocompleteSelect
+              @selected-items="(v) => (filters.genre = v as number[])"
+              :items="genres"
+              class="transition-all"
+            />
           </div>
 
           <!-- Actor Filter with Enhanced Styling -->
           <div class="form-control w-full">
             <label class="label">
-              <span class="label-text font-medium">Actor</span>
+              <span class="label-text font-medium">Person</span>
             </label>
-            <AutocompleteSelect v-model="filters.actor" :items="actors" class="transition-all" />
+            <AutocompleteSelect
+              @selected-items="(v) => (filters.people = v as string[])"
+              :items="people"
+              class="transition-all"
+            />
           </div>
 
           <!-- Tag Filter with Enhanced Styling -->
@@ -72,7 +84,11 @@
             <label class="label">
               <span class="label-text font-medium">Tag</span>
             </label>
-            <AutocompleteSelect v-model="filters.tags" :items="tags" class="transition-all" />
+            <AutocompleteSelect
+              @selected-items="(v) => (filters.tags = v as number[])"
+              :items="tags"
+              class="transition-all"
+            />
           </div>
 
           <!-- Enhanced Minimum Rating Filter using Range Slider -->
@@ -271,14 +287,14 @@
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
-                @click="filters.type = 'Movie'"
+                @click="filters.type = 'movie'"
                 name="watch_list"
                 aria-label="Movies"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
-                @click="filters.type = 'TVSeries'"
+                @click="filters.type = 'series'"
                 name="watch_list"
                 aria-label="Series"
               />
@@ -298,7 +314,7 @@ import { ArrowDownNarrowWide, ArrowDownWideNarrow, Filter, RefreshCcw, Search } 
 import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
-import { get_actors, get_countries, get_genres, get_tags } from '../functions/invoker'
+import { get_people, get_countries, get_genres, get_tags } from '../functions/invoker'
 
 // --- Components & types ---
 import AutocompleteSelect from './AutocompleteSelect.vue'
@@ -310,20 +326,20 @@ const { filters } = storeToRefs(filtersStore)
 
 const countries = ref<NumericalString[]>([])
 const genres = ref<NumericalString[]>([])
-const actors = ref<NumericalString[]>([])
+const people = ref<NumericalString[]>([])
 const tags = ref<NumericalString[]>([])
 
 onMounted(async () => {
   try {
-    const [genresData, countriesData, actorsData, tagsData] = await Promise.all([
+    const [genresData, countriesData, peopleData, tagsData] = await Promise.all([
       get_genres(),
       get_countries(),
-      get_actors(),
+      get_people(),
       get_tags(),
     ])
     genres.value = genresData
     countries.value = countriesData
-    actors.value = actorsData
+    people.value = peopleData
     tags.value = tagsData.map((tag) => [tag.id, tag.name])
   } catch (e) {
     console.error('Data fetching error:', e)

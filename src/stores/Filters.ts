@@ -7,7 +7,7 @@ const defaultFilters: FilterValues = {
   type: 'all',
   country: [],
   genre: [],
-  actor: [],
+  people: [],
   minRating: 0,
   existImdb: null,
   existMultiFile: null,

@@ -25,7 +25,7 @@ export interface Season {
   episodes: Episode[]
 }
 
-export interface Actor {
+export interface Person {
   id: number
   name: string
   url: string
@@ -33,15 +33,16 @@ export interface Actor {
 
 export interface Imdb {
   title: string
-  year: string
-  released: string
+  year: number
   genres: string[]
-  actors: Actor[]
+  actors: Person[]
+  writers: Person[]
+  directors: Person[]
   plot: string
   countries: string[]
   poster: string
   imdb_rating: string
-  imdb_votes: string
+  imdb_votes: number
   imdb_id: string
   type: string
 }
@@ -59,25 +60,25 @@ export interface Media {
   tags: Tag[]
 }
 
-type ContentType = 'all' | 'Movie' | 'TVSeries'
+type ContentType = 'all' | 'movie' | 'series'
 type SortByType = 'name' | 'year' | 'imdb'
 type SortDirectionType = 'asc' | 'desc'
 type NullableBool = boolean | null
 type NullableNumber = number | null
-type NumericalString = [number, string]
+type NumericalString = [number | string, string]
 
 export interface FilterValues {
   type: ContentType
   minRating: NullableNumber
-  country: NumericalString[]
-  genre: NumericalString[]
+  country: number[]
+  genre: number[]
   name: string
   existImdb: NullableBool
   existMultiFile: NullableBool
-  actor: NumericalString[]
+  people: string[]
   watched: NullableBool
   sortBy: SortByType
   sortDirection: SortDirectionType
   watchList: NullableBool
-  tags: NumericalString[]
+  tags: number[]
 }
