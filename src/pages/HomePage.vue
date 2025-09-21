@@ -26,7 +26,7 @@
 
       <!-- Infinite scroll loading indicator -->
       <div v-if="isFetchingMore" class="py-4 text-center">
-        Loading more movies<span class="loading loading-dots loading-sm"></span>
+        Loading more movies<span class="ml-1 loading loading-dots loading-sm"></span>
       </div>
     </div>
   </main>
