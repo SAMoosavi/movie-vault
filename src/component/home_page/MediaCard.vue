@@ -66,7 +66,7 @@
 
 <script setup lang="ts">
 import { CalendarIcon, StarIcon, FilmIcon, TvIcon, EyeIcon } from 'lucide-vue-next'
-import type { Media } from '../type'
+import type { Media } from '../../type'
 
 defineProps<{ media: Media }>()
 </script>

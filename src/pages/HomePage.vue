@@ -2,25 +2,32 @@
   <!-- Main Container -->
   <main class="container mx-auto px-4 py-6" ref="scrollContainer">
     <!-- Movie filter controls -->
-    <FilterMovies />
+    <FilterMedias />
 
     <!-- Loading indicator -->
     <LoadingView v-if="isLoading" />
 
     <!-- Movie results grid -->
     <div v-else>
-      <ResultsInfo :totalMovies="medias.length" :numberOfSearchedMovies="medias.length" />
+      <ResultsInfo v-model="isShowCard" />
 
       <!-- No movies found message -->
-      <NotFoundMovies v-if="medias.length === 0" />
+      <NotFoundMedias v-if="medias.length === 0" />
 
       <!-- Display movie cards -->
-      <div v-else class="flex flex-wrap justify-center gap-2">
-        <MediaCard v-for="media in medias" :key="media.id" :media="media" />
-      </div>
+      <template v-else>
+        <main v-if="isShowCard" class="flex flex-wrap justify-center gap-2">
+          <MediaCard v-for="media in medias" :key="media.id" :media="media" />
+        </main>
+        <ul v-else class="list bg-base-100 rounded-box shadow-md">
+          <MediaList v-for="media in medias" :key="media.id" :media="media" />
+        </ul>
+      </template>
 
       <!-- Infinite scroll loading indicator -->
-      <div v-if="isFetchingMore" class="py-4 text-center">Loading more movies...</div>
+      <div v-if="isFetchingMore" class="py-4 text-center">
+        Loading more movies<span class="loading loading-dots loading-sm ml-1"></span>
+      </div>
     </div>
   </main>
 </template>
@@ -31,11 +38,12 @@ import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { toast } from 'vue3-toastify'
 
 // --- Components ---
-import FilterMovies from '../component/FilterMovies.vue'
-import LoadingView from '../component/LoadingView.vue'
-import ResultsInfo from '../component/ResultsInfo.vue'
-import NotFoundMovies from '../component/NotFoundMovies.vue'
-import MediaCard from '../component/MediaCard.vue'
+import FilterMedias from '../component/home_page/FilterMedias.vue'
+import LoadingView from '../component/home_page/LoadingView.vue'
+import ResultsInfo from '../component/home_page/ResultsInfo.vue'
+import NotFoundMedias from '../component/home_page/NotFoundMedias.vue'
+import MediaCard from '../component/home_page/MediaCard.vue'
+import MediaList from '../component/home_page/MediaList.vue'
 
 // --- Stores ---
 import { useMediasStore } from '../stores/medias'
@@ -49,6 +57,7 @@ const mediasStore = useMediasStore()
 const { medias } = storeToRefs(mediasStore)
 const filtersStore = useFiltersStore()
 const { filters } = storeToRefs(filtersStore)
+const isShowCard = ref(false)
 
 // --- Lifecycle: initial load ---
 onMounted(async () => {

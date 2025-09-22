@@ -6,11 +6,11 @@
       <div class="mb-6 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
         <div class="flex items-center">
           <div class="bg-primary/10 mr-3 rounded-lg p-2">
-            <Filter class="text-primary h-5 w-5" />
+            <FilterIcon class="text-primary h-5 w-5" />
           </div>
           <div>
-            <h2 class="text-base-content text-xl font-bold">Movie Filters</h2>
-            <p class="text-base-content/60 text-sm">Customize your movie discovery experience</p>
+            <h2 class="text-base-content text-xl font-bold">Media Filters</h2>
+            <p class="text-base-content/60 text-sm">Customize your media discovery experience</p>
           </div>
         </div>
         <!-- Enhanced Reset Button -->
@@ -19,7 +19,7 @@
           class="btn btn-outline btn-primary btn-sm flex items-center gap-2"
           @click="filtersStore.resetFilters()"
         >
-          <RefreshCcw class="h-4 w-4" />
+          <RefreshCcwIcon class="h-4 w-4" />
           Reset All
         </button>
       </div>
@@ -27,17 +27,17 @@
       <div class="flex flex-col gap-5">
         <!-- Enhanced Filters Grid -->
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <!-- Movie Name Filter with Enhanced Styling -->
+          <!-- Media Name Filter with Enhanced Styling -->
           <div class="form-control w-full">
             <label class="label">
-              <span class="label-text font-medium">Movie name</span>
+              <span class="label-text font-medium">Media name</span>
             </label>
             <div class="relative">
-              <Search class="text-primary absolute top-1/2 left-3 z-10 h-6 w-6 -translate-y-1/2 transform" />
+              <SearchIcon class="text-primary absolute top-1/2 left-3 z-10 h-6 w-6 -translate-y-1/2 transform" />
               <input
                 v-model="filters.name"
                 type="search"
-                placeholder="Search movie name..."
+                placeholder="Search media name..."
                 class="input input-bordered w-full pl-10 transition-all"
               />
             </div>
@@ -133,12 +133,12 @@
                 </option>
               </select>
               <button class="btn join-item btn-outline btn-primary">
-                <ArrowDownNarrowWide
+                <ArrowDownNarrowWideIcon
                   v-if="filters.sortDirection === 'asc'"
                   @click="() => (filters.sortDirection = 'desc')"
                   class="h-6 w-6"
                 />
-                <ArrowDownWideNarrow v-else @click="() => (filters.sortDirection = 'asc')" class="h-6 w-6" />
+                <ArrowDownWideNarrowIcon v-else @click="() => (filters.sortDirection = 'asc')" class="h-6 w-6" />
               </button>
             </div>
           </div>
@@ -308,17 +308,23 @@
 
 <script setup lang="ts">
 // --- Icons ---
-import { ArrowDownNarrowWide, ArrowDownWideNarrow, Filter, RefreshCcw, Search } from 'lucide-vue-next'
+import {
+  ArrowDownNarrowWideIcon,
+  ArrowDownWideNarrowIcon,
+  FilterIcon,
+  RefreshCcwIcon,
+  SearchIcon,
+} from 'lucide-vue-next'
 
 // --- Stores & helpers ---
-import { useFiltersStore } from '../stores/Filters'
+import { useFiltersStore } from '../../stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
-import { get_people, get_countries, get_genres, get_tags } from '../functions/invoker'
+import { get_people, get_countries, get_genres, get_tags } from '../../functions/invoker'
 
 // --- Components & types ---
-import AutocompleteSelect from './AutocompleteSelect.vue'
-import type { NumericalString } from '../type'
+import AutocompleteSelect from '../AutocompleteSelect.vue'
+import type { NumericalString } from '../../type'
 
 // --- State / lifecycle ---
 const filtersStore = useFiltersStore()
