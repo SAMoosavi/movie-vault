@@ -20,6 +20,10 @@ impl DB for MokeDB {
         todo!()
     }
 
+    fn delete_media(&self, _media_id: IdType) -> Result<()> {
+        todo!()
+    }
+
     fn update_media_my_ranking(&self, _media_id: IdType, _my_ranking: u8) -> Result<usize> {
         todo!()
     }

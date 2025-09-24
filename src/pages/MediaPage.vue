@@ -21,6 +21,7 @@
           :media="media"
           @toggle-editing="toggleEditing"
           @fetch-media="fetchMedia"
+          @delete-media="goBack"
         />
         <ManageSectionSkeleton v-else />
 

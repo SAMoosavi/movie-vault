@@ -239,6 +239,13 @@ fn remove_media_tag(
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn delete_media(media_id: IdType, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let db = &state.db;
+    db.delete_media(media_id).map_err(|e| e.to_string())
+}
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -267,7 +274,8 @@ pub fn run() {
             get_medias_by_tag,
             insert_tag,
             insert_media_tag,
-            remove_media_tag
+            remove_media_tag,
+            delete_media
         ])
         .setup(|app| {
             let db = Sqlite::from_app_handle(app.app_handle())?;
