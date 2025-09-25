@@ -1,19 +1,21 @@
 export interface MediaSearchResult {
-  ok: boolean
-  description: SearchedMedia[]
-  error_code: number
+  titles: SearchedMedia[]
+}
+
+export interface Image{
+  url: string
+}
+
+export interface Rating{
+  aggregateRating: number
 }
 
 export interface SearchedMedia {
-  '#TITLE': string
-  '#YEAR': string | number
-  '#IMDB_ID': string
-  '#RANK': number
-  '#ACTORS': string
-  '#AKA': string
-  '#IMDB_URL': string
-  '#IMDB_IV': string
-  '#IMG_POSTER'?: string
-  photo_width?: number
-  photo_height?: number
+  id: string
+  type: string | number
+  primaryTitle: string
+  startYear: number
+  originalTitle: string
+  rating?: Rating
+  primaryImage?: Image
 }

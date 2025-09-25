@@ -48,6 +48,10 @@ impl DB for MokeDB {
         todo!()
     }
 
+    fn insert_media(&self, _media: &Media) -> Result<IdType> {
+        todo!()
+    }
+
     fn insert_imdb(&self, _imdb: &Imdb) -> Result<()> {
         todo!()
     }

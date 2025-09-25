@@ -29,6 +29,10 @@ export async function update_media_imdb(mediaId: number, imdbId: string): Promis
   return await invoke('update_media_imdb', { mediaId, imdbId })
 }
 
+export async function create_media_from_imdb(imdbId: string): Promise<number> {
+  return await invoke('create_media_from_imdb', { imdbId })
+}
+
 export async function update_media_watched(mediaId: number, watched: boolean): Promise<void> {
   return await invoke('update_media_watched', { mediaId, watched })
 }

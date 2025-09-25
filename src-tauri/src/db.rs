@@ -86,6 +86,7 @@ pub trait DB {
     fn update_season_watched(&self, season_id: IdType, watched: bool) -> Result<()>;
     fn update_episode_watched(&self, episode_id: IdType, watched: bool) -> Result<()>;
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType>;
+    fn insert_media(&self, media: &Media) -> Result<IdType>;
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()>;
     #[allow(dead_code)]
     fn clear_empty_data(&self) -> Result<()>;

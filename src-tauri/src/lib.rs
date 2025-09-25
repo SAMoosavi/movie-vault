@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 
-use crate::data_model::IdType;
+use crate::data_model::{IdType, Media};
 use crate::db::{NumericalString, Sqlite};
 use crate::{
     data_model::Tag,
@@ -121,6 +121,26 @@ async fn update_media_imdb(
     db.insert_imdb(&imdb).map_err(|e| e.to_string())?;
     db.update_media_imdb(media_id, imdb_id)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn create_media_from_imdb(
+    imdb_id: &str,
+    state: tauri::State<'_, AppState>,
+) -> Result<IdType, String> {
+    let db = &state.db;
+    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let media = Media {
+                name: imdb.title.clone(),
+                year: Some(imdb.year),
+                imdb: Some(imdb.clone()),
+                ..Media::default()
+            };
+
+    db.insert_media(&media).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -263,6 +283,7 @@ pub fn run() {
             get_media_by_id,
             get_people,
             update_media_imdb,
+            create_media_from_imdb,
             update_media_watched,
             update_season_watched,
             update_episode_watched,
