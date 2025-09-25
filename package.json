@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.1.1",
   "type": "module",
+  "author": {
+    "email": "moosavi238@gmail.com",
+    "name": "S.Ali Moosavi"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
