@@ -134,11 +134,11 @@ async fn create_media_from_imdb(
         .map_err(|e| e.to_string())?;
 
     let media = Media {
-                name: imdb.title.clone(),
-                year: Some(imdb.year),
-                imdb: Some(imdb.clone()),
-                ..Media::default()
-            };
+        name: imdb.title.clone(),
+        year: Some(imdb.year),
+        imdb: Some(imdb.clone()),
+        ..Media::default()
+    };
 
     db.insert_media(&media).map_err(|e| e.to_string())
 }
@@ -264,7 +264,6 @@ fn delete_media(media_id: IdType, state: tauri::State<'_, AppState>) -> Result<(
     let db = &state.db;
     db.delete_media(media_id).map_err(|e| e.to_string())
 }
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {

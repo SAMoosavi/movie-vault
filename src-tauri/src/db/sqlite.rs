@@ -890,7 +890,7 @@ impl DB for Sqlite {
 
     fn insert_media(&self, media: &Media) -> Result<IdType> {
         self.get_conn()?
-            .transaction(|conn| Self::insert_media(conn, &media))
+            .transaction(|conn| Self::insert_media(conn, media))
     }
 
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()> {
