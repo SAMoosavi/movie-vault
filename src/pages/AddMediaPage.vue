@@ -12,5 +12,5 @@
 </template>
 
 <script setup lang="ts">
-import AddMediaManual from '../component/AddMediaManual.vue'
+import AddMediaManual from '../component/add_media_page/AddMediaManual.vue'
 </script>

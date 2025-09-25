@@ -99,7 +99,6 @@ import { toast } from 'vue3-toastify'
 import { SearchX, Search, CalendarIcon } from 'lucide-vue-next'
 import type { Media } from '../../type'
 import { update_media_imdb } from '../../functions/invoker'
-import type { MediaSearchResult, SearchedMedia } from './SearchMediaImdb'
 
 const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{
@@ -107,7 +106,7 @@ const emit = defineEmits<{
 }>()
 
 const mediaName = ref(props.media?.name ?? '')
-const searchItems = ref<SearchedMedia[]>([])
+const searchItems = ref([])
 const loading = ref(false)
 
 let debounceTimer: number | undefined
@@ -121,7 +120,7 @@ async function performSearch(query: string) {
   loading.value = true
   try {
     const res = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(title)}`)
-    const data: MediaSearchResult = await res.json()
+    const data = await res.json()
     searchItems.value = data?.description ?? []
   } catch (err) {
     console.error(err)

@@ -118,8 +118,8 @@ import { ref, watch, onBeforeUnmount } from 'vue'
 import { fetch } from '@tauri-apps/plugin-http'
 import { toast } from 'vue3-toastify'
 import { SearchX, Search, CalendarIcon, PlusIcon, StarIcon } from 'lucide-vue-next'
-import { create_media_from_imdb } from '../functions/invoker'
-import type { MediaSearchResult, SearchedMedia } from './media_page/SearchMediaImdb'
+import { create_media_from_imdb } from '../../functions/invoker'
+import type { MediaSearchResult, SearchedMedia } from './SearchMediaImdb'
 import { useRouter } from 'vue-router'
 
 const imdbId = ref('')
