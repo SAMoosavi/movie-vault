@@ -68,9 +68,7 @@
               <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
                 <figure class="relative h-full">
                   <img
-                    :src="
-                      item.primaryImage  ? item.primaryImage.url : 'https://placehold.co/300x450?text=No+Image'
-                    "
+                    :src="item.primaryImage ? item.primaryImage.url : 'https://placehold.co/300x450?text=No+Image'"
                     :alt="item.primaryTitle || item.originalTitle"
                     class="h-full w-full object-cover"
                     loading="lazy"
@@ -173,7 +171,7 @@ async function addMedia() {
     toast.success('Media added successfully!')
     imdbId.value = ''
     mediaName.value = ''
-    await router.push({name:'media_page', params:{id:media_id}})
+    await router.push({ name: 'media_page', params: { id: media_id } })
   } catch (e: unknown) {
     toast.error(e instanceof Error ? e.message : 'Failed to add media')
     console.error(e)

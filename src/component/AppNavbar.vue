@@ -44,7 +44,7 @@
     <!-- Right: Actions -->
     <div class="navbar-end flex items-center gap-2">
       <!-- Add Media Button -->
-      <RouterLink :to="{name:'add_media'}" class="btn btn-secondary btn-sm">
+      <RouterLink :to="{ name: 'add_media' }" class="btn btn-secondary btn-sm">
         <Plus class="h-4 w-4" />
         Add Media
       </RouterLink>

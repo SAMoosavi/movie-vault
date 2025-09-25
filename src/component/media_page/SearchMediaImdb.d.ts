@@ -2,11 +2,11 @@ export interface MediaSearchResult {
   titles: SearchedMedia[]
 }
 
-export interface Image{
+export interface Image {
   url: string
 }
 
-export interface Rating{
+export interface Rating {
   aggregateRating: number
 }
 
