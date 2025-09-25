@@ -1,23 +1,20 @@
+use super::{IdType, imdb::Imdb, media_file::MediaFile, season::Season, tag::Tag};
+use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
-use super::imdb::Imdb;
-use super::media_file::MediaFile;
-use super::season::Season;
-
-use itertools::Itertools;
-
 #[derive(Debug, Clone, Default, Eq, serde::Serialize)]
 pub struct Media {
-    pub id: i64,
+    pub id: IdType,
     pub name: String,
-    pub year: Option<u32>,
+    pub year: Option<i32>,
     pub watched: bool,
     pub my_ranking: u8,
     pub watch_list: bool,
     pub seasons: Vec<Season>,
     pub files: Vec<MediaFile>,
     pub imdb: Option<Imdb>,
+    pub tags: Vec<Tag>,
 }
 
 impl PartialEq for Media {
@@ -32,6 +29,7 @@ impl PartialEq for Media {
                 .sorted()
                 .eq(other.seasons.iter().sorted())
             && self.files.iter().sorted().eq(other.files.iter().sorted())
+            && self.tags.iter().sorted().eq(other.tags.iter().sorted())
             && self.imdb == other.imdb
             && self.watch_list == other.watch_list
     }
@@ -51,15 +49,11 @@ impl From<PathBuf> for Media {
         };
 
         Self {
-            id: 0,
             name: Self::detect_name(&video_stem),
             year: Self::detect_year(&video_stem),
             files,
             seasons: season,
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Self::default()
         }
     }
 }
@@ -166,7 +160,7 @@ impl Media {
             .to_string()
     }
 
-    fn detect_year(input: &str) -> Option<u32> {
+    fn detect_year(input: &str) -> Option<i32> {
         let re = Regex::new(r"(19|20)\d{2}").unwrap();
         let mut last = None;
 
@@ -183,7 +177,7 @@ impl Media {
 
             if !is_before_digit
                 && !is_after_digit
-                && let Ok(year) = s.parse::<u32>()
+                && let Ok(year) = s.parse::<i32>()
                 && (1900..=2099).contains(&year)
             {
                 last = Some(year);

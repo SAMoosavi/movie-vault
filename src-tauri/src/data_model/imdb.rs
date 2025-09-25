@@ -1,23 +1,23 @@
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub struct Imdb {
+    pub imdb_id: String,
+    pub r#type: String,
     pub title: String,
-    pub year: String,
-    pub rated: String,
-    pub released: String,
-    pub runtime: String,
-    pub genres: Vec<String>,
-    pub directors: Vec<String>,
-    pub writers: Vec<String>,
-    pub actors: Vec<String>,
+    pub year: i32,
     pub plot: String,
-    pub languages: Vec<String>,
+    pub genres: Vec<String>,
     pub countries: Vec<String>,
-    pub awards: String,
     pub poster: String,
     pub imdb_rating: String,
-    pub imdb_votes: String,
-    pub imdb_id: String,
-    pub box_office: Option<String>,
-    pub total_seasons: Option<String>,
-    pub r#type: String,
+    pub imdb_votes: i32,
+    pub actors: Vec<Person>,
+    pub writers: Vec<Person>,
+    pub directors: Vec<Person>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Person {
+    pub id: String,
+    pub name: String,
+    pub url: String,
 }

@@ -9,6 +9,7 @@ import 'vue3-toastify/dist/index.css'
 import './assets/style.css'
 
 const pinia = createPinia().use(piniaPluginPersistedstate)
+
 createApp(App)
   .use(router)
   .use(pinia)

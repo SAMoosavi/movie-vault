@@ -17,7 +17,7 @@ use std::collections::HashMap;
 struct MediaKey {
     name: String,
     is_series: bool,
-    year: Option<u32>,
+    year: Option<i32>,
 }
 
 impl Hash for MediaKey {
@@ -74,20 +74,16 @@ mod tests_merge_media {
 
     fn default_media(
         name: String,
-        year: Option<u32>,
+        year: Option<i32>,
         season: Vec<Season>,
         files: Vec<MediaFile>,
     ) -> Media {
         Media {
-            id: 0,
             name,
             year,
-            watched: false,
-            my_ranking: 0,
             seasons: season,
             files,
-            imdb: None,
-            watch_list: false,
+            ..Media::default()
         }
     }
 
@@ -287,10 +283,7 @@ mod tests_get_metadata {
     #[test]
     fn get_metadata_of_series() {
         let ans = vec![Media {
-            id: 0,
             name: "loki".into(),
-            year: None,
-            files: vec![],
             seasons: vec![Season {
                 id: 0,
                 number: 1,
@@ -308,10 +301,7 @@ mod tests_get_metadata {
                     }],
                 }],
             }],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            watch_list: false,
+            ..Media::default()
         }];
         let result =
             get_metadata(&["/marvel/loki/S1/Loki.S01E02.720p.WEB.DL.Dubbed.ZarFilm.mkv".into()]);
@@ -322,7 +312,6 @@ mod tests_get_metadata {
     #[test]
     fn get_metadata_of_movie() {
         let ans = vec![Media {
-            id: 0,
             name: "who am i".into(),
             year: Some(2014),
             files: vec![MediaFile {
@@ -332,11 +321,7 @@ mod tests_get_metadata {
                 quality: Some("720p".into()),
                 language_format: LanguageFormat::HardSub,
             }],
-            imdb: None,
-            watched: false,
-            my_ranking: 0,
-            seasons: vec![],
-            watch_list: false,
+            ..Media::default()
         }];
 
         let result =
@@ -349,9 +334,7 @@ mod tests_get_metadata {
     fn get_metadata_complex() {
         let ans = vec![
             Media {
-                id: 0,
                 name: "loki".into(),
-                year: None,
                 files: vec![],
                 seasons: vec![
                     Season {
@@ -453,13 +436,9 @@ mod tests_get_metadata {
                         ],
                     },
                 ],
-                imdb: None,
-                watched: false,
-            watch_list: false,
-                my_ranking: 0,
+            ..Media::default()
             },
             Media {
-                id: 0,
                 name: "who am i".into(),
                 year: Some(2014),
                 files: vec![
@@ -478,11 +457,7 @@ mod tests_get_metadata {
                         language_format: LanguageFormat::HardSub,
                     },
                 ],
-                imdb: None,
-                watched: false,
-                my_ranking: 0,
-            watch_list: false,
-                seasons: vec![],
+            ..Media::default()
             },
         ];
 
