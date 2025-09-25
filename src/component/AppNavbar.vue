@@ -43,6 +43,11 @@
 
     <!-- Right: Actions -->
     <div class="navbar-end flex items-center gap-2">
+      <!-- Add Media Button -->
+      <RouterLink :to="{ name: 'add_media' }" class="btn btn-secondary btn-sm">
+        <Plus class="h-4 w-4" />
+        Add Media
+      </RouterLink>
       <!-- Add Folder Button -->
       <button class="btn btn-primary btn-sm" @click="onAddDirectory">
         <FolderPlus class="h-4 w-4" />
@@ -57,7 +62,7 @@
 import { open } from '@tauri-apps/plugin-dialog'
 
 // --- Icon imports ---
-import { FolderPlus, AlignJustify } from 'lucide-vue-next'
+import { FolderPlus, AlignJustify, Plus } from 'lucide-vue-next'
 
 // --- Toast ---
 import { toast } from 'vue3-toastify'

@@ -20,6 +20,10 @@ impl DB for MokeDB {
         todo!()
     }
 
+    fn delete_media(&self, _media_id: IdType) -> Result<()> {
+        todo!()
+    }
+
     fn update_media_my_ranking(&self, _media_id: IdType, _my_ranking: u8) -> Result<usize> {
         todo!()
     }
@@ -41,6 +45,10 @@ impl DB for MokeDB {
     }
 
     fn update_media_imdb(&self, _media_id: IdType, _imdb_id: &str) -> Result<IdType> {
+        todo!()
+    }
+
+    fn insert_media(&self, _media: &Media) -> Result<IdType> {
         todo!()
     }
 

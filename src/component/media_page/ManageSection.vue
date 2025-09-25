@@ -23,6 +23,19 @@
             <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
           </button>
 
+          <button class="btn btn-error w-full justify-between" @click="showDeleteModal = true">
+            <span>Delete Media</span>
+            <TrashIcon class="h-5 w-5" />
+          </button>
+
+          <Modal
+            :show="showDeleteModal"
+            title="Delete Media"
+            message="Are you sure you want to delete this media? This action cannot be undone."
+            @confirm="confirmDelete"
+            @cancel="showDeleteModal = false"
+          />
+
           <div class="divider my-4"></div>
 
           <div class="card card-xs border">
@@ -74,16 +87,28 @@ import {
   PencilIcon,
   SettingsIcon,
   StarIcon,
+  TrashIcon,
   XCircleIcon,
 } from 'lucide-vue-next'
 import type { Media } from '../../type'
-import { update_media_my_ranking, update_media_watch_list, update_media_watched } from '../../functions/invoker'
+import {
+  update_media_my_ranking,
+  update_media_watch_list,
+  update_media_watched,
+  delete_media,
+} from '../../functions/invoker'
+import Modal from '../Modal.vue'
+
+import { ref } from 'vue'
 
 const props = defineProps<{ media: Media; isEditing: boolean }>()
 const emit = defineEmits<{
   (e: 'fetch-media'): void
   (e: 'toggle-editing'): void
+  (e: 'delete-media'): void
 }>()
+
+const showDeleteModal = ref(false)
 
 function fetchMedia() {
   emit('fetch-media')
@@ -101,5 +126,11 @@ async function toggleWatchList() {
 async function setRanking(rank: number) {
   await update_media_my_ranking(props.media.id, rank)
   fetchMedia()
+}
+
+async function confirmDelete() {
+  await delete_media(props.media.id)
+  showDeleteModal.value = false
+  emit('delete-media')
 }
 </script>

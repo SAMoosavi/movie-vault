@@ -29,6 +29,10 @@ export async function update_media_imdb(mediaId: number, imdbId: string): Promis
   return await invoke('update_media_imdb', { mediaId, imdbId })
 }
 
+export async function create_media_from_imdb(imdbId: string): Promise<number> {
+  return await invoke('create_media_from_imdb', { imdbId })
+}
+
 export async function update_media_watched(mediaId: number, watched: boolean): Promise<void> {
   return await invoke('update_media_watched', { mediaId, watched })
 }
@@ -75,4 +79,8 @@ export async function insert_media_tag(mediaId: number, tagId: number): Promise<
 
 export async function remove_media_tag(mediaId: number, tagId: number): Promise<void> {
   return await invoke('remove_media_tag', { mediaId, tagId })
+}
+
+export async function delete_media(mediaId: number): Promise<void> {
+  return await invoke('delete_media', { mediaId })
 }

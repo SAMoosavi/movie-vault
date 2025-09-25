@@ -9,6 +9,7 @@ const settingChildren: RouteRecordRaw[] = [
 const routes: RouteRecordRaw[] = [
   { path: '/', component: () => import('./pages/HomePage.vue'), name: 'home' },
   { path: '/media/:id', component: () => import('./pages/MediaPage.vue'), name: 'media_page' },
+  { path: '/add-media', component: () => import('./pages/AddMediaPage.vue'), name: 'add_media' },
   {
     path: '/setting',
     component: () => import('./pages/SettingPage.vue'),

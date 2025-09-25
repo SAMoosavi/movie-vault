@@ -728,6 +728,107 @@ impl Sqlite {
 
         Ok(())
     }
+
+    fn delete_media(conn: &mut SqliteConnection, media_id: IdType) -> Result<()> {
+        // Get imdb_id before deleting
+        let imdb_id: Option<String> = medias::table
+            .filter(medias::id.eq(media_id))
+            .select(medias::imdb_id)
+            .first(conn)?;
+
+        // Check if any files exist on disk
+        // Get all file paths for media
+        let media_file_paths: Vec<String> = files::table
+            .filter(files::media_id.eq(media_id))
+            .select(files::path)
+            .load(conn)?;
+
+        // Get season ids
+        let season_ids: Vec<i32> = seasons::table
+            .filter(seasons::media_id.eq(media_id))
+            .select(seasons::id)
+            .load(conn)?;
+
+        let mut all_episode_file_paths = vec![];
+        for season_id in &season_ids {
+            let episode_ids: Vec<i32> = episodes::table
+                .filter(episodes::season_id.eq(season_id))
+                .select(episodes::id)
+                .load(conn)?;
+
+            for episode_id in &episode_ids {
+                let paths: Vec<String> = files::table
+                    .filter(files::episode_id.eq(episode_id))
+                    .select(files::path)
+                    .load(conn)?;
+                all_episode_file_paths.extend(paths);
+            }
+        }
+
+        // Check all paths
+        for path in media_file_paths.iter().chain(&all_episode_file_paths) {
+            if std::path::Path::new(path).exists() {
+                return Err(anyhow::anyhow!(
+                    "Cannot delete media: file {} exists on disk",
+                    path
+                ));
+            }
+        }
+
+        // Delete media_tags
+        diesel::delete(media_tags::table.filter(media_tags::media_id.eq(media_id)))
+            .execute(conn)?;
+
+        // Delete files associated with media
+        diesel::delete(files::table.filter(files::media_id.eq(media_id))).execute(conn)?;
+
+        // Delete seasons and their episodes
+        for season_id in season_ids {
+            // Delete episodes for this season
+            let episode_ids: Vec<i32> = episodes::table
+                .filter(episodes::season_id.eq(season_id))
+                .select(episodes::id)
+                .load::<i32>(conn)?;
+
+            for episode_id in episode_ids {
+                // Delete files for episodes
+                diesel::delete(files::table.filter(files::episode_id.eq(episode_id)))
+                    .execute(conn)?;
+            }
+
+            // Delete episodes
+            diesel::delete(episodes::table.filter(episodes::season_id.eq(season_id)))
+                .execute(conn)?;
+        }
+
+        // Delete seasons
+        diesel::delete(seasons::table.filter(seasons::media_id.eq(media_id))).execute(conn)?;
+
+        // Finally, delete the media
+        diesel::delete(medias::table.filter(medias::id.eq(media_id))).execute(conn)?;
+
+        // Delete imdb if exists
+        if let Some(imdb_id) = imdb_id {
+            Self::delete_imdb(conn, &imdb_id)?;
+        }
+
+        Ok(())
+    }
+
+    fn delete_imdb(conn: &mut SqliteConnection, imdb_id: &str) -> Result<()> {
+        // Delete related tables
+        diesel::delete(imdb_genres::table.filter(imdb_genres::imdb_id.eq(imdb_id)))
+            .execute(conn)?;
+        diesel::delete(imdb_countries::table.filter(imdb_countries::imdb_id.eq(imdb_id)))
+            .execute(conn)?;
+        diesel::delete(imdb_people::table.filter(imdb_people::imdb_id.eq(imdb_id)))
+            .execute(conn)?;
+
+        // Delete the imdb entry
+        diesel::delete(imdbs::table.filter(imdbs::imdb_id.eq(imdb_id))).execute(conn)?;
+
+        Ok(())
+    }
 }
 
 impl DB for Sqlite {
@@ -738,6 +839,11 @@ impl DB for Sqlite {
             }
             Ok(())
         })
+    }
+
+    fn delete_media(&self, media_id: IdType) -> Result<()> {
+        self.get_conn()?
+            .transaction(|conn| Self::delete_media(conn, media_id))
     }
 
     fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize> {
@@ -780,6 +886,11 @@ impl DB for Sqlite {
 
             Self::insert_media(conn, &media)
         })
+    }
+
+    fn insert_media(&self, media: &Media) -> Result<IdType> {
+        self.get_conn()?
+            .transaction(|conn| Self::insert_media(conn, media))
     }
 
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()> {
