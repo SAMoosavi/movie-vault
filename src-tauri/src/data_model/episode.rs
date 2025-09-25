@@ -1,11 +1,10 @@
-use std::path::PathBuf;
-
-use super::media_file::MediaFile;
+use super::{IdType, media_file::MediaFile};
 use itertools::Itertools;
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Episode {
-    pub id: i64,
+    pub id: IdType,
     pub number: i32,
     pub watched: bool,
     pub files: Vec<MediaFile>,
@@ -64,10 +63,7 @@ mod tests_episode {
 
         assert_eq!(episode.id, 0, "ID should be initialized to 0");
         assert_eq!(episode.number, test_number, "Number should match input");
-        assert_eq!(
-            episode.watched, false,
-            "Watched should be initialized to false"
-        );
+        assert!(!episode.watched);
         assert_eq!(
             episode.files.len(),
             1,

@@ -1,3 +1,8 @@
+export interface Tag {
+  id: number
+  name: string
+}
+
 export interface File {
   id: number
   file_name: string
@@ -20,26 +25,25 @@ export interface Season {
   episodes: Episode[]
 }
 
+export interface Person {
+  id: number
+  name: string
+  url: string
+}
+
 export interface Imdb {
   title: string
-  year: string
-  rated: string
-  released: string
-  runtime: string
-  genre: string[]
-  directors: string[]
-  writers: string[]
-  actors: string[]
+  year: number
+  genres: string[]
+  actors: Person[]
+  writers: Person[]
+  directors: Person[]
   plot: string
-  languages: string[]
-  country: string[]
-  awards: string
+  countries: string[]
   poster: string
   imdb_rating: string
-  imdb_votes: string
+  imdb_votes: number
   imdb_id: string
-  box_office?: string
-  total_seasons?: string
   type: string
 }
 
@@ -53,6 +57,7 @@ export interface Media {
   watched: boolean
   my_ranking: number
   watch_list: boolean
+  tags: Tag[]
 }
 
 type ContentType = 'all' | 'movie' | 'series'
@@ -60,19 +65,20 @@ type SortByType = 'name' | 'year' | 'imdb'
 type SortDirectionType = 'asc' | 'desc'
 type NullableBool = boolean | null
 type NullableNumber = number | null
-type NumericalString = [number, string]
+type NumericalString = [number | string, string]
 
 export interface FilterValues {
   type: ContentType
   minRating: NullableNumber
-  country: NumericalString[]
-  genre: NumericalString[]
+  country: number[]
+  genre: number[]
   name: string
   existImdb: NullableBool
   existMultiFile: NullableBool
-  actor: NumericalString[]
+  people: string[]
   watched: NullableBool
   sortBy: SortByType
   sortDirection: SortDirectionType
   watchList: NullableBool
+  tags: number[]
 }

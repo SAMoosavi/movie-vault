@@ -1,12 +1,11 @@
-use super::episode::Episode;
-
+use super::{IdType, episode::Episode};
 use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Season {
-    pub id: i64,
+    pub id: IdType,
     pub number: i32,
     pub watched: bool,
     pub episodes: Vec<Episode>,
@@ -82,7 +81,7 @@ impl Season {
 
 impl Season {
     fn detect_series(input: &str) -> Result<(i32, i32), Box<dyn std::error::Error>> {
-        let re = Regex::new(r"(?i)s(\d{1,2})[\s._-]?e(\d{1,2})")?;
+        let re = Regex::new(r"(?i)s(\d+)[\s._-]?e(\d+)")?;
 
         re.captures(input)
             .and_then(|caps| {
