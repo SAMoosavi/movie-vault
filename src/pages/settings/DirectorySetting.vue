@@ -1,0 +1,76 @@
+<template>
+  <!-- Directory Settings Card -->
+  <SettingCategoryCard name="Directory Settings" description="Manage your media directories">
+    <div class="card-body">
+      <!-- Section: Add New Directory -->
+      <section class="mb-8">
+        <h2 class="card-title text-xl">Add New Directory</h2>
+        <div class="form-control mt-4">
+          <button @click="handleAddDirectory" class="btn btn-primary">
+            <FolderPlusIcon class="h-5 w-5 mr-2" />
+            Select Directory
+          </button>
+        </div>
+      </section>
+
+      <!-- Section: Existing Directories List -->
+      <section class="mb-8">
+        <h2 class="card-title text-xl">Existing Directories</h2>
+        <div v-if="directoryPaths.length === 0" class="text-base-content/60 mt-3 italic">
+          No directories available. Add a new directory to get started.
+        </div>
+        <!-- Animated Directory List -->
+        <AnimatedList tag="div" class="mt-3 space-y-2">
+          <div
+            v-for="dir in directoryPaths"
+            :key="dir"
+            @click="handleRemoveDirectory(dir)"
+            class="badge badge-lg badge-outline cursor-pointer transition-all flex items-center gap-2 p-3"
+          >
+            <Folder class="h-4 w-4" />
+            <span class="font-medium">{{ dir }}</span>
+          </div>
+        </AnimatedList>
+      </section>
+    </div>
+  </SettingCategoryCard>
+</template>
+
+<script setup lang="ts">
+// --- Icons & Vue ---
+import { Folder, FolderPlusIcon } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { open } from '@tauri-apps/plugin-dialog'
+
+// --- Stores ---
+import { useDirsStore } from '../../stores/Dirs'
+
+// --- Components ---
+import AnimatedList from '../../component/AnimatedList.vue'
+import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+
+// --- State ---
+const dirsStore = useDirsStore()
+
+// Computed
+const directoryPaths = computed(() => dirsStore.directoryPaths)
+
+async function handleAddDirectory() {
+  try {
+    const selected = await open({
+      directory: true,
+      multiple: false,
+    })
+    if (selected && typeof selected === 'string') {
+      dirsStore.addDirectory(selected)
+    }
+  } catch (error) {
+    console.error('Failed to open directory picker:', error)
+  }
+}
+
+async function handleRemoveDirectory(dir: string) {
+  if (!dir) return
+  dirsStore.removeDirectory(dir)
+}
+</script>
