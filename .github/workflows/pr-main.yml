@@ -117,7 +117,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.check_version.outputs.version }}
-          name: release v${{ needs.check_version.outputs.version }}
+          name: v${{ needs.check_version.outputs.version }}
           files: |
             artifacts/**/*.AppImage
             artifacts/**/*.dmg
