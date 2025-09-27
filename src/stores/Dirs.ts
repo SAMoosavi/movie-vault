@@ -43,7 +43,7 @@ export const useDirsStore = defineStore(
       }
 
       // Remove any existing directories that are children of the new one
-      directoryPaths.value = directoryPaths.value.filter(existing => !isParent(normalizedDir, existing))
+      directoryPaths.value = directoryPaths.value.filter((existing) => !isParent(normalizedDir, existing))
 
       // Add the new directory
       directoryPaths.value.push(normalizedDir)

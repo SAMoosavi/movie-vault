@@ -7,7 +7,7 @@
         <h2 class="card-title text-xl">Add New Directory</h2>
         <div class="form-control mt-4">
           <button @click="handleAddDirectory" class="btn btn-primary">
-            <FolderPlusIcon class="h-5 w-5 mr-2" />
+            <FolderPlusIcon class="mr-2 h-5 w-5" />
             Select Directory
           </button>
         </div>
@@ -25,7 +25,7 @@
             v-for="dir in directoryPaths"
             :key="dir"
             @click="handleRemoveDirectory(dir)"
-            class="badge badge-lg badge-outline cursor-pointer transition-all flex items-center gap-2 p-3"
+            class="badge badge-lg badge-outline flex cursor-pointer items-center gap-2 p-3 transition-all"
           >
             <Folder class="h-4 w-4" />
             <span class="font-medium">{{ dir }}</span>
