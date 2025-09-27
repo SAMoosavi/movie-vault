@@ -17,7 +17,7 @@ In today's digital age, many people maintain large personal collections of movie
 
 ### Option 1: Download Pre-built Binaries (Recommended)
 
-Visit the [Releases](https://github.com/SAMoosavi/movie-vault/releases) page and download the appropriate package for your operating system:
+Visit the [Releases](https://github.com/SAMoosavi/movie-vault/releases/latest) page and download the appropriate package for your operating system:
 
 - **Linux**: `.rpm`, `.deb` or `.AppImage` files
 - **Windows**: `.exe` installer
