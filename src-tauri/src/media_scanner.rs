@@ -89,7 +89,8 @@ mod find_movies_tests {
 
         let existing_file = temp_dir.path().join("db_existing.avi");
 
-        db.expect_get_all_files().return_once(move || Ok(vec![MediaFile::from(existing_file)]));
+        db.expect_get_all_files()
+            .return_once(move || Ok(vec![MediaFile::from(existing_file)]));
 
         for (name, _is_valid) in files {
             let path = temp_dir.path().join(name);
@@ -168,7 +169,8 @@ mod find_movies_tests {
             .expect("Failed to write");
 
         let mut db = MockDB::new();
-        db.expect_get_all_files().return_once(move || Ok(vec![MediaFile::from(path_file)]));
+        db.expect_get_all_files()
+            .return_once(move || Ok(vec![MediaFile::from(path_file)]));
         let videos = find_movies(&db, temp_dir.path().to_path_buf())
             .await
             .expect("Function failed");
