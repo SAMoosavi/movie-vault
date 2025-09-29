@@ -2,7 +2,7 @@ use super::{IdType, media_file::MediaFile};
 use itertools::Itertools;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Episode {
     pub id: IdType,
     pub number: i32,

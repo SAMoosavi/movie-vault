@@ -1226,6 +1226,39 @@ impl DB for Sqlite {
         .execute(conn)?;
         Ok(())
     }
+
+    fn get_all_medias(&self) -> Result<Vec<Media>> {
+        let conn = &mut self.get_conn()?;
+        let media_ids = medias::table.select(medias::id).load::<i32>(conn)?;
+
+        let medias = media_ids
+            .into_iter()
+            .map(|id| Self::get_media_by_id(conn, id))
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        Ok(medias)
+    }
+
+    fn import_data(&self, data: &crate::ExportedData) -> Result<()> {
+        self.get_conn()?.transaction(|conn| {
+            // Insert tags first
+            for tag in &data.tags {
+                diesel::insert_or_ignore_into(tags::table)
+                    .values(&NewTag { name: &tag.name })
+                    .execute(conn)?;
+            }
+
+            // Insert medias
+            for media in &data.medias {
+                Self::insert_media(conn, media)?;
+            }
+
+            Ok(())
+        })
+    }
 }
 
 #[cfg(test)]
