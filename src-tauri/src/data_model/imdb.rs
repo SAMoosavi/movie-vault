@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Imdb {
     pub imdb_id: String,
     pub r#type: String,
@@ -15,7 +15,7 @@ pub struct Imdb {
     pub directors: Vec<Person>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Person {
     pub id: String,
     pub name: String,

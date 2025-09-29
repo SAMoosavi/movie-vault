@@ -3,7 +3,7 @@ use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Season {
     pub id: IdType,
     pub number: i32,

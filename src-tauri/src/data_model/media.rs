@@ -3,7 +3,7 @@ use itertools::Itertools;
 use regex::Regex;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Default, Eq, serde::Serialize)]
+#[derive(Debug, Clone, Default, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Media {
     pub id: IdType,
     pub name: String,

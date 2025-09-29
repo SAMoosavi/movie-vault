@@ -104,4 +104,6 @@ pub trait DB {
     fn insert_tag(&self, tag: &Tag) -> Result<()>;
     fn insert_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
     fn remove_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
+    fn get_all_medias(&self) -> Result<Vec<Media>>;
+    fn import_data(&self, data: &crate::ExportedData) -> Result<()>;
 }
