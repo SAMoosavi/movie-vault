@@ -115,4 +115,12 @@ impl DB for MokeDB {
     fn remove_media_tag(&self, _media_id: IdType, _tag_id: IdType) -> Result<()> {
         todo!()
     }
+
+    fn get_all_medias(&self) -> Result<Vec<Media>> {
+        todo!()
+    }
+
+    fn import_data(&self, _data: &crate::ExportedData) -> Result<()> {
+        todo!()
+    }
 }

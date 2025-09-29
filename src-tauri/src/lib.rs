@@ -10,6 +10,12 @@ use crate::{
     db::{DB, FilterValues},
 };
 
+#[derive(serde::Serialize, serde::Deserialize)]
+struct ExportedData {
+    medias: Vec<Media>,
+    tags: Vec<Tag>,
+}
+
 mod data_model;
 mod db;
 mod fetch_imdb;
@@ -265,6 +271,30 @@ fn delete_media(media_id: IdType, state: tauri::State<'_, AppState>) -> Result<(
     db.delete_media(media_id).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+async fn export_data(file_path: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    use std::fs;
+
+    let db = &state.db;
+
+    let medias = db.get_all_medias().map_err(|e| e.to_string())?;
+    let tags = db.get_tags().map_err(|e| e.to_string())?;
+
+    let data = ExportedData { medias, tags };
+    let json = serde_json::to_string(&data).map_err(|e| e.to_string())?;
+
+    fs::write(&file_path, json).map_err(|e| format!("Failed to write file: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn import_data(data: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
+    let db = &state.db;
+    let exported: ExportedData = serde_json::from_str(&data).map_err(|e| e.to_string())?;
+    db.import_data(&exported).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -295,7 +325,9 @@ pub fn run() {
             insert_tag,
             insert_media_tag,
             remove_media_tag,
-            delete_media
+            delete_media,
+            export_data,
+            import_data
         ])
         .setup(|app| {
             let db = Sqlite::from_app_handle(app.app_handle())?;
