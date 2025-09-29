@@ -77,10 +77,10 @@ import type { File } from '../../type'
 import { Files, FolderOpen, Play, Scissors, Trash2 } from 'lucide-vue-next'
 
 // --- Tauri APIs (rename copyFile import to avoid collision with local function) ---
-import { basename, dirname, join } from '@tauri-apps/api/path'
+import { basename, dirname } from '@tauri-apps/api/path'
 import { openPath } from '@tauri-apps/plugin-opener'
 import { copyFile as fsCopyFile, rename, remove } from '@tauri-apps/plugin-fs'
-import { open } from '@tauri-apps/plugin-dialog'
+import { save } from '@tauri-apps/plugin-dialog'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
 // --- Utilities ---
@@ -108,58 +108,80 @@ async function openFileLocation() {
   }
 }
 
-// --- Function: Move the file to a selected directory ---
+// --- Function: Move the file to a selected location ---
 async function moveFile() {
   try {
-    const targetDir = await open({
-      directory: true,
-      multiple: false,
-      title: 'Select target dir',
-    })
-    if (!targetDir) return
-
     const fileName = await basename(filePath)
-    const targetPath = await join(targetDir, fileName)
 
-    toast.info('Move started...')
+    const targetPath = await save({
+      defaultPath: fileName,
+      title: 'Select target location for file move',
+    })
+
+    if (!targetPath) return
+
+    // Prevent moving to the same location
+    if (targetPath === filePath) {
+      toast.warning('Source and destination are the same')
+      return
+    }
+
+    toast.info('Moving file...')
+
     try {
       await rename(filePath, targetPath)
     } catch (err: unknown) {
-      // Fallback for cross-device move
-      if (String(err).includes('Invalid cross-device link')) {
+      const errorMessage = String(err)
+      // Handle cross-device moves (different filesystems/drives)
+      if (
+        errorMessage.includes('Invalid cross-device link') ||
+        errorMessage.includes('cross-device') ||
+        errorMessage.includes('EXDEV')
+      ) {
+        // Copy then delete for cross-device moves
         await fsCopyFile(filePath, targetPath)
         await remove(filePath)
       } else {
         throw err
       }
     }
+
     toast.success('File moved successfully')
     emit('reload')
   } catch (e) {
-    toast.error('Move failed!')
-    console.error('Error moving file:', e)
+    const error = e as Error
+    toast.error(`Move failed: ${error.message || 'Unknown error'}`)
+    console.error('Error moving file:', error)
   }
 }
 
-// --- Function: Copy the file to a selected directory ---
+// --- Function: Copy the file to a selected location ---
 async function copyFile() {
   try {
-    const targetDir = await open({
-      directory: true,
-      multiple: false,
-      title: 'Select target folder',
-    })
-    if (!targetDir) return
-
     const fileName = await basename(filePath)
-    const targetPath = await join(targetDir, fileName)
 
-    toast.info('Copy started...')
+    const targetPath = await save({
+      defaultPath: fileName,
+      title: 'Select target location for file copy',
+    })
+
+    if (!targetPath) return
+
+    // Prevent copying to the same location
+    if (targetPath === filePath) {
+      toast.warning('Source and destination are the same')
+      return
+    }
+
+    toast.info('Copying file...')
+
     await fsCopyFile(filePath, targetPath)
+
     toast.success('File copied successfully')
   } catch (e) {
-    toast.error('Copy failed!')
-    console.error('Error copying file:', e)
+    const error = e as Error
+    toast.error(`Copy failed: ${error.message || 'Unknown error'}`)
+    console.error('Error copying file:', error)
   }
 }
 

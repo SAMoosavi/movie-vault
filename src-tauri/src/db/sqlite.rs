@@ -1192,9 +1192,7 @@ impl DB for Sqlite {
 
     fn get_all_medias(&self) -> Result<Vec<Media>> {
         let conn = &mut self.get_conn()?;
-        let media_ids = medias::table
-            .select(medias::id)
-            .load::<i32>(conn)?;
+        let media_ids = medias::table.select(medias::id).load::<i32>(conn)?;
 
         let medias = media_ids
             .into_iter()

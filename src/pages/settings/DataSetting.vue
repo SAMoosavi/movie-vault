@@ -3,30 +3,22 @@
     <h2 class="card-title mb-4">Data Management</h2>
     <div class="space-y-4">
       <div class="card bg-base-100 p-4">
-        <h3 class="text-lg font-semibold mb-2">Export Data</h3>
-        <p class="text-sm text-base-content/70 mb-4">
+        <h3 class="mb-2 text-lg font-semibold">Export Data</h3>
+        <p class="text-base-content/70 mb-4 text-sm">
           Export all your movie data to a JSON file for backup or transfer.
         </p>
-        <button
-          class="btn btn-primary"
-          @click="exportData"
-          :disabled="isExporting"
-        >
+        <button class="btn btn-primary" @click="exportData" :disabled="isExporting">
           <span v-if="isExporting" class="loading loading-spinner loading-sm"></span>
           {{ isExporting ? 'Exporting...' : 'Export Data' }}
         </button>
       </div>
 
       <div class="card bg-base-100 p-4">
-        <h3 class="text-lg font-semibold mb-2">Import Data</h3>
-        <p class="text-sm text-base-content/70 mb-4">
+        <h3 class="mb-2 text-lg font-semibold">Import Data</h3>
+        <p class="text-base-content/70 mb-4 text-sm">
           Import movie data from a previously exported JSON file. This will merge with existing data.
         </p>
-        <button
-          class="btn btn-secondary"
-          @click="importData"
-          :disabled="isImporting"
-        >
+        <button class="btn btn-secondary" @click="importData" :disabled="isImporting">
           <span v-if="isImporting" class="loading loading-spinner loading-sm"></span>
           {{ isImporting ? 'Importing...' : 'Import Data' }}
         </button>
@@ -49,11 +41,13 @@ const exportData = async () => {
   try {
     // Open save dialog
     const filePath = await save({
-      filters: [{
-        name: 'JSON',
-        extensions: ['json']
-      }],
-      defaultPath: `movie-vault-data-${new Date().toISOString().split('T')[0]}.json`
+      filters: [
+        {
+          name: 'JSON',
+          extensions: ['json'],
+        },
+      ],
+      defaultPath: `movie-vault-data-${new Date().toISOString().split('T')[0]}.json`,
     })
 
     if (!filePath) {
@@ -73,16 +67,17 @@ const exportData = async () => {
   }
 }
 
-
 const importData = async () => {
   try {
     // Open file dialog
     const filePath = await open({
       multiple: false,
-      filters: [{
-        name: 'JSON',
-        extensions: ['json']
-      }]
+      filters: [
+        {
+          name: 'JSON',
+          extensions: ['json'],
+        },
+      ],
     })
 
     if (!filePath || Array.isArray(filePath)) {
