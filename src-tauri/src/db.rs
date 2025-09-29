@@ -1,15 +1,10 @@
 use std::{fmt, path::PathBuf};
 
 use crate::data_model::{IdType, Imdb, Media, MediaFile, Tag};
+use mockall::automock;
 
 mod sqlite;
 pub use sqlite::Sqlite;
-
-#[cfg(test)]
-mod moke;
-
-#[cfg(test)]
-pub use moke::MokeDB;
 
 pub type NumericalString = (i32, String);
 
@@ -77,6 +72,7 @@ pub struct FilterValues {
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
+#[automock]
 pub trait DB {
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;
     fn delete_media(&self, media_id: IdType) -> Result<()>;
