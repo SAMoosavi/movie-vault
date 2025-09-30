@@ -2,7 +2,8 @@ mod data_models;
 pub mod schema;
 
 use super::{
-    ContentType, DB, FilterValues, NumericalString, Result, SortByType, SortDirectionType,
+    ContentType, DB, FilterValues, MultiFileFilterType, NumericalString, Result, SortByType,
+    SortDirectionType,
 };
 use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
@@ -1076,28 +1077,67 @@ impl DB for Sqlite {
             }
         }
 
-        if let Some(exist_multi_file) = filters.exist_multi_file {
-            let media_file_count = files::table
-                .select(files::media_id)
-                .filter(files::media_id.eq(medias::id.nullable()))
-                .group_by(files::media_id)
-                .having(diesel::dsl::count_star().gt(1));
+        if let Some(exist_multi_file) = &filters.exist_multi_file {
+            match exist_multi_file {
+                MultiFileFilterType::Multifile => {
+                    // Filter for media with multiple files (either media files or episode files)
+                    let media_file_count = files::table
+                        .select(files::media_id)
+                        .filter(files::media_id.eq(medias::id.nullable()))
+                        .group_by(files::media_id)
+                        .having(diesel::dsl::count_star().gt(1));
 
-            let episode_file_count = files::table
-                .left_join(episodes::table.on(files::episode_id.eq(episodes::id.nullable())))
-                .left_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
-                .filter(seasons::media_id.eq(medias::id))
-                .group_by(files::episode_id)
-                .having(diesel::dsl::count_star().gt(1));
+                    let episode_file_count = files::table
+                        .left_join(
+                            episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
+                        )
+                        .left_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
+                        .filter(seasons::media_id.eq(medias::id))
+                        .group_by(files::episode_id)
+                        .having(diesel::dsl::count_star().gt(1));
 
-            let condition =
-                diesel::dsl::exists(media_file_count).or(diesel::dsl::exists(episode_file_count));
+                    let condition = diesel::dsl::exists(media_file_count)
+                        .or(diesel::dsl::exists(episode_file_count));
 
-            query = if exist_multi_file {
-                query.filter(condition)
-            } else {
-                query.filter(diesel::dsl::not(condition))
-            };
+                    query = query.filter(condition);
+                }
+                MultiFileFilterType::Existfile => {
+                    // Filter for media that has at least one file (either media files or episode files)
+                    let has_media_files = diesel::dsl::exists(
+                        files::table.filter(files::media_id.eq(medias::id.nullable())),
+                    );
+
+                    let has_episode_files = diesel::dsl::exists(
+                        files::table
+                            .left_join(
+                                episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
+                            )
+                            .left_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
+                            .filter(seasons::media_id.eq(medias::id)),
+                    );
+
+                    let condition = has_media_files.or(has_episode_files);
+                    query = query.filter(condition);
+                }
+                MultiFileFilterType::Nofile => {
+                    // Filter for media that has no files at all
+                    let has_media_files = diesel::dsl::exists(
+                        files::table.filter(files::media_id.eq(medias::id.nullable())),
+                    );
+
+                    let has_episode_files = diesel::dsl::exists(
+                        files::table
+                            .left_join(
+                                episodes::table.on(files::episode_id.eq(episodes::id.nullable())),
+                            )
+                            .left_join(seasons::table.on(episodes::season_id.eq(seasons::id)))
+                            .filter(seasons::media_id.eq(medias::id)),
+                    );
+
+                    let condition = has_media_files.or(has_episode_files);
+                    query = query.filter(diesel::dsl::not(condition));
+                }
+            }
         }
 
         // -- Boolean Filters --
@@ -1824,6 +1864,304 @@ mod tests_filter_values {
         // Total results should be reasonable
         let total = results_page0.len() + results_page1.len();
         assert!(total >= results_page0.len()); // At least as many as page 0
+    }
+
+    #[test]
+    fn test_filter_by_exist_multi_file_multifile() {
+        let sqlite = setup_test_db();
+
+        // Create media with multiple files
+        let mut media1 = create_test_media();
+        media1.name = "Movie With Multiple Files 1".to_string();
+        media1.year = Some(2021);
+        media1.imdb = None;
+        media1.files = vec![
+            MediaFile {
+                id: 0,
+                file_name: "movie1_1080p.mp4".to_string(),
+                path: "/path/to/movie1_1080p.mp4".to_string(),
+                quality: Some("1080p".to_string()),
+                language_format: LanguageFormat::Unknown,
+            },
+            MediaFile {
+                id: 0,
+                file_name: "movie1_720p.mp4".to_string(),
+                path: "/path/to/movie1_720p.mp4".to_string(),
+                quality: Some("720p".to_string()),
+                language_format: LanguageFormat::Unknown,
+            },
+        ];
+
+        // Create media with single file
+        let mut media2 = create_test_media();
+        media2.name = "Single File Movie 2".to_string();
+        media2.year = Some(2022);
+        media2.imdb = None;
+        media2.files = vec![MediaFile {
+            id: 0,
+            file_name: "movie2.mp4".to_string(),
+            path: "/path/to/movie2.mp4".to_string(),
+            quality: Some("1080p".to_string()),
+            language_format: LanguageFormat::Unknown,
+        }];
+
+        // Create media with no files
+        let mut media3 = create_test_media();
+        media3.name = "No File Movie 3".to_string();
+        media3.year = Some(2023);
+        media3.imdb = None;
+        media3.files = vec![];
+
+        // Create series with multiple episodes and files
+        let mut media4 = create_test_media();
+        media4.name = "Series with Multiple Files 4".to_string();
+        media4.year = Some(2024);
+        media4.imdb = None;
+        media4.files = vec![];
+        media4.seasons = vec![Season {
+            id: 0,
+            number: 1,
+            watched: false,
+            episodes: vec![
+                Episode {
+                    id: 0,
+                    number: 1,
+                    watched: false,
+                    files: vec![
+                        MediaFile {
+                            id: 0,
+                            file_name: "episode1_1080p.mp4".to_string(),
+                            path: "/path/to/episode1_1080p.mp4".to_string(),
+                            quality: Some("1080p".to_string()),
+                            language_format: LanguageFormat::Unknown,
+                        },
+                        MediaFile {
+                            id: 0,
+                            file_name: "episode1_720p.mp4".to_string(),
+                            path: "/path/to/episode1_720p.mp4".to_string(),
+                            quality: Some("720p".to_string()),
+                            language_format: LanguageFormat::Unknown,
+                        },
+                    ],
+                },
+                Episode {
+                    id: 0,
+                    number: 2,
+                    watched: false,
+                    files: vec![MediaFile {
+                        id: 0,
+                        file_name: "episode2_1080p.mp4".to_string(),
+                        path: "/path/to/episode2_1080p.mp4".to_string(),
+                        quality: Some("1080p".to_string()),
+                        language_format: LanguageFormat::Unknown,
+                    }],
+                },
+            ],
+        }];
+
+        let media1_id = sqlite.insert_media(&media1).unwrap();
+        let media2_id = sqlite.insert_media(&media2).unwrap();
+        let media3_id = sqlite.insert_media(&media3).unwrap();
+        let media4_id = sqlite.insert_media(&media4).unwrap();
+
+        // Filter for multifile media
+        let filters = FilterValues {
+            name: "".to_string(),
+            r#type: ContentType::All,
+            min_rating: None,
+            country: vec![],
+            genre: vec![],
+            people: vec![],
+            exist_imdb: None,
+            exist_multi_file: Some(MultiFileFilterType::Multifile),
+            watched: None,
+            sort_by: SortByType::Name,
+            sort_direction: SortDirectionType::Asc,
+            watch_list: None,
+            tags: vec![],
+        };
+
+        let results = sqlite.filter_medias(&filters, 0).unwrap();
+        assert!(!results.is_empty());
+
+        // Should find media1 (multiple files) and media4 (episode with multiple files)
+        let result_ids: Vec<i32> = results.iter().map(|m| m.id).collect();
+        assert!(result_ids.contains(&media1_id));
+        assert!(result_ids.contains(&media4_id));
+
+        // Should not find media2 (single file) and media3 (no files)
+        assert!(!result_ids.contains(&media2_id));
+        assert!(!result_ids.contains(&media3_id));
+    }
+
+    #[test]
+    fn test_filter_by_exist_multi_file_existfile() {
+        let sqlite = setup_test_db();
+
+        // Create media with files
+        let mut media1 = create_test_media();
+        media1.name = "Movie With Files 1".to_string();
+        media1.year = Some(2021);
+        media1.imdb = None;
+        media1.files = vec![MediaFile {
+            id: 0,
+            file_name: "movie1.mp4".to_string(),
+            path: "/path/to/movie1.mp4".to_string(),
+            quality: Some("1080p".to_string()),
+            language_format: LanguageFormat::Unknown,
+        }];
+
+        // Create media with no files
+        let mut media2 = create_test_media();
+        media2.name = "No File Movie 2".to_string();
+        media2.year = Some(2022);
+        media2.imdb = None;
+        media2.files = vec![];
+
+        // Create series with episodes and files
+        let mut media3 = create_test_media();
+        media3.name = "Series with Files 3".to_string();
+        media3.year = Some(2023);
+        media3.imdb = None;
+        media3.files = vec![];
+        media3.seasons = vec![Season {
+            id: 0,
+            number: 1,
+            watched: false,
+            episodes: vec![Episode {
+                id: 0,
+                number: 1,
+                watched: false,
+                files: vec![MediaFile {
+                    id: 0,
+                    file_name: "episode1.mp4".to_string(),
+                    path: "/path/to/episode1.mp4".to_string(),
+                    quality: Some("1080p".to_string()),
+                    language_format: LanguageFormat::Unknown,
+                }],
+            }],
+        }];
+
+        let media1_id = sqlite.insert_media(&media1).unwrap();
+        let media2_id = sqlite.insert_media(&media2).unwrap();
+        let media3_id = sqlite.insert_media(&media3).unwrap();
+
+        // Filter for media with files
+        let filters = FilterValues {
+            name: "".to_string(),
+            r#type: ContentType::All,
+            min_rating: None,
+            country: vec![],
+            genre: vec![],
+            people: vec![],
+            exist_imdb: None,
+            exist_multi_file: Some(MultiFileFilterType::Existfile),
+            watched: None,
+            sort_by: SortByType::Name,
+            sort_direction: SortDirectionType::Asc,
+            watch_list: None,
+            tags: vec![],
+        };
+
+        let results = sqlite.filter_medias(&filters, 0).unwrap();
+        assert!(!results.is_empty());
+
+        // Should find media1 (has files) and media3 (episode has files)
+        let result_ids: Vec<i32> = results.iter().map(|m| m.id).collect();
+        assert!(result_ids.contains(&media1_id));
+        assert!(result_ids.contains(&media3_id));
+
+        // Should not find media2 (no files)
+        assert!(!result_ids.contains(&media2_id));
+    }
+
+    #[test]
+    fn test_filter_by_exist_multi_file_nofile() {
+        let sqlite = setup_test_db();
+
+        // Create media with files
+        let mut media1 = create_test_media();
+        media1.name = "Movie With Files 1".to_string();
+        media1.year = Some(2021);
+        media1.imdb = None; // Remove IMDB to avoid matching issues
+        media1.files = vec![MediaFile {
+            id: 0,
+            file_name: "movie1.mp4".to_string(),
+            path: "/path/to/movie1.mp4".to_string(),
+            quality: Some("1080p".to_string()),
+            language_format: LanguageFormat::Unknown,
+        }];
+
+        // Create media with no files
+        let mut media2 = create_test_media();
+        media2.name = "No File Movie 2".to_string();
+        media2.year = Some(2022);
+        media2.imdb = None; // Remove IMDB to avoid matching issues
+        media2.files = vec![];
+
+        // Create series with episodes but no files
+        let mut media3 = create_test_media();
+        media3.name = "Series with No Files 3".to_string();
+        media3.year = Some(2023);
+        media3.imdb = None; // Remove IMDB to avoid matching issues
+        media3.files = vec![];
+        media3.seasons = vec![Season {
+            id: 0,
+            number: 1,
+            watched: false,
+            episodes: vec![Episode {
+                id: 0,
+                number: 1,
+                watched: false,
+                files: vec![], // No files for this episode
+            }],
+        }];
+
+        let media1_id = sqlite.insert_media(&media1).unwrap();
+        let media2_id = sqlite.insert_media(&media2).unwrap();
+        let media3_id = sqlite.insert_media(&media3).unwrap();
+
+        // Filter for media with no files
+        let filters = FilterValues {
+            name: "".to_string(),
+            r#type: ContentType::All,
+            min_rating: None,
+            country: vec![],
+            genre: vec![],
+            people: vec![],
+            exist_imdb: None,
+            exist_multi_file: Some(MultiFileFilterType::Nofile),
+            watched: None,
+            sort_by: SortByType::Name,
+            sort_direction: SortDirectionType::Asc,
+            watch_list: None,
+            tags: vec![],
+        };
+
+        let results = sqlite.filter_medias(&filters, 0).unwrap();
+
+        // Should find media2 (no files) and media3 (episode has no files)
+        let result_ids: Vec<i32> = results.iter().map(|m| m.id).collect();
+        assert!(
+            result_ids.contains(&media2_id),
+            "media2_id {} should be in results {:?}",
+            media2_id,
+            result_ids
+        );
+        assert!(
+            result_ids.contains(&media3_id),
+            "media3_id {} should be in results {:?}",
+            media3_id,
+            result_ids
+        );
+
+        // Should not find media1 (has files)
+        assert!(
+            !result_ids.contains(&media1_id),
+            "media1_id {} should not be in results {:?}",
+            media1_id,
+            result_ids
+        );
     }
 }
 

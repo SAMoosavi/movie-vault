@@ -37,6 +37,14 @@ pub enum SortByType {
 
 #[derive(Debug, Clone, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+pub enum MultiFileFilterType {
+    Multifile,
+    Existfile,
+    Nofile,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum SortDirectionType {
     Asc,
     Desc,
@@ -62,7 +70,7 @@ pub struct FilterValues {
     pub genre: Vec<i32>,
     pub people: Vec<String>,
     pub exist_imdb: Option<bool>,
-    pub exist_multi_file: Option<bool>,
+    pub exist_multi_file: Option<MultiFileFilterType>,
     pub watched: Option<bool>,
     pub sort_by: SortByType,
     pub sort_direction: SortDirectionType,
