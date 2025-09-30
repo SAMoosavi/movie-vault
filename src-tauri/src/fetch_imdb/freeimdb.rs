@@ -112,12 +112,12 @@ const MAX_RETRIES: u32 = 3;
 const DELAY_S: u64 = 10;
 const CONCURRENCY: usize = 4;
 
-async fn fetch_movies(client: &Client, ids: &[String]) -> Result<Response> {
-    let url = "https://api.imdbapi.dev/titles:batchGet";
+async fn fetch_movies(client: &Client, ids: &[String], base_url: &str) -> Result<Response> {
+    let url = format!("{}/titles:batchGet", base_url);
     let query: Vec<(&str, &str)> = ids.iter().map(|id| ("titleIds", id.as_str())).collect();
 
     for attempt in 1..=MAX_RETRIES {
-        match client.get(url).query(&query).send().await {
+        match client.get(&url).query(&query).send().await {
             Ok(resp) if resp.status().is_success() => {
                 return Ok(resp.json::<Response>().await?);
             }
@@ -149,6 +149,10 @@ async fn fetch_movies(client: &Client, ids: &[String]) -> Result<Response> {
 }
 
 pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
+    process_movies_inner(movie_ids, "https://api.imdbapi.dev").await
+}
+
+async fn process_movies_inner(movie_ids: Vec<String>, base_url: &str) -> Result<Vec<Imdb>> {
     let client = Client::builder().build()?;
 
     let batches = movie_ids
@@ -160,7 +164,7 @@ pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
         .map(|ids| {
             let client = client.clone();
             async move {
-                let movies = fetch_movies(&client, &ids).await?;
+                let movies = fetch_movies(&client, &ids, base_url).await?;
                 Ok::<Vec<Imdb>, anyhow::Error>(movies.titles.into_iter().map(Imdb::from).collect())
             }
         })
@@ -174,10 +178,8 @@ pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
     Ok(imdbs)
 }
 
-pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
-    let client = Client::new();
-
-    let url = format!("https://api.imdbapi.dev/titles/{id}");
+async fn get_imdb_data_by_id_inner(client: &Client, id: &str, base_url: &str) -> Result<Imdb> {
+    let url = format!("{}/titles/{}", base_url, id);
 
     for attempt in 1..=MAX_RETRIES {
         match client.get(&url).send().await {
@@ -209,4 +211,135 @@ pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
     }
 
     unreachable!("Loop must return or error out before reaching here")
+}
+
+pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
+    let client = Client::new();
+    get_imdb_data_by_id_inner(&client, id, "https://api.imdbapi.dev").await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mockito::Matcher;
+    use std::collections::HashSet;
+
+    #[tokio::test]
+    async fn test_fetch_movies_success() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        let json_response =
+            r#"{"titles": [{"id": "tt0111161", "primaryTitle": "Test Movie", "genres": []}]}"#;
+        server
+            .mock("GET", "/titles:batchGet")
+            .match_query(Matcher::Any)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json_response)
+            .create();
+        let client = Client::new();
+        let ids = vec!["tt0111161".to_string()];
+        let result = fetch_movies(&client, &ids, &base_url).await;
+        assert!(result.is_ok());
+        let response = result.unwrap();
+        assert_eq!(response.titles.len(), 1);
+        assert_eq!(response.titles[0].id, "tt0111161");
+    }
+
+    #[tokio::test]
+    async fn test_get_imdb_data_by_id_success() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        let json_response = r#"{"id": "tt0111161", "primaryTitle": "Test Movie", "genres": []}"#;
+        server
+            .mock("GET", "/titles/tt0111161")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json_response)
+            .create();
+        let client = Client::new();
+        let result = get_imdb_data_by_id_inner(&client, "tt0111161", &base_url).await;
+        assert!(result.is_ok());
+        let imdb = result.unwrap();
+        assert_eq!(imdb.imdb_id, "tt0111161");
+    }
+
+    #[tokio::test]
+    async fn test_fetch_movies_retry_on_429() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        let json_response =
+            r#"{"titles": [{"id": "tt0111161", "primaryTitle": "Test Movie", "genres": []}]}"#;
+        server
+            .mock("GET", "/titles:batchGet")
+            .match_query(Matcher::Any)
+            .with_status(429)
+            .with_header("content-type", "application/json")
+            .with_body("Too Many Requests")
+            .expect(1)
+            .create();
+        server
+            .mock("GET", "/titles:batchGet")
+            .match_query(Matcher::Any)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json_response)
+            .expect(1)
+            .create();
+        let client = Client::new();
+        let ids = vec!["tt0111161".to_string()];
+        let result = fetch_movies(&client, &ids, &base_url).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    #[ignore] // to avoid hitting real API
+    async fn test_real_api() {
+        let result = get_imdb_data_by_id("tt0111161").await;
+        assert!(result.is_ok());
+        let imdb = result.unwrap();
+        assert_eq!(imdb.imdb_id, "tt0111161");
+    }
+    #[tokio::test]
+    async fn test_process_movies_batching() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        let movie_ids = vec![
+            "tt1".to_string(),
+            "tt2".to_string(),
+            "tt3".to_string(),
+            "tt4".to_string(),
+            "tt5".to_string(),
+            "tt6".to_string(),
+        ];
+        // Mock for 5 IDs
+        let json5 = r#"{"titles": [{"id": "tt1", "primaryTitle": "Movie1", "genres": []}, {"id": "tt2", "primaryTitle": "Movie2", "genres": []}, {"id": "tt3", "primaryTitle": "Movie3", "genres": []}, {"id": "tt4", "primaryTitle": "Movie4", "genres": []}, {"id": "tt5", "primaryTitle": "Movie5", "genres": []}]}"#;
+        server
+            .mock("GET", "/titles:batchGet")
+            .match_query(Matcher::Regex(
+                r"(titleIds=[^&]+&){4}titleIds=[^&]+".to_string(),
+            ))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json5)
+            .expect(1)
+            .create();
+        // Mock for 1 ID
+        let json1 = r#"{"titles": [{"id": "tt6", "primaryTitle": "Movie6", "genres": []}]}"#;
+        server
+            .mock("GET", "/titles:batchGet")
+            .match_query(Matcher::Regex(r"titleIds=[^&]+".to_string()))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(json1)
+            .expect(1)
+            .create();
+        let result = process_movies_inner(movie_ids, &base_url).await;
+        assert!(result.is_ok());
+        let imdbs = result.unwrap();
+        assert_eq!(imdbs.len(), 6);
+        let ids: HashSet<String> = imdbs.iter().map(|i| i.imdb_id.clone()).collect();
+        assert!(ids.contains("tt1"));
+        assert!(ids.contains("tt6"));
+    }
 }
