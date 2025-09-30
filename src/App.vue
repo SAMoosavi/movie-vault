@@ -1,17 +1,24 @@
 <template>
-  <!-- App Navbar -->
-  <AppNavbar />
+  <div class="bg-base-100 flex h-screen">
+    <!-- Sidebar Navigation -->
+    <AppNavbar class="sidebar-nav" />
 
-  <!-- Sync-progress banner -->
-  <div v-if="showProgress" class="fixed top-16 right-0 left-0 z-50 px-4 py-2">
-    <div class="alert alert-info shadow-lg">
-      <span>Syncing media… {{ progress }}%</span>
-      <progress class="progress progress-primary w-full" :value="progress" max="100"></progress>
+    <!-- Main Content Area -->
+    <div class="flex flex-1 flex-col overflow-hidden">
+      <!-- Sync-progress banner -->
+      <div v-if="showProgress" class="z-50 px-4 py-2">
+        <div class="alert alert-info shadow-lg">
+          <span>Syncing media… {{ progress }}%</span>
+          <progress class="progress progress-primary w-full" :value="progress" max="100"></progress>
+        </div>
+      </div>
+
+      <!-- Router View -->
+      <div class="flex-1 overflow-auto">
+        <router-view />
+      </div>
     </div>
   </div>
-
-  <!-- Router View -->
-  <router-view />
 </template>
 
 <script setup lang="ts">

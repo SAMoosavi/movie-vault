@@ -1,6 +1,6 @@
 [package]
 name = "movie-vault"
-version = "0.1.2"
+version = "0.2.0"
 description = "A Tauri App"
 authors = ["SA.Moosavi"]
 edition = "2024"
@@ -41,3 +41,8 @@ chrono = { version = "0.4.41", features = ["serde"] }
 libsqlite3-sys = { version = "0.35.0", features = ["bundled"] }
 diesel = { version = "2.3.1", features = ["sqlite", "r2d2", "chrono"] }
 diesel_migrations = "2.3.0"
+mockall = "0.13"
+
+[dev-dependencies]
+mockito = "1.2"
+tokio-test = "0.4"

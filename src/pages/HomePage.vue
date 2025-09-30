@@ -20,7 +20,7 @@
           <MediaCard v-for="media in medias" :key="media.id" :media="media" />
         </main>
         <ul v-else class="list bg-base-100 rounded-box shadow-md">
-          <MediaList v-for="media in medias" :key="media.id" :media="media" />
+          <MediaList v-for="media in medias" :key="media.id" :media="media" @update:media="updateMedia" />
         </ul>
       </template>
 
@@ -49,6 +49,9 @@ import MediaList from '../component/home_page/MediaList.vue'
 import { useMediasStore } from '../stores/medias'
 import { useFiltersStore } from '../stores/Filters'
 import { storeToRefs } from 'pinia'
+
+// --- Types ---
+import type { Media } from '../type'
 
 // --- State ---
 const isLoading = ref(true)
@@ -95,6 +98,14 @@ async function handleScroll() {
     } finally {
       isFetchingMore.value = false
     }
+  }
+}
+
+function updateMedia(updatedMedia: Media) {
+  // Find and update the media in the store
+  const index = medias.value.findIndex((m) => m.id === updatedMedia.id)
+  if (index !== -1) {
+    medias.value[index] = updatedMedia
   }
 }
 </script>

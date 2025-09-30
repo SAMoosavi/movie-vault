@@ -41,12 +41,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { TagsIcon, PaletteIcon, FolderIcon } from 'lucide-vue-next'
+import { TagsIcon, PaletteIcon, FolderIcon, DatabaseIcon } from 'lucide-vue-next'
 
 // List of settings categories with their icons and routes
 const categories = ref([
   { name: 'Tag', icon: TagsIcon, route: 'tags_setting' },
   { name: 'Appearance', icon: PaletteIcon, route: 'appearance_setting' },
   { name: 'Directories', icon: FolderIcon, route: 'directories_setting' },
+  { name: 'Data', icon: DatabaseIcon, route: 'data_setting' },
 ])
 </script>

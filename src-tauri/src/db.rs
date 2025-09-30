@@ -1,15 +1,10 @@
 use std::{fmt, path::PathBuf};
 
 use crate::data_model::{IdType, Imdb, Media, MediaFile, Tag};
+use mockall::automock;
 
 mod sqlite;
 pub use sqlite::Sqlite;
-
-#[cfg(test)]
-mod moke;
-
-#[cfg(test)]
-pub use moke::MokeDB;
 
 pub type NumericalString = (i32, String);
 
@@ -42,6 +37,14 @@ pub enum SortByType {
 
 #[derive(Debug, Clone, serde::Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+pub enum MultiFileFilterType {
+    Multifile,
+    Existfile,
+    Nofile,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum SortDirectionType {
     Asc,
     Desc,
@@ -67,7 +70,7 @@ pub struct FilterValues {
     pub genre: Vec<i32>,
     pub people: Vec<String>,
     pub exist_imdb: Option<bool>,
-    pub exist_multi_file: Option<bool>,
+    pub exist_multi_file: Option<MultiFileFilterType>,
     pub watched: Option<bool>,
     pub sort_by: SortByType,
     pub sort_direction: SortDirectionType,
@@ -77,6 +80,7 @@ pub struct FilterValues {
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
+#[automock]
 pub trait DB {
     fn insert_medias(&self, medias: &[Media]) -> Result<()>;
     fn delete_media(&self, media_id: IdType) -> Result<()>;
@@ -104,4 +108,6 @@ pub trait DB {
     fn insert_tag(&self, tag: &Tag) -> Result<()>;
     fn insert_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
     fn remove_media_tag(&self, media_id: IdType, tag_id: IdType) -> Result<()>;
+    fn get_all_medias(&self) -> Result<Vec<Media>>;
+    fn import_data(&self, data: &crate::ExportedData) -> Result<()>;
 }

@@ -1,125 +1,130 @@
 <template>
-  <!-- Navbar Container -->
-  <div class="navbar bg-base-100 sticky top-0 z-99 shadow-lg">
-    <!-- Left: App Name & Mobile Menu -->
-    <div class="navbar-start">
-      <!-- Mobile Dropdown Menu -->
-      <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-ghost lg:hidden">
-          <AlignJustify class="h-5 w-5" />
-        </div>
-        <ul tabindex="0" class="menu menu-sm dropdown-content bg-base-100 rounded-box z-10 mt-3 w-52 p-2 shadow">
-          <li>
-            <RouterLink to="/">Home</RouterLink>
-          </li>
-          <li>
-            <a @click="showWatchlistInfo">Watchlist</a>
-          </li>
-          <li>
-            <RouterLink :to="{ name: 'setting_page' }">Setting</RouterLink>
-          </li>
-        </ul>
-      </div>
-      <!-- App Name -->
-      <span class="from-primary to-secondary ml-2 bg-gradient-to-r bg-clip-text text-xl font-bold text-transparent">
+  <aside
+    class="bg-base-200 relative z-50 flex h-screen flex-col overflow-hidden shadow-lg"
+    :class="isCollapsed ? 'w-16' : 'w-full md:w-64'"
+  >
+    <!-- Header -->
+    <header class="border-base-300 flex items-center justify-between border-b p-4">
+      <RouterLink
+        to="/"
+        class="from-primary to-secondary bg-gradient-to-r bg-clip-text text-xl font-bold whitespace-nowrap text-transparent transition-all duration-500 ease-in-out"
+        :class="{ hidden: isCollapsed }"
+      >
         Movie Vault
-      </span>
-    </div>
-
-    <!-- Center: Desktop Menu -->
-    <div class="navbar-center hidden lg:flex">
-      <ul class="menu menu-horizontal px-1">
-        <li>
-          <RouterLink to="/" class="hover:bg-base-200 rounded-lg">Home</RouterLink>
-        </li>
-        <li>
-          <a class="hover:bg-base-200 rounded-lg" @click="showWatchlistInfo">Watchlist</a>
-        </li>
-        <li>
-          <RouterLink :to="{ name: 'setting_page' }">Setting</RouterLink>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Right: Actions -->
-    <div class="navbar-end flex items-center gap-2">
-      <!-- Add Media Button -->
-      <RouterLink :to="{ name: 'add_media' }" class="btn btn-secondary btn-sm">
-        <Plus class="h-4 w-4" />
-        Add Media
       </RouterLink>
-      <!-- Add Folder Button -->
-      <button class="btn btn-primary btn-sm" @click="onAddDirectory">
-        <FolderPlus class="h-4 w-4" />
-        Add Folder
+
+      <button
+        @click="toggleSidebar"
+        class="btn btn-ghost btn-sm btn-circle hover:bg-base-300 transition-transform duration-300 ease-in-out"
+      >
+        <MenuIcon v-if="isCollapsed" class="h-5 w-5 rotate-0 transform transition-transform duration-300" />
+        <XIcon v-else class="h-5 w-5 rotate-180 transform transition-transform duration-300" />
       </button>
-    </div>
-  </div>
+    </header>
+
+    <!-- Nav -->
+    <nav class="flex-1 space-y-2 p-2">
+      <RouterLink
+        to="/"
+        v-slot="{ isActive }"
+        class="group hover:bg-base-300 flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-500 ease-in-out"
+        :class="{ 'justify-center': isCollapsed }"
+        data-tooltip="Home"
+      >
+        <HomeIcon
+          class="h-5 w-5 flex-shrink-0 transition-colors duration-300"
+          :class="isActive ? 'text-primary' : 'text-base-content'"
+        />
+        <span
+          :class="[
+            { hidden: isCollapsed, 'font-medium': isActive },
+            'whitespace-nowrap transition-opacity duration-500 ease-in-out',
+          ]"
+          >Home</span
+        >
+      </RouterLink>
+
+      <RouterLink
+        :to="{ name: 'setting_page' }"
+        v-slot="{ isActive }"
+        class="group hover:bg-base-300 flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-500 ease-in-out"
+        :class="{ 'justify-center': isCollapsed }"
+        data-tooltip="Settings"
+      >
+        <SettingsIcon
+          class="h-5 w-5 flex-shrink-0 transition-colors duration-300"
+          :class="isActive ? 'text-primary' : 'text-base-content'"
+        />
+        <span
+          :class="[
+            { hidden: isCollapsed, 'font-medium': isActive },
+            'whitespace-nowrap transition-opacity duration-500 ease-in-out',
+          ]"
+          >Settings</span
+        >
+      </RouterLink>
+    </nav>
+
+    <!-- Footer -->
+    <footer class="border-base-300 space-y-2 border-t p-4">
+      <RouterLink
+        :to="{ name: 'add_media' }"
+        class="btn btn-secondary btn-sm flex w-full items-center gap-2 transition-all duration-500 ease-in-out"
+        :class="{ 'justify-center': isCollapsed }"
+      >
+        <Plus class="h-4 w-4 flex-shrink-0" />
+        <span :class="{ hidden: isCollapsed, 'transition-opacity duration-500 ease-in-out': true }">Add Media</span>
+      </RouterLink>
+
+      <button
+        class="btn btn-primary btn-sm flex w-full items-center gap-2 transition-all duration-500 ease-in-out"
+        :class="{ 'justify-center': isCollapsed }"
+        @click="onAddDirectory"
+      >
+        <FolderPlus class="h-4 w-4 flex-shrink-0" />
+        <span :class="{ hidden: isCollapsed, 'transition-opacity duration-500 ease-in-out': true }">Add Folder</span>
+      </button>
+    </footer>
+  </aside>
 </template>
 
 <script setup lang="ts">
-// --- Tauri API imports ---
+import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { open } from '@tauri-apps/plugin-dialog'
-
-// --- Icon imports ---
-import { FolderPlus, AlignJustify, Plus } from 'lucide-vue-next'
-
-// --- Toast ---
+import { FolderPlus, Plus, HomeIcon, SettingsIcon, MenuIcon, XIcon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-
-// --- Stores ---
 import { useMediasStore } from '../stores/medias'
 import { useDirsStore } from '../stores/Dirs'
-
-// --- Functions ---
 import { sync_files } from '../functions/invoker'
 
-// --- Store instances ---
+const isCollapsed = ref(false)
+
 const mediasStore = useMediasStore()
 const dirsStore = useDirsStore()
 
-/**
- * Handles adding a new directory.
- * - Opens a directory picker dialog.
- * - Adds the directory if not already present.
- * - Syncs files from the directory.
- * - Refreshes video metadata.
- * - Shows notifications for each step.
- */
+function toggleSidebar() {
+  isCollapsed.value = !isCollapsed.value
+}
+
+defineExpose({ toggleSidebar })
+
 async function onAddDirectory() {
   try {
-    // Open directory picker
-    const selectedDirectory = await open({
-      multiple: false,
-      directory: true,
-    })
-    if (!selectedDirectory) {
-      toast.info('No directory selected')
-      return
-    }
-    // Add directory to store, check for duplicates
+    const selectedDirectory = await open({ multiple: false, directory: true })
+    if (!selectedDirectory) return toast.info('No directory selected')
+
     const wasAdded = dirsStore.addDirectory(selectedDirectory)
-    if (!wasAdded) {
-      toast.warning('Directory already added')
-      return
-    }
+    if (!wasAdded) return toast.warning('Directory already added')
+
     toast.info('Adding directory and syncing files...')
-    // Sync files and update video metadata
     const addedCount = await sync_files(selectedDirectory)
     await mediasStore.reload()
     toast.success(`Successfully added directory with ${addedCount} items!`)
   } catch (error) {
-    // Remove last directory if sync failed
     dirsStore.removeLastDirectory()
-    console.error('Error adding directory:', error)
+    console.error(error)
     toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
-}
-
-/**
- * Shows info about the watchlist feature.
- */
-function showWatchlistInfo() {
-  toast.info("This page doesn't exist. Please use the watchlist filter to find your saved movies.")
 }
 </script>
