@@ -177,10 +177,10 @@
             </div>
           </div>
 
-          <!-- Enhanced Multiple Files Filter using Toggle -->
+          <!-- Enhanced Files Filter using Toggle -->
           <div class="form-control w-full">
             <label class="label">
-              <span class="label-text font-medium">Multiple Files</span>
+              <span class="label-text font-medium">Files</span>
             </label>
             <div class="filter">
               <input
@@ -194,16 +194,26 @@
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
-                @click="filters.existMultiFile = true"
+                @click="filters.existMultiFile = 'multifile'"
                 name="multi_file"
-                aria-label="Yes"
+                aria-label="Multifile"
+                :checked="filters.existMultiFile === 'multifile'"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
-                @click="filters.existMultiFile = false"
+                @click="filters.existMultiFile = 'existfile'"
                 name="multi_file"
-                aria-label="No"
+                aria-label="Exist File"
+                :checked="filters.existMultiFile === 'existfile'"
+              />
+              <input
+                class="btn checked:btn-primary transition-all duration-150"
+                type="radio"
+                @click="filters.existMultiFile = 'nofile'"
+                name="multi_file"
+                aria-label="No File"
+                :checked="filters.existMultiFile === 'nofile'"
               />
             </div>
           </div>
