@@ -12,8 +12,6 @@
 </template>
 
 <script setup lang="ts">
-import { defineProps } from 'vue'
-
 defineProps({
   enterActive: { type: String, default: 'transition-all duration-250 ease-out' },
   enterFrom: { type: String, default: 'opacity-0 -translate-y-2 scale-95' },

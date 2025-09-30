@@ -41,9 +41,17 @@
     </div>
     <div class="hidden sm:block">
       <div>
-        <BookmarkIcon class="text-accent size-6" :class="media.watch_list && 'fill-accent'" />
+        <BookmarkIcon
+          class="text-accent size-6 cursor-pointer hover:opacity-80"
+          :class="media.watch_list && 'fill-accent'"
+          @click.stop="toggleWatchList"
+        />
       </div>
-      <component :is="media.watched ? EyeIcon : EyeClosedIcon" class="text-accent size-6" />
+      <component
+        :is="media.watched ? EyeIcon : EyeClosedIcon"
+        class="text-accent size-6 cursor-pointer hover:opacity-80"
+        @click.stop="toggleWatched"
+      />
     </div>
   </li>
 </template>
@@ -52,11 +60,45 @@
 import { BookmarkIcon, EyeClosedIcon, EyeIcon, StarIcon, TagsIcon } from 'lucide-vue-next'
 import type { Media } from '../../type'
 import { useRouter } from 'vue-router'
+import { update_media_watched, update_media_watch_list } from '../../functions/invoker'
 
 const props = defineProps<{ media: Media }>()
+const emit = defineEmits<{
+  'update:media': [media: Media]
+}>()
 const router = useRouter()
 
 function got_to_media_page() {
   router.push({ name: 'media_page', params: { id: props.media.id.toString() } })
+}
+
+async function toggleWatched() {
+  try {
+    const newWatchedState = !props.media.watched
+    await update_media_watched(props.media.id, newWatchedState)
+
+    // Emit updated media to parent
+    emit('update:media', {
+      ...props.media,
+      watched: newWatchedState,
+    })
+  } catch (error) {
+    console.error('Failed to update watched status:', error)
+  }
+}
+
+async function toggleWatchList() {
+  try {
+    const newWatchListState = !props.media.watch_list
+    await update_media_watch_list(props.media.id, newWatchListState)
+
+    // Emit updated media to parent
+    emit('update:media', {
+      ...props.media,
+      watch_list: newWatchListState,
+    })
+  } catch (error) {
+    console.error('Failed to update watchlist status:', error)
+  }
 }
 </script>
