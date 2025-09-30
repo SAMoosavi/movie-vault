@@ -66,6 +66,7 @@ type SortDirectionType = 'asc' | 'desc'
 type NullableBool = boolean | null
 type NullableNumber = number | null
 type NumericalString = [number | string, string]
+type MultiFileFilterType = 'multifile' | 'existfile' | 'nofile' | null
 
 export interface FilterValues {
   type: ContentType
@@ -74,7 +75,7 @@ export interface FilterValues {
   genre: number[]
   name: string
   existImdb: NullableBool
-  existMultiFile: NullableBool
+  existMultiFile: MultiFileFilterType
   people: string[]
   watched: NullableBool
   sortBy: SortByType
