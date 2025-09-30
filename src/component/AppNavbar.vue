@@ -13,17 +13,17 @@
             <RouterLink to="/">Home</RouterLink>
           </li>
           <li>
-            <a @click="showWatchlistInfo">Watchlist</a>
-          </li>
-          <li>
             <RouterLink :to="{ name: 'setting_page' }">Setting</RouterLink>
           </li>
         </ul>
       </div>
       <!-- App Name -->
-      <span class="from-primary to-secondary ml-2 bg-gradient-to-r bg-clip-text text-xl font-bold text-transparent">
+      <RouterLink
+        to="/"
+        class="from-primary to-secondary ml-2 cursor-pointer bg-gradient-to-r bg-clip-text text-xl font-bold text-transparent"
+      >
         Movie Vault
-      </span>
+      </RouterLink>
     </div>
 
     <!-- Center: Desktop Menu -->
@@ -31,9 +31,6 @@
       <ul class="menu menu-horizontal px-1">
         <li>
           <RouterLink to="/" class="hover:bg-base-200 rounded-lg">Home</RouterLink>
-        </li>
-        <li>
-          <a class="hover:bg-base-200 rounded-lg" @click="showWatchlistInfo">Watchlist</a>
         </li>
         <li>
           <RouterLink :to="{ name: 'setting_page' }">Setting</RouterLink>
@@ -114,12 +111,5 @@ async function onAddDirectory() {
     console.error('Error adding directory:', error)
     toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
-}
-
-/**
- * Shows info about the watchlist feature.
- */
-function showWatchlistInfo() {
-  toast.info("This page doesn't exist. Please use the watchlist filter to find your saved movies.")
 }
 </script>
