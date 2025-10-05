@@ -113,17 +113,70 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: Create GitHub pre-release
+      - name: Sign artifacts (Tauri)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          cd artifacts
+          for file in $(find . -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
+            echo "Signing $file"
+            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" --path "$file" || true
+          done
+
+      - name: Generate Tauri update manifest
+        run: |
+          VERSION=${{ needs.check_version.outputs.version }}
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          REPO_URL=https://github.com/${{ github.repository }}/releases/download/v$VERSION
+          cat <<EOF > latest.json
+          {
+            "version": "$VERSION",
+            "notes": "Automated release build from CI",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "linux-x86_64": {
+                "signature": "$(cat artifacts/**/*.AppImage.sig | head -n 1)",
+                "url": "$REPO_URL/movie-vault_$VERSION_amd64.AppImage"
+              },
+              "linux-deb-x86_64": {
+                "signature": "$(cat artifacts/**/*.deb.sig | head -n 1)",
+                "url": "$REPO_URL/movie-vault_$VERSION_amd64.deb"
+              },
+              "linux-rpm-x86_64": {
+                "signature": "$(cat artifacts/**/*.rpm.sig | head -n 1)",
+                "url": "$REPO_URL/movie-vault_$VERSION_amd64.rpm"
+              },
+              "windows-x86_64": {
+                "signature": "$(cat artifacts/**/*.exe.sig | head -n 1)",
+                "url": "$REPO_URL/movie-vault_$VERSION_x64_en-US.exe"
+              },
+              "darwin-aarch64": {
+                "signature": "$(cat artifacts/**/*arm64.dmg.sig | head -n 1)",
+                "url": "$REPO_URL/movie-vault_$VERSION_arm64.dmg"
+              },
+              "darwin-x86_64": {
+                "signature": "$(cat artifacts/**/*x64.dmg.sig | head -n 1)",
+                "url": "$REPO_URL/movie-vault_$VERSION_x64.dmg"
+              }
+            }
+          }
+          EOF
+
+      - name: Upload build & manifest assets to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.check_version.outputs.version }}_pre
-          name: Pre-release v${{ needs.check_version.outputs.version }}
-          prerelease: true
+          tag_name: v${{ needs.check_version.outputs.version }}
+          name: 'Release v${{ needs.check_version.outputs.version }}'
+          draft: false
+          prerelease: false
           files: |
             artifacts/**/*.AppImage
             artifacts/**/*.dmg
             artifacts/**/*.deb
             artifacts/**/*.exe
             artifacts/**/*.rpm
+            artifacts/**/*.sig
+            latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

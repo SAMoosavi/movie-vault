@@ -41,6 +41,7 @@ import { useMediasStore } from './stores/medias.ts'
 // --- Functions ---
 import { sync_files } from './functions/invoker'
 import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
+import { checkForUpdates, handleUpdateFound } from './functions/update.ts'
 
 // --- State ---
 const mediasStore = useMediasStore()
@@ -105,6 +106,16 @@ onMounted(async () => {
     await setTheme(theme, store)
   } catch (e) {
     toast.error(e instanceof Error ? e.message : String(e))
+  }
+
+  try {
+    // Check for updates
+    const update = await checkForUpdates()
+    if (update) {
+      handleUpdateFound(update)
+    }
+  } catch (e) {
+    console.error('Update check failed:', e)
   }
 
   try {

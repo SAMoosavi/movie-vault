@@ -1,30 +1,16 @@
 <template>
-  <div class="card bg-base-200 p-6">
-    <h2 class="card-title mb-4">Data Management</h2>
-    <div class="space-y-4">
-      <div class="card bg-base-100 p-4">
-        <h3 class="mb-2 text-lg font-semibold">Export Data</h3>
-        <p class="text-base-content/70 mb-4 text-sm">
-          Export all your movie data to a JSON file for backup or transfer.
-        </p>
-        <button class="btn btn-primary" @click="exportData" :disabled="isExporting">
-          <span v-if="isExporting" class="loading loading-spinner loading-sm"></span>
-          {{ isExporting ? 'Exporting...' : 'Export Data' }}
-        </button>
-      </div>
-
-      <div class="card bg-base-100 p-4">
-        <h3 class="mb-2 text-lg font-semibold">Import Data</h3>
-        <p class="text-base-content/70 mb-4 text-sm">
-          Import movie data from a previously exported JSON file. This will merge with existing data.
-        </p>
-        <button class="btn btn-secondary" @click="importData" :disabled="isImporting">
-          <span v-if="isImporting" class="loading loading-spinner loading-sm"></span>
-          {{ isImporting ? 'Importing...' : 'Import Data' }}
-        </button>
-      </div>
+  <SettingCategoryCard name="Data Management" description="Export / Import all your movie data for backup.">
+    <div class="card-body flex w-full flex-row">
+      <button class="btn btn-primary basis-1/2" @click="exportData" :disabled="isExporting">
+        <span v-if="isExporting" class="loading loading-spinner loading-sm"></span>
+        {{ isExporting ? 'Exporting...' : 'Export Data' }}
+      </button>
+      <button class="btn btn-secondary basis-1/2" @click="importData" :disabled="isImporting">
+        <span v-if="isImporting" class="loading loading-spinner loading-sm"></span>
+        {{ isImporting ? 'Importing...' : 'Import Data' }}
+      </button>
     </div>
-  </div>
+  </SettingCategoryCard>
 </template>
 
 <script setup lang="ts">
@@ -33,6 +19,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { readTextFile } from '@tauri-apps/plugin-fs'
 import { toast } from 'vue3-toastify'
+import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
 
 const isExporting = ref(false)
 const isImporting = ref(false)
