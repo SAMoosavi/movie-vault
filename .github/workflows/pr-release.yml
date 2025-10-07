@@ -2,7 +2,7 @@ name: Pre-Release Branch Build
 
 on:
   pull_request:
-    types: [closed]
+    # types: [closed]
     branches:
       - 'release/*'
 
