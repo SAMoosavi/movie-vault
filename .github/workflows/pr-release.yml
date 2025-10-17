@@ -139,7 +139,7 @@ jobs:
           cd artifacts
           for file in $(find . -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
             echo "Signing $file"
-            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" --path "$file" || true
+            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$file"
           done
 
       - name: Generate Tauri update manifest
@@ -191,7 +191,7 @@ jobs:
         with:
           # Use cleaned version string for proper semver compatibility
           tag_name: v${{ needs.check_version.outputs.version }}
-          name: "${{ needs.check_version.outputs.version }}"
+          name: "v${{ needs.check_version.outputs.version }}"
           draft: false
           prerelease: false
           files: |
