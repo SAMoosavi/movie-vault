@@ -150,7 +150,6 @@ jobs:
           REPO_URL="https://github.com/${{ github.repository }}/releases/download/v$CLEAN_VERSION"
 
           echo "Creating update manifest for version: $CLEAN_VERSION"
-          pwd
 
           cat <<EOF > latest.json
           {
@@ -159,7 +158,7 @@ jobs:
             "pub_date": "$PUB_DATE",
             "platforms": {
               "linux-x86_64": {
-                "signature": "$(cat ./**/*.AppImage.sig)",
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/appimage/movie-vault_${CLEAN_VERSION}_amd64.AppImage.sig)",
                 "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_amd64.AppImage"
               },
               "linux-deb-x86_64": {
@@ -167,8 +166,8 @@ jobs:
                 "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_amd64.deb"
               },
               "linux-rpm-x86_64": {
-                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/rpm/movie-vault_${CLEAN_VERSION}-1.x86_64.rpm.sig)",
-                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}-1.x86_64.rpm"
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/rpm/movie-vault-${CLEAN_VERSION}-1.x86_64.rpm.sig)",
+                "url": "$REPO_URL/movie-vault-${CLEAN_VERSION}-1.x86_64.rpm"
               },
               "windows-x86_64": {
                 "signature": "$(cat artifacts/tauri-build-windows-latest/nsis/movie-vault_${CLEAN_VERSION}_x64-setup.exe.sig)",
