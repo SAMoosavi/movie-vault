@@ -131,7 +131,7 @@ jobs:
         run: |
           VERSION=${{ needs.check_version.outputs.version }}
           # Strip any leading 'v' prefix to ensure valid semver
-          CLEAN_VERSION=$(echo "$VERSION" | sed 's/^v//')
+          CLEAN_VERSION=$(echo "$VERSION" | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           REPO_URL=https://github.com/${{ github.repository }}/releases/download/v$VERSION
 
@@ -176,7 +176,7 @@ jobs:
         with:
           # Use cleaned version string for proper semver compatibility
           tag_name: v${{ needs.check_version.outputs.version }}
-          name: "Release v${{ needs.check_version.outputs.version }}"
+          name: "${{ needs.check_version.outputs.version }}"
           draft: false
           prerelease: false
           files: |
