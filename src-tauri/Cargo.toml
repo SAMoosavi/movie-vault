@@ -2,7 +2,7 @@
 name = "movie-vault"
 version = "0.2.1"
 authors = ["S.A. Moosavi"]
-edition = "2021"
+edition = "2024"
 description = "A cross-platform Tauri desktop app for managing and organizing your movie collection"
 readme = "../README.md"
 license = "MIT"
