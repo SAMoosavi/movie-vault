@@ -136,10 +136,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          cd artifacts
-          for file in $(find . -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
+          for file in $(find artifacts -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
             echo "Signing $file"
-            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$file"
+            REAL_PATH=$(realpath $file)
+            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$REAL_PATH"
           done
 
       - name: Generate Tauri update manifest
