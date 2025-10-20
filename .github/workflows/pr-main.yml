@@ -108,21 +108,91 @@ jobs:
     needs: [check_version, build]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: Create GitHub pre-release
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies (for tauri signer)
+        run: pnpm install
+
+      - name: Sign artifacts (Tauri)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          for file in $(find artifacts -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
+            echo "Signing $file"
+            REAL_PATH=$(realpath $file)
+            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$REAL_PATH"
+          done
+
+      - name: Generate Tauri update manifest
+        run: |
+          VERSION=${{ needs.check_version.outputs.version }}
+          CLEAN_VERSION=$(echo "$VERSION" | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          REPO_URL="https://github.com/${{ github.repository }}/releases/download/v$CLEAN_VERSION"
+
+          echo "Creating update manifest for version: $CLEAN_VERSION"
+
+          cat <<EOF > latest.json
+          {
+            "version": "$CLEAN_VERSION",
+            "notes": "Automated release build from CI",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "linux-x86_64": {
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/appimage/movie-vault_${CLEAN_VERSION}_amd64.AppImage.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_amd64.AppImage"
+              },
+              "linux-deb-x86_64": {
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/deb/movie-vault_${CLEAN_VERSION}_amd64.deb.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_amd64.deb"
+              },
+              "linux-rpm-x86_64": {
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/rpm/movie-vault-${CLEAN_VERSION}-1.x86_64.rpm.sig)",
+                "url": "$REPO_URL/movie-vault-${CLEAN_VERSION}-1.x86_64.rpm"
+              },
+              "windows-x86_64": {
+                "signature": "$(cat artifacts/tauri-build-windows-latest/nsis/movie-vault_${CLEAN_VERSION}_x64-setup.exe.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_x64-setup.exe"
+              },
+              "darwin-aarch64": {
+                "signature": "$(cat artifacts/tauri-build-macos-latest/dmg/movie-vault_${CLEAN_VERSION}_aarch64.dmg.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_aarch64.dmg"
+              }
+            }
+          }
+          EOF
+
+      - name: Upload build & manifest assets to release
         uses: softprops/action-gh-release@v2
         with:
+          # Use cleaned version string for proper semver compatibility
           tag_name: v${{ needs.check_version.outputs.version }}
-          name: v${{ needs.check_version.outputs.version }}
+          name: 'v${{ needs.check_version.outputs.version }}'
+          draft: false
+          prerelease: false
           files: |
             artifacts/**/*.AppImage
             artifacts/**/*.dmg
             artifacts/**/*.deb
             artifacts/**/*.exe
             artifacts/**/*.rpm
+            artifacts/**/*.sig
+            latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
