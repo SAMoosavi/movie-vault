@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
 const settingChildren: RouteRecordRaw[] = [
-  { path: '', redirect: { name: 'tags_setting' }, name: 'setting_default' },
+  { path: '', redirect: { name: 'about_setting' }, name: 'setting_default' },
+  { path: 'about', component: () => import('./pages/settings/AboutSetting.vue'), name: 'about_setting' },
   { path: 'tags', component: () => import('./pages/settings/TagSetting.vue'), name: 'tags_setting' },
   { path: 'appearance', component: () => import('./pages/settings/AppearanceSetting.vue'), name: 'appearance_setting' },
   {

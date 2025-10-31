@@ -55,6 +55,13 @@
 import { CircleX } from 'lucide-vue-next'
 import { ref, computed } from 'vue'
 
+import Fuse from 'fuse.js'
+
+// Explicitly declare Fuse types
+interface FuseResult<T> {
+  item: T
+}
+
 type KeyType = string | number
 type ItemType = [KeyType, string]
 
@@ -70,17 +77,24 @@ const selectedItems = ref<ItemType[]>([])
 // Search input value
 const searchTerm = ref('')
 
+// Setup Fuse.js for fuzzy search
+const fuse = computed(() => {
+  return new Fuse(props.items, {
+    keys: ['1'], // search in second element of tuple
+    threshold: 0.4,
+  })
+})
+
 // Filter items based on search term and exclude already selected
 const filteredItems = computed(() => {
   const selectedIds = selectedItems.value.map((item) => item[0])
-  return props.items.filter((item) => {
-    // Exclude already selected
-    if (selectedIds.includes(item[0])) return false
-    // Show all if search is empty
-    if (!searchTerm.value) return true
-    // Filter by name (case-insensitive)
-    return item[1].toLowerCase().includes(searchTerm.value.toLowerCase())
-  })
+  if (!searchTerm.value) {
+    return props.items.filter((item) => !selectedIds.includes(item[0]))
+  }
+
+  const results = fuse.value.search(searchTerm.value)
+  const matchedItems = results.map((r: FuseResult<ItemType>) => r.item)
+  return matchedItems.filter((item: ItemType) => !selectedIds.includes(item[0]))
 })
 
 // Add item to selected list
