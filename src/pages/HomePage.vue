@@ -23,11 +23,11 @@
           <MediaList v-for="media in medias" :key="media.id" :media="media" @update:media="updateMedia" />
         </ul>
       </template>
-
-      <!-- Infinite scroll loading indicator -->
-      <div v-if="isFetchingMore" class="py-4 text-center">
-        Loading more movies<span class="loading loading-dots loading-sm ml-1"></span>
-      </div>
+    </div>
+    <!-- Infinite scroll loading indicator -->
+    <div ref="loadMoreRef"></div>
+    <div v-if="isFetchingMore" class="py-4 text-center">
+      Loading more movies<span class="loading loading-dots loading-sm ml-1"></span>
     </div>
   </main>
 </template>
@@ -62,14 +62,28 @@ const filtersStore = useFiltersStore()
 const { filters } = storeToRefs(filtersStore)
 const isShowCard = ref(false)
 
+const loadMoreRef = ref(null)
+let observer: null | IntersectionObserver = null
+
 // --- Lifecycle: initial load ---
 onMounted(async () => {
   await fetchMovies()
-  window.addEventListener('scroll', handleScroll)
+
+  observer = new IntersectionObserver((entries) => {
+    if (entries && entries[0]?.isIntersecting) {
+      handleScroll()
+    }
+  })
+
+  if (loadMoreRef.value) {
+    observer.observe(loadMoreRef.value)
+  }
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('scroll', handleScroll)
+  if (observer && loadMoreRef.value) {
+    observer.unobserve(loadMoreRef.value)
+  }
 })
 
 watch(filters, async () => await fetchMovies(), { deep: true })
@@ -93,6 +107,7 @@ async function handleScroll() {
     isFetchingMore.value = true
     try {
       await mediasStore.get_next_page()
+      await new Promise((r) => setTimeout(r, 400))
     } catch (error) {
       toast.error(`Failed to load more movies: ${error}`)
     } finally {
