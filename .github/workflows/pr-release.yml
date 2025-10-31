@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   check_version:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
@@ -36,25 +35,30 @@ jobs:
       - name: Check version consistency
         id: get_version
         run: |
+          echo "🔍 Checking version consistency..."
+          PACKAGE_VERSION=$(jq -r .version package.json)
           TAURI_VERSION=$(jq -r .version src-tauri/tauri.conf.json)
           CARGO_VERSION=$(grep '^version =' src-tauri/Cargo.toml | awk '{print $3}' | tr -d '"')
-          PACKAGE_VERSION=$(jq -r .version package.json)
-          echo "TAURI_VERSION=$TAURI_VERSION"
-          echo "CARGO_VERSION=$CARGO_VERSION"
-          echo "PACKAGE_VERSION=$PACKAGE_VERSION"
-          if [ -z "$TAURI_VERSION" ] || [ -z "$CARGO_VERSION" ] || [ -z "$PACKAGE_VERSION" ]; then
-            echo "Error: One or more version fields are empty"
+
+          echo "📦 package.json: $PACKAGE_VERSION"
+          echo "🦀 Cargo.toml: $CARGO_VERSION"
+          echo "🚀 tauri.conf.json: $TAURI_VERSION"
+
+          if [ -z "$PACKAGE_VERSION" ] || [ -z "$CARGO_VERSION" ] || [ -z "$TAURI_VERSION" ]; then
+            echo "❌ Error: One or more version fields are empty"
             exit 1
           fi
-          if [ "$TAURI_VERSION" != "$CARGO_VERSION" ] || [ "$TAURI_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "Version mismatch: tauri=$TAURI_VERSION cargo=$CARGO_VERSION package=$PACKAGE_VERSION"
+
+          if [ "$PACKAGE_VERSION" != "$TAURI_VERSION" ] || [ "$PACKAGE_VERSION" != "$CARGO_VERSION" ]; then
+            echo "❌ Version mismatch detected"
+            echo "package.json=$PACKAGE_VERSION tauri.conf=$TAURI_VERSION cargo=$CARGO_VERSION"
             exit 1
           fi
-          echo "version=$TAURI_VERSION" >> $GITHUB_OUTPUT
-          echo "Version set to: $TAURI_VERSION"
+
+          echo "✅ Version consistency confirmed: $PACKAGE_VERSION"
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
 
   build:
-    if: github.event.pull_request.merged == true
     needs: check_version
 
     strategy:
@@ -104,60 +108,74 @@ jobs:
             src-tauri/target/release/bundle/**/*.rpm
 
   publish:
-    if: github.event.pull_request.merged == true
     needs: [check_version, build]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies (for tauri signer)
+        run: pnpm install
 
       - name: Sign artifacts (Tauri)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          cd artifacts
-          for file in $(find . -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
+          for file in $(find artifacts -type f -name "*.AppImage" -o -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm"); do
             echo "Signing $file"
-            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" --path "$file" || true
+            REAL_PATH=$(realpath $file)
+            pnpm tauri signer sign --private-key "$TAURI_SIGNING_PRIVATE_KEY" --password "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" "$REAL_PATH"
           done
 
       - name: Generate Tauri update manifest
         run: |
           VERSION=${{ needs.check_version.outputs.version }}
+          CLEAN_VERSION=$(echo "$VERSION" | sed -E 's/^[^0-9]*([0-9]+\.[0-9]+\.[0-9]+).*$/\1/')
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-          REPO_URL=https://github.com/${{ github.repository }}/releases/download/v$VERSION
+          REPO_URL="https://github.com/${{ github.repository }}/releases/download/v$CLEAN_VERSION"
+
+          echo "Creating update manifest for version: $CLEAN_VERSION"
+
           cat <<EOF > latest.json
           {
-            "version": "$VERSION",
+            "version": "$CLEAN_VERSION",
             "notes": "Automated release build from CI",
             "pub_date": "$PUB_DATE",
             "platforms": {
               "linux-x86_64": {
-                "signature": "$(cat artifacts/**/*.AppImage.sig | head -n 1)",
-                "url": "$REPO_URL/movie-vault_$VERSION_amd64.AppImage"
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/appimage/movie-vault_${CLEAN_VERSION}_amd64.AppImage.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_amd64.AppImage"
               },
               "linux-deb-x86_64": {
-                "signature": "$(cat artifacts/**/*.deb.sig | head -n 1)",
-                "url": "$REPO_URL/movie-vault_$VERSION_amd64.deb"
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/deb/movie-vault_${CLEAN_VERSION}_amd64.deb.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_amd64.deb"
               },
               "linux-rpm-x86_64": {
-                "signature": "$(cat artifacts/**/*.rpm.sig | head -n 1)",
-                "url": "$REPO_URL/movie-vault_$VERSION_amd64.rpm"
+                "signature": "$(cat artifacts/tauri-build-ubuntu-latest/rpm/movie-vault-${CLEAN_VERSION}-1.x86_64.rpm.sig)",
+                "url": "$REPO_URL/movie-vault-${CLEAN_VERSION}-1.x86_64.rpm"
               },
               "windows-x86_64": {
-                "signature": "$(cat artifacts/**/*.exe.sig | head -n 1)",
-                "url": "$REPO_URL/movie-vault_$VERSION_x64_en-US.exe"
+                "signature": "$(cat artifacts/tauri-build-windows-latest/nsis/movie-vault_${CLEAN_VERSION}_x64-setup.exe.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_x64-setup.exe"
               },
               "darwin-aarch64": {
-                "signature": "$(cat artifacts/**/*arm64.dmg.sig | head -n 1)",
-                "url": "$REPO_URL/movie-vault_$VERSION_arm64.dmg"
-              },
-              "darwin-x86_64": {
-                "signature": "$(cat artifacts/**/*x64.dmg.sig | head -n 1)",
-                "url": "$REPO_URL/movie-vault_$VERSION_x64.dmg"
+                "signature": "$(cat artifacts/tauri-build-macos-latest/dmg/movie-vault_${CLEAN_VERSION}_aarch64.dmg.sig)",
+                "url": "$REPO_URL/movie-vault_${CLEAN_VERSION}_aarch64.dmg"
               }
             }
           }
@@ -166,10 +184,11 @@ jobs:
       - name: Upload build & manifest assets to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.check_version.outputs.version }}
-          name: 'Release v${{ needs.check_version.outputs.version }}'
+          # Use cleaned version string for proper semver compatibility
+          tag_name: v${{ needs.check_version.outputs.version }}-pre
+          name: 'v${{ needs.check_version.outputs.version }}-pre'
           draft: false
-          prerelease: false
+          prerelease: true
           files: |
             artifacts/**/*.AppImage
             artifacts/**/*.dmg
