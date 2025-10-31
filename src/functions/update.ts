@@ -6,7 +6,6 @@ import * as p from '../../package.json'
 // Settings store
 let settingsStore: Store | null = null
 
-
 const __APP_VERSION__ = p.version
 
 // Initialize store
