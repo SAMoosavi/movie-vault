@@ -20,23 +20,23 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.1.14",
     "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
     "@tauri-apps/plugin-dialog": "^2.4.0",
     "@tauri-apps/plugin-fs": "^2.4.2",
     "@tauri-apps/plugin-http": "^2.5.2",
     "@tauri-apps/plugin-opener": "^2.5.0",
     "@tauri-apps/plugin-store": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.9.0",
-    "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
-    "@tailwindcss/vite": "^4.1.14",
-    "vue": "^3.5.22",
-    "vue-router": "^4.5.1",
-    "pinia": "^3.0.3",
-    "pinia-plugin-persistedstate": "^4.5.0",
     "daisyui": "^5.1.27",
     "lucide-vue-next": "0.544.0",
-    "vue3-toastify": "^0.2.8",
-    "tailwindcss": "^4.1.14"
+    "pinia": "^3.0.3",
+    "pinia-plugin-persistedstate": "^4.5.0",
+    "tailwindcss": "^4.1.14",
+    "vue": "^3.5.22",
+    "vue-router": "^4.5.1",
+    "vue3-toastify": "^0.2.8"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.4",
@@ -55,6 +55,7 @@
     "prettier-plugin-tailwindcss": "^0.6.14",
     "typescript": "5.9.2",
     "vite": "npm:rolldown-vite@^7.1.15",
+    "vls": "^0.8.5",
     "vue-tsc": "3.0.6"
   }
 }

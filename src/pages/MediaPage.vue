@@ -37,7 +37,7 @@
 
 <script setup lang="ts">
 // --- External ---
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { toast } from 'vue3-toastify'
 
 // --- Routing & types ---
@@ -91,7 +91,11 @@ async function updated(id: number) {
   toggleEditing()
 }
 
+let interval = 0
+
 onMounted(() => {
-  fetchMedia()
+  interval = setInterval(fetchMedia, 100)
 })
+
+onBeforeUnmount(() => clearInterval(interval))
 </script>
