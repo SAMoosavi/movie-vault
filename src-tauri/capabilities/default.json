@@ -26,6 +26,14 @@
     "fs:default",
     "fs:allow-unwatch",
     {
+      "identifier": "fs:allow-app-meta-recursive",
+      "allow": [
+        {
+          "path": "/**"
+        }
+      ]
+    },
+    {
       "identifier": "fs:allow-watch",
       "allow": [
         {
