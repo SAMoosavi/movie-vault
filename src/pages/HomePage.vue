@@ -19,9 +19,9 @@
         <main v-if="isShowCard" class="flex flex-wrap justify-center gap-2">
           <MediaCard v-for="media in medias" :key="media.id" :media="media" />
         </main>
-        <ul v-else class="list bg-base-100 rounded-box shadow-md">
+        <TransitionGroup name="list" tag="ul" v-else class="list bg-base-100 rounded-box shadow-md">
           <MediaList v-for="media in medias" :key="media.id" :media="media" @update:media="updateMedia" />
-        </ul>
+        </TransitionGroup>
       </template>
     </div>
     <!-- Infinite scroll loading indicator -->
@@ -119,8 +119,26 @@ async function handleScroll() {
 function updateMedia(updatedMedia: Media) {
   // Find and update the media in the store
   const index = medias.value.findIndex((m) => m.id === updatedMedia.id)
+
   if (index !== -1) {
-    medias.value[index] = updatedMedia
+    if (
+      (filters.value.watched != null && filters.value.watched != updatedMedia.watched) ||
+      (filters.value.watchList != null && filters.value.watchList != updatedMedia.watch_list)
+    )
+      medias.value.splice(index, 1)
+    else medias.value[index] = updatedMedia
   }
 }
 </script>
+
+<style lang="css" scoped>
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+</style>

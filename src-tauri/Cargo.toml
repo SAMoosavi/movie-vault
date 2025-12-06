@@ -1,6 +1,6 @@
 [package]
 name = "movie-vault"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["S.A. Moosavi"]
 edition = "2024"
 description = "A cross-platform Tauri desktop app for managing and organizing your movie collection"
@@ -53,6 +53,6 @@ r2d2 = "0.8.10"
 libsqlite3-sys = { version = "0.35", features = ["bundled"] }
 
 # Testing & Mocks
-mockall = "0.13"
+mockall = "0.14"
 mockito = "1.2"
 tokio-test = "0.4"

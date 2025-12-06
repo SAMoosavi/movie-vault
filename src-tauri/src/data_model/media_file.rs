@@ -11,6 +11,7 @@ use regex::Regex;
 use std::path::PathBuf;
 
 #[derive(
+    Default,
     Debug,
     PartialEq,
     Eq,
@@ -27,6 +28,7 @@ pub enum LanguageFormat {
     SoftSub,
     HardSub,
     Dubbed,
+    #[default]
     Unknown,
 }
 
@@ -68,12 +70,6 @@ impl FromSql<Text, Sqlite> for LanguageFormat {
     fn from_sql(bytes: <Sqlite as Backend>::RawValue<'_>) -> diesel::deserialize::Result<Self> {
         let s = <String as FromSql<Text, Sqlite>>::from_sql(bytes)?;
         Ok(LanguageFormat::from(s.as_str()))
-    }
-}
-
-impl Default for LanguageFormat {
-    fn default() -> Self {
-        Self::Unknown
     }
 }
 
