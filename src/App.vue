@@ -30,8 +30,9 @@ import { toast } from 'vue3-toastify'
 import AppNavbar from './component/AppNavbar.vue'
 
 // --- Tauri API ---
-import { watch as fsWatch, type UnwatchFn } from '@tauri-apps/plugin-fs'
+import { watch as fsWatch, stat, type UnwatchFn } from '@tauri-apps/plugin-fs'
 import { listen } from '@tauri-apps/api/event'
+import { dirname, normalize } from '@tauri-apps/api/path'
 
 // --- Stores ---
 import { useDirsStore } from './stores/Dirs'
@@ -74,6 +75,18 @@ listen<SyncFileProgressBare>('sync-progress', (event) => {
   }
 })
 
+async function resolveToDirectory(inputPath: string) {
+  const cleanPath = await normalize(inputPath)
+
+  try {
+    const info = await stat(cleanPath)
+    if (info.isDirectory) return cleanPath
+    return await dirname(cleanPath)
+  } catch {
+    return await dirname(cleanPath)
+  }
+}
+
 // --- Helper: Start watching directories ---
 async function startWatching(paths: string[]) {
   stopWatching()
@@ -81,12 +94,15 @@ async function startWatching(paths: string[]) {
     const unwatch = await fsWatch(
       paths,
       async (e) => {
-        if (typeof e.type === 'object' && 'access' in e.type) {
-          if (e.type.access.kind !== 'open') {
-            for (const path of e.paths) await sync_files(path)
-
-            await mediasStore.reload()
+        console.log(e)
+        if (typeof e.type === 'object' && !('access' in e.type)) {
+          console.log(e.type)
+          for (const path of e.paths) {
+            const dir = await resolveToDirectory(path)
+            await sync_files(dir)
           }
+
+          await mediasStore.reload()
         }
       },
       { recursive: true, delayMs: 1000 },
