@@ -23,7 +23,7 @@ struct SearchedMovie {
 
 async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
     info!("Fetching IMDB ID for: {}", media.name);
-    
+
     let result: MovieSearchResult = client
         .get("https://imdb.iamidiotareyoutoo.com/search")
         .query(&[("q", &media.name)])
@@ -101,10 +101,16 @@ pub async fn set_imdb_data(medias: &mut [Media]) {
             info!("Successfully fetched {} IMDB records", imdbs.len());
             for imdb in imdbs {
                 if let Some((_, media)) = pairs.iter_mut().find(|(id, _)| id == &imdb.imdb_id) {
-                    info!("Attaching IMDB data (id {}) to media '{}'", imdb.imdb_id, media.name);
+                    info!(
+                        "Attaching IMDB data (id {}) to media '{}'",
+                        imdb.imdb_id, media.name
+                    );
                     media.imdb = Some(imdb);
                 } else {
-                    error!("Received IMDB data for id {} but no matching media was found", imdb.imdb_id);
+                    error!(
+                        "Received IMDB data for id {} but no matching media was found",
+                        imdb.imdb_id
+                    );
                 }
             }
         }
