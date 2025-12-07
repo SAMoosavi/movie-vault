@@ -1,10 +1,10 @@
+use super::freeimdb;
+use crate::data_model::Media;
 use anyhow::{Result, anyhow};
 use futures::future::join_all;
 use serde::{Deserialize, Serialize};
 use tauri_plugin_http::reqwest::Client;
-
-use super::freeimdb;
-use crate::data_model::Media;
+use tauri_plugin_log::log::{error, info, warn};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct MovieSearchResult {
@@ -22,16 +22,28 @@ struct SearchedMovie {
 }
 
 async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
+    info!("Fetching IMDB ID for: {}", media.name);
+    
     let result: MovieSearchResult = client
         .get("https://imdb.iamidiotareyoutoo.com/search")
         .query(&[("q", &media.name)])
         .send()
-        .await?
+        .await
+        .map_err(|e| {
+            error!("Failed to send request for {}: {}", media.name, e);
+            e
+        })?
         .json()
-        .await?;
+        .await
+        .map_err(|e| {
+            error!("Failed to parse JSON response for {}: {}", media.name, e);
+            e
+        })?;
 
     if !result.ok {
-        return Err(anyhow!("API error: {}", result.error_code));
+        let err_msg = format!("API error: {}", result.error_code);
+        error!("{}", err_msg);
+        return Err(anyhow!(err_msg));
     }
 
     let movies = result.description;
@@ -41,37 +53,63 @@ async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
         .or_else(|| movies.first());
 
     matched
-        .map(|m| m.imdb_id.clone())
-        .ok_or_else(|| anyhow!("No movies found"))
+        .map(|m| {
+            info!("Found IMDB ID: {} for {}", m.imdb_id, media.name);
+            m.imdb_id.clone()
+        })
+        .ok_or_else(|| {
+            let err = anyhow!("No movies found for {}", media.name);
+            error!("{}", err);
+            err
+        })
 }
 
 pub async fn set_imdb_data(medias: &mut [Media]) {
+    info!("Starting set_imdb_data for {} media items", medias.len());
     let client = Client::new();
 
     let results = join_all(medias.iter_mut().map(|media| {
         let client = client.clone();
         async move {
-            get_imdb_id(&client, media)
-                .await
-                .map(|imdb_id| (imdb_id, media))
+            info!("Searching IMDB ID for '{}'", media.name);
+            match get_imdb_id(&client, media).await {
+                Ok(id) => {
+                    info!("Found IMDB ID {} for '{}'", id, media.name);
+                    Ok((id, media))
+                }
+                Err(e) => {
+                    warn!("Failed to get IMDB ID for '{}': {}", media.name, e);
+                    Err(e)
+                }
+            }
         }
     }))
     .await;
 
     let mut pairs: Vec<_> = results.into_iter().filter_map(Result::ok).collect();
 
+    if pairs.is_empty() {
+        warn!("No IMDB IDs were found for any media items");
+        return;
+    }
+
     let ids: Vec<_> = pairs.iter().map(|(id, _)| id.clone()).collect();
+    info!("Processing {} IMDB IDs in batch", ids.len());
 
     match freeimdb::process_movies(ids).await {
         Ok(imdbs) => {
+            info!("Successfully fetched {} IMDB records", imdbs.len());
             for imdb in imdbs {
                 if let Some((_, media)) = pairs.iter_mut().find(|(id, _)| id == &imdb.imdb_id) {
+                    info!("Attaching IMDB data (id {}) to media '{}'", imdb.imdb_id, media.name);
                     media.imdb = Some(imdb);
+                } else {
+                    error!("Received IMDB data for id {} but no matching media was found", imdb.imdb_id);
                 }
             }
         }
         Err(err) => {
-            eprintln!("Failed to fetch movies batch: {err}");
+            error!("Failed to fetch movies batch: {}", err);
         }
     }
 }
