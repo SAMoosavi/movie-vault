@@ -2,6 +2,10 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use tauri::{Emitter, Manager};
+use tauri_plugin_log::{
+    RotationStrategy, Target, TargetKind, TimezoneStrategy,
+    log::{LevelFilter, info},
+};
 
 use crate::data_model::{IdType, Media};
 use crate::db::{NumericalString, Sqlite};
@@ -298,6 +302,27 @@ fn import_data(data: String, state: tauri::State<'_, AppState>) -> Result<(), St
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .format(|out, message, record| {
+                    out.finish(format_args!("[{}] {}", record.level(), message))
+                })
+                .level(if cfg!(debug_assertions) {
+                    LevelFilter::Debug
+                } else {
+                    LevelFilter::Error
+                })
+                .targets([
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("app".into()),
+                    }),
+                    // Target::new(TargetKind::Stdout),
+                ])
+                .timezone_strategy(TimezoneStrategy::UseLocal)
+                .rotation_strategy(RotationStrategy::KeepAll)
+                .max_file_size(1_000_000) // 1MB
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
