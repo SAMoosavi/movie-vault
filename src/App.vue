@@ -33,6 +33,7 @@ import AppNavbar from './component/AppNavbar.vue'
 import { watch as fsWatch, stat, type UnwatchFn } from '@tauri-apps/plugin-fs'
 import { listen } from '@tauri-apps/api/event'
 import { dirname, normalize } from '@tauri-apps/api/path'
+import { info, error, warn } from '@tauri-apps/plugin-log'
 
 // --- Stores ---
 import { useDirsStore } from './stores/Dirs'
@@ -42,7 +43,7 @@ import { useMediasStore } from './stores/medias.ts'
 // --- Functions ---
 import { sync_files } from './functions/invoker'
 import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
-import { checkForUpdates, handleUpdateFound } from './functions/update.ts'
+import { handleUpdateCheck } from './functions/update.ts'
 
 // --- State ---
 const mediasStore = useMediasStore()
@@ -83,6 +84,7 @@ async function resolveToDirectory(inputPath: string) {
     if (info.isDirectory) return cleanPath
     return await dirname(cleanPath)
   } catch {
+    warn(`Failed to stat path, using dirname: ${inputPath}`)
     return await dirname(cleanPath)
   }
 }
@@ -91,57 +93,72 @@ async function resolveToDirectory(inputPath: string) {
 async function startWatching(paths: string[]) {
   stopWatching()
   try {
+    info(`Setting up file watchers for: ${paths.join(', ')}`)
     const unwatch = await fsWatch(
       paths,
       async (e) => {
-        console.log(e)
         if (typeof e.type === 'object' && !('access' in e.type)) {
-          console.log(e.type)
+          info(`File change detected: ${e.paths.join(', ')}`)
           for (const path of e.paths) {
+            info(`File change detected: ${path}`)
             const dir = await resolveToDirectory(path)
+            info(`File change detected dir: ${dir}`)
             await sync_files(dir)
+            info(`sync_file successfully from ${dir}`)
           }
 
+          info('reload media')
           await mediasStore.reload()
         }
       },
       { recursive: true, delayMs: 1000 },
     )
     unwatchFns.push(unwatch)
-  } catch (error) {
-    console.error(`Failed to set up file watcher for ${paths}:`, error)
+    info('File watchers started successfully')
+  } catch (err) {
+    error(`Failed to set up file watcher for ${paths}: ${err}`)
   }
 }
 
 // --- Lifecycle: On mount, initialize theme and sync files ---
 onMounted(async () => {
+  info('App mounted: initializing theme and syncing files')
+
   try {
-    // Theme initialization
+    info('Initializing store for theme')
     const store = await initStore()
+    info('Loading theme from store')
     const theme = (await loadTheme(store)) ?? getDefaultTheme()
+    info(`Applying theme: ${theme}`)
     await setTheme(theme, store)
+    info('Theme applied successfully')
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : String(e))
+    const msg = e instanceof Error ? e.message : String(e)
+    warn(`Theme initialization failed: ${msg}`)
+    toast.error(msg)
   }
 
   try {
-    // Check for updates
-    const update = await checkForUpdates()
-    if (update) {
-      handleUpdateFound(update)
-    }
+    info('Checking for updates')
+    await handleUpdateCheck()
   } catch (e) {
-    console.error('Update check failed:', e)
+    error(`Update check failed: ${e}`)
   }
 
   try {
-    // Initial sync and watcher setup
+    info('Starting initial sync for directories')
     for (const dir of directoryPaths.value) {
+      info(`Syncing directory: ${dir}`)
       await sync_files(dir)
+      info(`Sync completed for: ${dir}`)
     }
+    info('Reloading media store')
     await mediasStore.reload()
+    info('Media store reloaded successfully')
   } catch (e) {
-    toast.error(e instanceof Error ? e.message : String(e))
+    const msg = e instanceof Error ? e.message : String(e)
+    error(`Initial sync failed: ${msg}`)
+    toast.error(msg)
   }
 })
 
@@ -149,11 +166,15 @@ onMounted(async () => {
 watch(
   () => directoryPaths.value,
   async (paths) => {
+    info(`Directory paths changed: ${paths.join(', ')}`)
     await startWatching(paths)
   },
   { immediate: true, deep: true },
 )
 
 // --- Clean up watchers on unmount ---
-onBeforeUnmount(stopWatching)
+onBeforeUnmount(() => {
+  info('Cleaning up watchers on unmount')
+  stopWatching()
+})
 </script>

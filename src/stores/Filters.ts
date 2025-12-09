@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { FilterValues } from '../type'
+import { info } from '@tauri-apps/plugin-log'
 
 const defaultFilters: FilterValues = {
   name: '',
@@ -22,7 +23,9 @@ export const useFiltersStore = defineStore('filters', () => {
   const filters = ref<FilterValues>(structuredClone(defaultFilters))
 
   function resetFilters() {
+    info('Resetting filters to default values.')
     filters.value = structuredClone(defaultFilters)
+    info('Filters have been reset successfully.')
   }
 
   return { filters, resetFilters }
