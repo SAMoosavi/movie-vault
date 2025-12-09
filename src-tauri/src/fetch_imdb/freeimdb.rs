@@ -3,6 +3,7 @@ use futures::stream::{self, StreamExt, TryStreamExt};
 use serde::Deserialize;
 use std::time::Duration;
 use tauri_plugin_http::reqwest::{Client, StatusCode};
+use tauri_plugin_log::log::{error, info, warn};
 use tokio::time::sleep;
 
 use crate::data_model::{self, Imdb};
@@ -116,44 +117,63 @@ async fn fetch_movies(client: &Client, ids: &[String], base_url: &str) -> Result
     let url = format!("{}/titles:batchGet", base_url);
     let query: Vec<(&str, &str)> = ids.iter().map(|id| ("titleIds", id.as_str())).collect();
 
+    info!("Fetching movies from {} with {} IDs", url, ids.len());
+
     for attempt in 1..=MAX_RETRIES {
         match client.get(&url).query(&query).send().await {
             Ok(resp) if resp.status().is_success() => {
+                info!("Successfully fetched movies on attempt {}", attempt);
                 return Ok(resp.json::<Response>().await?);
             }
             Ok(resp) if resp.status() == StatusCode::TOO_MANY_REQUESTS => {
-                eprintln!("429 Too Many Requests — retrying after {}s", DELAY_S);
+                warn!(
+                    "429 Too Many Requests — retrying after {}s (attempt {}/{})",
+                    DELAY_S, attempt, MAX_RETRIES
+                );
                 if attempt == MAX_RETRIES {
+                    error!("Max retries reached for 429 Too Many Requests");
                     return Err(anyhow!("429 Too Many Requests"));
                 }
                 sleep(Duration::from_secs(DELAY_S)).await;
             }
             Ok(resp) => {
-                eprintln!("Request failed: {}", resp.status());
+                error!("Request failed with status {}", resp.status());
                 if attempt == MAX_RETRIES {
                     return Err(resp.error_for_status().unwrap_err().into());
                 }
             }
             Err(err) => {
-                eprintln!("Network error: {}", err);
+                error!(
+                    "Network error: {} (attempt {}/{})",
+                    err, attempt, MAX_RETRIES
+                );
                 if attempt == MAX_RETRIES {
                     return Err(err.into());
                 }
             }
         }
 
-        eprintln!("Retry {}/{}", attempt, MAX_RETRIES);
+        warn!("Retry {}/{}", attempt, MAX_RETRIES);
     }
 
     unreachable!("Loop must return or error out before reaching here")
 }
 
 pub async fn process_movies(movie_ids: Vec<String>) -> Result<Vec<Imdb>> {
-    process_movies_inner(movie_ids, "https://api.imdbapi.dev").await
+    info!("Processing movies for IDs: {:?}", movie_ids);
+    let result = process_movies_inner(movie_ids, "https://api.imdbapi.dev").await;
+
+    match &result {
+        Ok(_) => info!("Successfully processed movies"),
+        Err(e) => error!("Error processing movies: {}", e),
+    }
+
+    result
 }
 
 async fn process_movies_inner(movie_ids: Vec<String>, base_url: &str) -> Result<Vec<Imdb>> {
     let client = Client::builder().build()?;
+    info!("Processing movies in batches for IDs: {:?}", movie_ids);
 
     let batches = movie_ids
         .chunks(BATCH_SIZE)
@@ -164,8 +184,19 @@ async fn process_movies_inner(movie_ids: Vec<String>, base_url: &str) -> Result<
         .map(|ids| {
             let client = client.clone();
             async move {
-                let movies = fetch_movies(&client, &ids, base_url).await?;
-                Ok::<Vec<Imdb>, anyhow::Error>(movies.titles.into_iter().map(Imdb::from).collect())
+                info!("Fetching movies for batch: {:?}", ids);
+                match fetch_movies(&client, &ids, base_url).await {
+                    Ok(movies) => {
+                        info!("Successfully fetched movies for batch: {:?}", ids);
+                        Ok::<Vec<Imdb>, anyhow::Error>(
+                            movies.titles.into_iter().map(Imdb::from).collect(),
+                        )
+                    }
+                    Err(e) => {
+                        error!("Error fetching movies for batch {:?}: {}", ids, e);
+                        Err(e)
+                    }
+                }
             }
         })
         .buffer_unordered(CONCURRENCY)
@@ -175,39 +206,53 @@ async fn process_movies_inner(movie_ids: Vec<String>, base_url: &str) -> Result<
         .flatten()
         .collect();
 
+    info!("Successfully processed all movie batches");
     Ok(imdbs)
 }
 
 async fn get_imdb_data_by_id_inner(client: &Client, id: &str, base_url: &str) -> Result<Imdb> {
     let url = format!("{}/titles/{}", base_url, id);
+    info!("Fetching IMDb data for ID: {}", id);
 
     for attempt in 1..=MAX_RETRIES {
         match client.get(&url).send().await {
             Ok(resp) if resp.status().is_success() => {
+                info!("Successfully fetched IMDb data for ID: {}", id);
                 return Ok(resp.json::<Title>().await?.into());
             }
             Ok(resp) if resp.status() == StatusCode::TOO_MANY_REQUESTS => {
-                eprintln!("429 Too Many Requests — retrying after {}s", DELAY_S);
+                warn!(
+                    "429 Too Many Requests for ID: {} — retrying after {}s",
+                    id, DELAY_S
+                );
                 if attempt == MAX_RETRIES {
+                    error!(
+                        "Max retries reached for ID: {} with 429 Too Many Requests",
+                        id
+                    );
                     return Err(anyhow!("429 Too Many Requests"));
                 }
                 sleep(Duration::from_secs(DELAY_S)).await;
             }
             Ok(resp) => {
-                eprintln!("Request failed: {}", resp.status());
+                error!(
+                    "Request failed for ID: {} with status {}",
+                    id,
+                    resp.status()
+                );
                 if attempt == MAX_RETRIES {
                     return Err(resp.error_for_status().unwrap_err().into());
                 }
             }
             Err(err) => {
-                eprintln!("Network error: {}", err);
+                error!("Network error for ID: {}: {}", id, err);
                 if attempt == MAX_RETRIES {
                     return Err(err.into());
                 }
             }
         }
 
-        eprintln!("Retry {}/{}", attempt, MAX_RETRIES);
+        warn!("Retry {}/{} for ID: {}", attempt, MAX_RETRIES, id);
     }
 
     unreachable!("Loop must return or error out before reaching here")
@@ -215,7 +260,17 @@ async fn get_imdb_data_by_id_inner(client: &Client, id: &str, base_url: &str) ->
 
 pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
     let client = Client::new();
-    get_imdb_data_by_id_inner(&client, id, "https://api.imdbapi.dev").await
+    info!("Fetching IMDb data for ID: {}", id);
+    match get_imdb_data_by_id_inner(&client, id, "https://api.imdbapi.dev").await {
+        Ok(imdb) => {
+            info!("Successfully fetched IMDb data for ID: {}", id);
+            Ok(imdb)
+        }
+        Err(e) => {
+            error!("Error fetching IMDb data for ID {}: {}", id, e);
+            Err(e)
+        }
+    }
 }
 
 #[cfg(test)]

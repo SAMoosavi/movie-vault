@@ -29,6 +29,7 @@ pub use schema::{
 };
 use std::{fmt, path::PathBuf};
 use tauri::Manager;
+use tauri_plugin_log::log::{error, info, warn};
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
@@ -61,13 +62,20 @@ impl Sqlite {
     fn new_with_path(db_path: PathBuf) -> Result<Self> {
         if let Some(p) = db_path.parent() {
             std::fs::create_dir_all(p)?;
+            info!("Ensured database directory exists: {}", p.display());
         }
+
         if !db_path.exists() {
             std::fs::File::create(&db_path)?;
+            info!("Created new database file: {}", db_path.display());
+        } else {
+            warn!("Database file already exists: {}", db_path.display());
         }
 
         let url = db_path.to_string_lossy().to_string();
-        let manager = ConnectionManager::<SqliteConnection>::new(url);
+        info!("Opening SQLite database at {}", url);
+
+        let manager = ConnectionManager::<SqliteConnection>::new(url.clone());
         let pool = Pool::builder().max_size(8).build(manager)?;
 
         let mut conn = pool.get()?;
@@ -81,10 +89,18 @@ impl Sqlite {
     }
 
     pub fn from_app_handle(app: &tauri::AppHandle) -> Result<Self> {
-        let mut db_path = app.path().app_data_dir()?;
+        let mut db_path = app.path().app_data_dir().map_err(|e| {
+            error!("Failed to get app data dir: {}", e);
+            e
+        })?;
 
         db_path.push("movies.db");
-        Self::new_with_path(db_path)
+        info!("Resolved DB path from app handle: {}", db_path.display());
+
+        Self::new_with_path(db_path).map_err(|e| {
+            error!("Failed to create Sqlite instance from app handle: {}", e);
+            e
+        })
     }
 }
 

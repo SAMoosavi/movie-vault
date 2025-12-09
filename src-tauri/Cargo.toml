@@ -1,6 +1,6 @@
 [package]
 name = "movie-vault"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["S.A. Moosavi"]
 edition = "2024"
 description = "A cross-platform Tauri desktop app for managing and organizing your movie collection"
@@ -26,6 +26,8 @@ tauri-plugin-http = { version = "2", features = ["json", "rustls-tls"] }
 tauri-plugin-fs = { version = "2", features = ["watch"] }
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-store = "2.4"
+tauri-plugin-log = "2"
+tauri-plugin-process = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-updater = "2"
