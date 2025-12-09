@@ -1,156 +1,124 @@
 import { Store } from '@tauri-apps/plugin-store'
 import { check, Update } from '@tauri-apps/plugin-updater'
-import { toast } from 'vue3-toastify'
-import * as p from '../../package.json'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { getVersion } from '@tauri-apps/api/app'
 import { info, error } from '@tauri-apps/plugin-log'
+import { toast } from 'vue3-toastify'
 
-// Settings store
-let settingsStore: Store | null = null
+// Types
+interface UpdateSettings {
+  autoUpdate: boolean
+}
 
-const __APP_VERSION__ = p.version
+// Store singleton with lazy initialization
+let storeInstance: Store | null = null
+let storePromise: Promise<Store> | null = null
 
-// Initialize store
-export async function initUpdateStore(): Promise<Store> {
-  if (settingsStore) {
-    info('Update store already initialized.')
-    return settingsStore
-  }
+async function getStore(): Promise<Store> {
+  if (storeInstance) return storeInstance
 
-  try {
-    info('Loading update settings store...')
-    settingsStore = await Store.load('settings.json', {
-      defaults: {
-        autoUpdate: false,
-        betaVersions: false,
-      },
-      autoSave: true,
+  if (!storePromise) {
+    storePromise = Store.load('settings.json').then((store) => {
+      storeInstance = store
+      info('Update settings store initialized')
+      return store
     })
-    info('Update settings store loaded.')
-    return settingsStore
-  } catch (err) {
-    error(`Failed to load update settings store: ${err}`)
-    throw err
   }
+
+  return storePromise
 }
 
-// Load update settings
-export async function loadUpdateSettings(): Promise<{ autoUpdate: boolean; betaVersions: boolean }> {
+// Settings
+export async function getUpdateSettings(): Promise<UpdateSettings> {
   try {
-    const store = await initUpdateStore()
+    const store = await getStore()
     const autoUpdate = (await store.get<boolean>('autoUpdate')) ?? false
-    const betaVersions = (await store.get<boolean>('betaVersions')) ?? false
-    info(`Loaded update settings: autoUpdate=${autoUpdate}, betaVersions=${betaVersions}`)
-    return { autoUpdate, betaVersions }
+    return { autoUpdate }
   } catch (err) {
-    error(`Failed to load update settings, using defaults:${err}`)
-    return { autoUpdate: false, betaVersions: false }
+    error(`Failed to load update settings: ${err}`)
+    return { autoUpdate: false }
   }
 }
 
-// Save update settings
-export async function saveUpdateSettings(settings: { autoUpdate?: boolean; betaVersions?: boolean }) {
+export async function setAutoUpdate(enabled: boolean): Promise<void> {
   try {
-    const store = await initUpdateStore()
-    if (settings.autoUpdate !== undefined) {
-      await store.set('autoUpdate', settings.autoUpdate)
-      info(`Updated autoUpdate setting to ${settings.autoUpdate}`)
-    }
-    if (settings.betaVersions !== undefined) {
-      await store.set('betaVersions', settings.betaVersions)
-      info(`Updated betaVersions setting to ${settings.betaVersions}`)
-    }
-    info('Update settings saved successfully.')
+    const store = await getStore()
+    await store.set('autoUpdate', enabled)
+    info(`Auto-update ${enabled ? 'enabled' : 'disabled'}`)
   } catch (err) {
-    error(`Failed to save update settings: ${err}`)
+    error(`Failed to save auto-update setting: ${err}`)
     throw err
   }
 }
 
-// Check for updates
+// Update check
 export async function checkForUpdates(): Promise<Update | null> {
-  info('Checking for updates...')
   try {
+    info('Checking for updates...')
     const update = await check()
-    if (!update) {
-      info('No updates found.')
+
+    if (!update?.available) {
+      info('No updates available')
       return null
     }
 
-    info(`Latest version found: ${update.version}`)
-    if (update.version === undefined || update.version.trim() === '') {
-      error('Invalid version received from updater API.')
-      return null
-    }
+    const currentVersion = await getVersion()
+    info(`Current: ${currentVersion}, Available: ${update.version}`)
 
-    // Basic semantic version comparison (fallback)
-    const currentVersion = __APP_VERSION__ || '0.0.0'
-    info(`Current app version: ${currentVersion}`)
-    if (update.version === currentVersion) {
-      info('App is up to date.')
-      return null
-    }
-
-    info(`Update available: ${update.version}`)
     return update
   } catch (err) {
-    error(`Failed to check for updates: ${err}`)
+    error(`Update check failed: ${err}`)
     return null
   }
 }
 
-// Install update
-export async function installAppUpdate(update: Update): Promise<void> {
-  try {
-    info('Starting app update installation...')
-    await update.downloadAndInstall()
-    info('App update installed successfully.')
-  } catch (err) {
-    error(`Failed to install update: ${err}`)
-    throw err
-  }
+// Update installation
+async function installUpdate(update: Update): Promise<void> {
+  info(`Installing update ${update.version}...`)
+
+  await update.downloadAndInstall((progress) => {
+    if (progress.event === 'Started' && progress.data.contentLength) {
+      info(`Download started: ${progress.data.contentLength} bytes`)
+    } else if (progress.event === 'Progress') {
+      info(`Downloaded ${progress.data.chunkLength} bytes`)
+    } else if (progress.event === 'Finished') {
+      info('Download complete')
+    }
+  })
+
+  info('Update installed, relaunching...')
+  await relaunch()
 }
 
-// Handle update found
-export async function handleUpdateFound(update: Update) {
-  const { autoUpdate } = await loadUpdateSettings()
-  info(`Handling update for version: ${update?.version}`)
+// Main update handler
+export async function handleUpdateCheck(): Promise<void> {
+  const update = await checkForUpdates()
+  if (!update) return
 
-  if (!update || !update.version) {
-    error('Invalid update object received - update object is null or missing version.')
-    toast.error('Invalid update data received.')
-    return
-  }
+  const { autoUpdate } = await getUpdateSettings()
+  const version = update.version
 
   if (autoUpdate) {
-    info(`Auto-update enabled. Starting update to version ${update.version}`)
-    toast.info(`Auto-updating to ${update.version}...`, { autoClose: 3000 })
+    toast.info(`Installing update ${version}...`, { autoClose: false })
+
     try {
-      await installAppUpdate(update)
-      info(`Update ${update.version} downloaded and installed successfully.`)
-      toast.success(`Update ${update.version} installed. Restarting...`, {
-        autoClose: false,
-        onClick: () => window.location.reload(),
-      })
+      await installUpdate(update)
     } catch (err) {
-      error(`Auto-update failed for version ${update.version}: ${err}`)
-      toast.error('Auto-update failed. Please try manual update.')
+      error(`Auto-update failed: ${err}`)
+      toast.error('Update failed. Please try again later.')
     }
   } else {
-    info(`Auto-update disabled. Manual update available for version ${update.version}`)
-    toast.info(`Update ${update.version} available. Click to install.`, {
+    toast.info(`Update ${version} available`, {
       autoClose: false,
+      closeOnClick: false,
       onClick: async () => {
-        info(`User initiated manual update for version ${update.version}`)
+        toast.info('Installing update...', { autoClose: false })
+
         try {
-          await installAppUpdate(update)
-          info(`Manual update to version ${update.version} completed successfully.`)
-          toast.success(`Update ${update.version} installed. Restarting...`, {
-            autoClose: false,
-            onClick: () => window.location.reload(),
-          })
+          await installUpdate(update)
         } catch (err) {
-          error(`Manual update failed for version ${update.version}: ${err}`)
-          toast.error('Manual update failed.')
+          error(`Manual update failed: ${err}`)
+          toast.error('Update failed. Please try again.')
         }
       },
     })

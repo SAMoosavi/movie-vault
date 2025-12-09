@@ -43,7 +43,7 @@ import { useMediasStore } from './stores/medias.ts'
 // --- Functions ---
 import { sync_files } from './functions/invoker'
 import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
-import { checkForUpdates, handleUpdateFound } from './functions/update.ts'
+import { handleUpdateCheck } from './functions/update.ts'
 
 // --- State ---
 const mediasStore = useMediasStore()
@@ -140,13 +140,7 @@ onMounted(async () => {
 
   try {
     info('Checking for updates')
-    const update = await checkForUpdates()
-    if (update) {
-      info('Update found, handling update')
-      handleUpdateFound(update)
-    } else {
-      info('No update found')
-    }
+    await handleUpdateCheck()
   } catch (e) {
     error(`Update check failed: ${e}`)
   }
