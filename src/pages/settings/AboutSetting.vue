@@ -12,13 +12,6 @@
             <input type="checkbox" class="toggle toggle-primary" v-model="autoUpdate" />
           </label>
         </div>
-
-        <div class="form-control">
-          <label class="label cursor-pointer">
-            <span class="label-text mr-4">Install Beta Version</span>
-            <input type="checkbox" class="toggle toggle-secondary" v-model="betaVersions" />
-          </label>
-        </div>
       </div>
 
       <div class="card-actions items-center gap-4">
@@ -77,7 +70,8 @@ import * as packageData from '../../../package.json'
 import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
 
 // --- Update functions ---
-import { loadUpdateSettings, saveUpdateSettings, checkForUpdates, handleUpdateFound } from '../../functions/update.ts'
+import { getUpdateSettings, handleUpdateCheck, setAutoUpdate } from '../../functions/update.ts'
+
 import { toast } from 'vue3-toastify'
 
 // --- App Version ---
@@ -85,7 +79,6 @@ const appVersion = packageData.version
 
 // --- Update Settings ---
 const autoUpdate = ref(false)
-const betaVersions = ref(false)
 
 const appInfo = {
   name: 'Movie Vault',
@@ -105,31 +98,21 @@ const developerInfo = ref({
 })
 
 watch(autoUpdate, saveSettings)
-watch(betaVersions, saveSettings)
 
 async function saveSettings() {
-  await saveUpdateSettings({
-    autoUpdate: autoUpdate.value,
-    betaVersions: betaVersions.value,
-  })
+  await setAutoUpdate(autoUpdate.value)
 }
 
 async function checkNow() {
   try {
-    const update = await checkForUpdates()
-    if (update) {
-      await handleUpdateFound(update)
-    } else {
-      toast.info('You already have the latest version.')
-    }
+    await handleUpdateCheck()
   } catch (error) {
     toast.error('Failed to check updates: ' + (error instanceof Error ? error.message : String(error)))
   }
 }
 
 onMounted(async () => {
-  const settings = await loadUpdateSettings()
+  const settings = await getUpdateSettings()
   autoUpdate.value = settings.autoUpdate
-  betaVersions.value = settings.betaVersions
 })
 </script>
