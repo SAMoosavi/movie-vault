@@ -90,29 +90,29 @@ jobs:
             src-tauri/target/release/bundle/**/*.rpm
 
   publish:
-    needs: [checks,build]
+    needs: [checks, build]
     runs-on: ubuntu-latest
     steps:
-          - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-          - name: Download build artifacts
-            uses: actions/download-artifact@v4
-            with:
-              path: ./artifacts
-          - name: Upload build & manifest assets to release
-            uses: softprops/action-gh-release@v2
-            with:
-              # Use cleaned version string for proper semver compatibility
-              tag_name: just-for-debugging
-              name: just-for-debugging
-              draft: false
-              prerelease: true
-              files: |
-                artifacts/**/*.AppImage
-                artifacts/**/*.dmg
-                artifacts/**/*.deb
-                artifacts/**/*.exe
-                artifacts/**/*.rpm
-                artifacts/**/*.sig
-            env:
-              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+      - name: Upload build & manifest assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          # Use cleaned version string for proper semver compatibility
+          tag_name: just-for-debugging
+          name: just-for-debugging
+          draft: false
+          prerelease: true
+          files: |
+            artifacts/**/*.AppImage
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.exe
+            artifacts/**/*.rpm
+            artifacts/**/*.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
