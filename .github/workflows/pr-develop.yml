@@ -83,11 +83,11 @@ jobs:
         with:
           name: tauri-build-${{ matrix.os }}
           path: |
-            src-tauri/target/release/bundle/**/*.AppImage
-            src-tauri/target/release/bundle/**/*.dmg
-            src-tauri/target/release/bundle/**/*.deb
-            src-tauri/target/release/bundle/**/*.exe
-            src-tauri/target/release/bundle/**/*.rpm
+            src-tauri/target/debug/bundle/**/*.AppImage
+            src-tauri/target/debug/bundle/**/*.dmg
+            src-tauri/target/debug/bundle/**/*.deb
+            src-tauri/target/debug/bundle/**/*.exe
+            src-tauri/target/debug/bundle/**/*.rpm
 
   publish:
     needs: [checks, build]
