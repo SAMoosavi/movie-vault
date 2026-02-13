@@ -160,7 +160,7 @@ mod real_api_test {
         ));
 
         let mut medias = vec![m1, m2];
-        super::set_imdb_data(&mut medias).await;
+        super::set_imdb_data(&mut medias).await.unwrap();
 
         let new_m1 = &medias[0];
         assert_eq!(new_m1.name, "black mirror");

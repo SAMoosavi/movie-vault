@@ -127,10 +127,7 @@ fn get_countries(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalStrin
     state
         .db
         .get_countries()
-        .map(|res| {
-            info!("get_countries returned {} entries", res.len());
-            res
-        })
+        .inspect(|res| info!("get_countries returned {} entries", res.len()))
         .map_err(|e| to_frontend_error("get_countries failed", e))
 }
 
@@ -140,10 +137,7 @@ fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>,
     state
         .db
         .get_genres()
-        .map(|res| {
-            info!("get_genres returned {} entries", res.len());
-            res
-        })
+        .inspect(|res| info!("get_genres returned {} entries", res.len()))
         .map_err(|e| to_frontend_error("get_genres failed", e))
 }
 
@@ -153,10 +147,7 @@ fn get_people(state: tauri::State<'_, AppState>) -> Result<Vec<(String, String)>
     state
         .db
         .get_people()
-        .map(|res| {
-            info!("get_people returned {} entries", res.len());
-            res
-        })
+        .inspect(|res| info!("get_people returned {} entries", res.len()))
         .map_err(|e| to_frontend_error("get_people failed", e))
 }
 
@@ -173,13 +164,12 @@ fn filter_medias(
     state
         .db
         .filter_medias(&filters, page)
-        .map(|res| {
+        .inspect(|res| {
             info!(
                 "filter_medias returned {} items for page {}",
                 res.len(),
                 page
-            );
-            res
+            )
         })
         .map_err(|e| to_frontend_error("filter_medias failed", e))
 }
