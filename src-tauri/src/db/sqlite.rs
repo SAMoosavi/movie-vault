@@ -488,11 +488,9 @@ impl Sqlite {
 // get
 impl Sqlite {
     fn get_imdb(conn: &mut SqliteConnection, imdb_id_val: Option<String>) -> Result<Option<Imdb>> {
-        if imdb_id_val.is_none() {
+        let Some(imdb_id_val) = imdb_id_val.as_ref() else {
             return Ok(None);
-        }
-
-        let imdb_id_val = &imdb_id_val.unwrap();
+        };
 
         // Load basic metadata
         let imdb_db: Option<DbImdb> = imdbs::table
