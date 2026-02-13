@@ -21,9 +21,13 @@ import { toast } from 'vue3-toastify'
 import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 import { export_data, import_data } from '@/functions/invoker'
 import { handleFrontendError } from '@/functions/errorHandling'
+import { useMediasStore } from '@/stores/medias'
+import { useTagsStore } from '@/stores/tags'
 
 const isExporting = ref(false)
 const isImporting = ref(false)
+const mediasStore = useMediasStore()
+const tagsStore = useTagsStore()
 
 const exportData = async () => {
   try {
@@ -79,7 +83,23 @@ const importData = async () => {
     // Import data
     await import_data(text)
 
-    toast.success('Data imported successfully!')
+    let refreshFailed = false
+    try {
+      await Promise.all([mediasStore.reload(), tagsStore.reload()])
+    } catch (refreshError) {
+      refreshFailed = true
+      handleFrontendError(
+        'settings.data.import.refresh',
+        refreshError,
+        'Data imported but failed to refresh all views',
+      )
+    }
+
+    toast.success(
+      refreshFailed
+        ? 'Data imported successfully. Some views may need a manual refresh.'
+        : 'Data imported successfully!',
+    )
   } catch (error: unknown) {
     handleFrontendError('settings.data.import', error, 'Import failed')
   } finally {

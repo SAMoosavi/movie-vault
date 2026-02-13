@@ -335,6 +335,13 @@ fn update_media_my_ranking(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     info!("update_media_my_ranking called with media_id={media_id}, my_ranking={my_ranking}");
+    if my_ranking > 10 {
+        return Err(to_frontend_error(
+            "update_media_my_ranking failed",
+            anyhow!("invalid my_ranking={my_ranking}; expected range 0..=10"),
+        ));
+    }
+
     state
         .db
         .update_media_my_ranking(media_id, my_ranking)

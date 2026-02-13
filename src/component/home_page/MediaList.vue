@@ -58,7 +58,7 @@
 
 <script setup lang="ts">
 import { BookmarkIcon, EyeClosedIcon, EyeIcon, StarIcon, TagsIcon } from 'lucide-vue-next'
-import type { Media } from '../../type'
+import type { Media } from '@/type'
 import { useRouter } from 'vue-router'
 import { update_media_watched, update_media_watch_list } from '@/functions/invoker'
 import { handleFrontendError } from '@/functions/errorHandling'

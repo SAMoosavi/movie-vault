@@ -51,7 +51,7 @@ import { storeToRefs } from 'pinia'
 import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Types ---
-import type { Media } from '../type'
+import type { Media } from '@/type'
 
 // --- State ---
 const isLoading = ref(true)

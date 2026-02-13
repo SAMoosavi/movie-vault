@@ -78,10 +78,12 @@
 // --- Icons & Vue ---
 import { Plus, CircleCheckBig, Save, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 
 // --- Types & API ---
-import type { Tag } from '../../type'
-import { get_tags, insert_tag, remove_tag, update_tag } from '@/functions/invoker'
+import type { Tag } from '@/type'
+import { insert_tag, remove_tag, update_tag } from '@/functions/invoker'
+import { useTagsStore } from '@/stores/tags'
 
 // --- Components ---
 import AnimatedShow from '@/component/AnimatedShow.vue'
@@ -90,14 +92,15 @@ import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- State ---
 const emptyTag: Tag = { id: 0, name: '' }
-const tagList = ref<Tag[]>([])
 const newTag = ref<Tag>({ ...emptyTag })
 const selectedTag = ref<Tag>({ ...emptyTag })
+const tagsStore = useTagsStore()
+const { tags: tagList } = storeToRefs(tagsStore)
 
 onMounted(fetchTags)
 
 async function fetchTags() {
-  tagList.value = await get_tags()
+  await tagsStore.reload()
 }
 
 async function handleAddTag() {

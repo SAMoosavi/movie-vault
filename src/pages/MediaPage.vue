@@ -41,7 +41,7 @@ import { ref, onMounted, onBeforeUnmount } from 'vue'
 
 // --- Routing & types ---
 import { useRouter, useRoute } from 'vue-router'
-import type { Media } from '../type'
+import type { Media } from '@/type'
 import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Functions & components ---

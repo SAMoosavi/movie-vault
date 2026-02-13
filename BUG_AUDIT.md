@@ -9,21 +9,7 @@ This file lists concrete bugs and incorrect error-handling patterns found during
 - **Bug scenario:** IMDb API is rate-limited or temporarily down. File scan/import still succeeds, but many items are saved without IMDb. User sees incomplete metadata with no actionable error.
 - **How to fix:** Make `set_imdb_data` return structured status (e.g. `Result<ImdbSyncStats>` with counts + failed items), then surface warning/error to UI.
 
-## 2) Ranking update has no domain validation
-
-- **Location:** `src-tauri/src/lib.rs` + `src-tauri/src/db/sqlite.rs` (`update_media_my_ranking`)
-- **What is wrong:** Accepts any `u8` value and stores it directly.
-- **Bug scenario:** A malformed frontend payload sends `255`; DB stores impossible ranking. Sorting/analytics relying on expected range (e.g. 0-10) become inconsistent.
-- **How to fix:** Validate allowed range in command handler (and optionally DB constraint), returning validation error for out-of-range values.
-
-## 3) Import data flow does not refresh frontend state
-
-- **Location:** `src/pages/settings/DataSetting.vue`
-- **What is wrong:** After successful `import_data`, UI shows success toast but does not refresh media/tag stores.
-- **Bug scenario:** User imports backup, sees success message, but current screen still shows stale old data until manual reload/navigation.
-- **How to fix:** Trigger relevant store reload actions (e.g. media and tags) immediately after successful import.
-
-## 4) Sync progress can misreport inserted count
+## 2) Sync progress can misreport inserted count
 
 - **Location:** `src-tauri/src/lib.rs` (`sync_files`)
 - **What is wrong:** Progress increments with `chunk.len()` whenever `insert_medias` succeeds, even if internal dedupe/merge means fewer new rows are actually inserted.
@@ -34,5 +20,4 @@ This file lists concrete bugs and incorrect error-handling patterns found during
 
 ## Suggested execution order
 
-1. Fix #2 and #3 first (data integrity + import UX consistency).
-2. Improve #1 and #4 for sync reliability and progress accuracy.
+1. Improve #1 and #2 for sync reliability and progress accuracy.

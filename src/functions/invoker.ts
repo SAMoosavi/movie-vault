@@ -1,4 +1,4 @@
-import type { FilterValues, NumericalString, Media, Tag } from '../type'
+import type { FilterValues, NumericalString, Media, Tag } from '@/type'
 import { invoke } from '@tauri-apps/api/core'
 import { normalizeInvokeError } from './errorMessage'
 import { logFrontendError } from './errorHandling'

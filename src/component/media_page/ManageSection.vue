@@ -90,7 +90,7 @@ import {
   TrashIcon,
   XCircleIcon,
 } from 'lucide-vue-next'
-import type { Media } from '../../type'
+import type { Media } from '@/type'
 import {
   update_media_my_ranking,
   update_media_watch_list,

@@ -96,7 +96,7 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { fetch } from '@tauri-apps/plugin-http'
 import { SearchX, Search, CalendarIcon } from 'lucide-vue-next'
-import type { Media } from '../../type'
+import type { Media } from '@/type'
 import { update_media_imdb } from '@/functions/invoker'
 import { handleFrontendError } from '@/functions/errorHandling'
 

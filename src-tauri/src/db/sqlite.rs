@@ -899,6 +899,12 @@ impl DB for Sqlite {
     }
 
     fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize> {
+        if my_ranking > 10 {
+            return Err(anyhow::anyhow!(
+                "invalid my_ranking={my_ranking}; expected range 0..=10"
+            ));
+        }
+
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::my_ranking.eq(my_ranking as i32))
@@ -2404,6 +2410,19 @@ mod tests {
         // Verify update
         let retrieved = sqlite.get_media_by_id(media_id).unwrap().unwrap();
         assert_eq!(retrieved.my_ranking, 8);
+    }
+
+    #[test]
+    fn test_update_media_my_ranking_rejects_out_of_range() {
+        let sqlite = setup_test_db();
+        let media = create_test_media();
+        let media_id = sqlite.insert_media(&media).unwrap();
+
+        let err = sqlite.update_media_my_ranking(media_id, 11).unwrap_err();
+        assert!(
+            err.to_string().contains("expected range 0..=10"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

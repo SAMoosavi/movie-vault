@@ -51,10 +51,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { Media, Tag } from '../../type'
-import { get_tags, insert_media_tag, remove_media_tag } from '@/functions/invoker'
+import { storeToRefs } from 'pinia'
+import type { Media } from '@/type'
+import { insert_media_tag, remove_media_tag } from '@/functions/invoker'
 import { TagIcon, PlusIcon, XCircleIcon } from 'lucide-vue-next'
 import { handleFrontendError } from '@/functions/errorHandling'
+import { useTagsStore } from '@/stores/tags'
 
 /* Props */
 const props = defineProps<{ media: Media }>()
@@ -67,8 +69,9 @@ function fetchMedia() {
 }
 
 /* State */
-const tags = ref<Tag[]>([])
 const selectedTagId = ref<number>(0)
+const tagsStore = useTagsStore()
+const { tags } = storeToRefs(tagsStore)
 
 /* Computed */
 const selectableTags = computed(() => {
@@ -100,7 +103,7 @@ async function removeTag(tagId: number) {
 /* Lifecycle */
 onMounted(async () => {
   try {
-    tags.value = await get_tags()
+    await tagsStore.reload()
   } catch (err) {
     handleFrontendError('media.tag.load', err, 'Failed to load tags')
   }

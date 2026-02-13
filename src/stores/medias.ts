@@ -1,5 +1,5 @@
 import { filter_medias } from '@/functions/invoker'
-import type { Media } from '../type'
+import type { Media } from '@/type'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useFiltersStore } from './Filters'
