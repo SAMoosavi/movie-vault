@@ -64,7 +64,7 @@ async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
         })
 }
 
-pub async fn set_imdb_data(medias: &mut [Media]) {
+pub async fn set_imdb_data(medias: &mut [Media]) -> Result<()> {
     info!("Starting set_imdb_data for {} media items", medias.len());
     let client = Client::new();
 
@@ -90,7 +90,7 @@ pub async fn set_imdb_data(medias: &mut [Media]) {
 
     if pairs.is_empty() {
         warn!("No IMDB IDs were found for any media items");
-        return;
+        return Ok(());
     }
 
     let ids: Vec<_> = pairs.iter().map(|(id, _)| id.clone()).collect();
@@ -116,8 +116,11 @@ pub async fn set_imdb_data(medias: &mut [Media]) {
         }
         Err(err) => {
             error!("Failed to fetch movies batch: {}", err);
+            return Err(anyhow!("failed to fetch imdb batch data: {err}"));
         }
     }
+
+    Ok(())
 }
 
 #[cfg(test)]

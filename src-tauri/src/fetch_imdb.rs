@@ -9,6 +9,6 @@ pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
     freeimdb::get_imdb_data_by_id(id).await
 }
 
-pub async fn set_imdb_data(medias: &mut [Media]) {
+pub async fn set_imdb_data(medias: &mut [Media]) -> Result<()> {
     imdbot::set_imdb_data(medias).await
 }

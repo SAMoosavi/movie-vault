@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use anyhow::{Context, anyhow};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 use tauri_plugin_log::{
@@ -37,6 +38,12 @@ struct SyncFileProgressBare {
     total: usize,
 }
 
+fn to_frontend_error(context: &str, err: anyhow::Error) -> String {
+    let msg = format!("{context}: {err:#}");
+    error!("{msg}");
+    msg
+}
+
 #[tauri::command]
 async fn sync_files(
     root: String,
@@ -44,132 +51,113 @@ async fn sync_files(
     app_handle: tauri::AppHandle,
 ) -> Result<usize, String> {
     let db = &state.db;
+    info!("Starting sync_files for root: {root}");
 
-    info!("Starting sync_files for root: {}", root);
+    let result: anyhow::Result<usize> = async {
+        media_scanner::sync_files(db)
+            .await
+            .context("failed to sync files with DB")?;
+        info!("media_scanner::sync_files completed");
 
-    if let Err(e) = media_scanner::sync_files(db).await {
-        error!("media_scanner::sync_files failed: {}", e);
-        return Err(e.to_string());
-    }
-    info!("media_scanner::sync_files completed");
+        let found_files = media_scanner::find_movies(db, PathBuf::from(&root))
+            .await
+            .with_context(|| format!("failed to find movie files under root={root}"))?;
 
-    let found_files = match media_scanner::find_movies(db, PathBuf::from(&root)).await {
-        Ok(files) => {
-            info!("Found {} candidate files under {}", files.len(), root);
-            files
+        info!("Found {} candidate files under {}", found_files.len(), root);
+        if found_files.is_empty() {
+            warn!("No candidate files found under {root}");
         }
-        Err(e) => {
-            error!("media_scanner::find_movies failed: {}", e);
-            return Err(e.to_string());
+
+        let metadata = metadata_extractor::get_metadata(&found_files);
+        let total = metadata.len();
+        info!("Extracted metadata for {total} items");
+
+        if total == 0 {
+            warn!("No metadata extracted from candidate files");
         }
-    };
 
-    if found_files.is_empty() {
-        warn!("No candidate files found under {}", root);
-    }
+        let chunk_size = 50;
+        let mut inserted = 0usize;
 
-    let metadata = metadata_extractor::get_metadata(&found_files);
-    let total = metadata.len();
-    info!("Extracted metadata for {} items", total);
+        for (i, chunk_slice) in metadata.chunks(chunk_size).enumerate() {
+            let mut chunk = chunk_slice.to_vec();
+            info!(
+                "Processing chunk {} (items {}..{})",
+                i + 1,
+                inserted + 1,
+                inserted + chunk.len()
+            );
 
-    if total == 0 {
-        warn!("No metadata extracted from candidate files");
-    }
+            fetch_imdb::set_imdb_data(&mut chunk)
+                .await
+                .with_context(|| format!("failed to enrich imdb data for chunk {}", i + 1))?;
+            info!("Fetched IMDB data for chunk {}", i + 1);
 
-    let chunk_size = 50;
-    let mut inserted = 0usize;
+            db.insert_medias(&chunk)
+                .with_context(|| format!("failed to insert chunk {} into DB", i + 1))?;
 
-    for (i, chunk_slice) in metadata.chunks(chunk_size).enumerate() {
-        let mut chunk = chunk_slice.to_vec();
-        info!(
-            "Processing chunk {} (items {}..{})",
-            i + 1,
-            inserted + 1,
-            inserted + chunk.len()
-        );
+            inserted += chunk.len();
+            info!(
+                "Inserted {} items from chunk {} (total inserted: {} / {})",
+                chunk.len(),
+                i + 1,
+                inserted,
+                total
+            );
 
-        fetch_imdb::set_imdb_data(&mut chunk).await;
-        info!("Fetched IMDB data for chunk {}", i + 1);
-
-        match db.insert_medias(&chunk) {
-            Ok(_) => {
-                inserted += chunk.len();
-                info!(
-                    "Inserted {} items from chunk {} (total inserted: {} / {})",
-                    chunk.len(),
-                    i + 1,
-                    inserted,
-                    total
-                );
-            }
-            Err(e) => {
-                error!("db.insert_medias failed on chunk {}: {}", i + 1, e);
-                return Err(e.to_string());
+            let progress = SyncFileProgressBare { inserted, total };
+            if let Err(e) = app_handle.emit("sync-progress", progress) {
+                error!("Failed to emit sync-progress for chunk {}: {}", i + 1, e);
+            } else {
+                info!("Emitted sync-progress: {inserted}/{total}");
             }
         }
 
-        // emit progress to frontend
-        let progress = SyncFileProgressBare { inserted, total };
-        if let Err(e) = app_handle.emit("sync-progress", progress) {
-            error!("Failed to emit sync-progress: {:?}", e);
-        } else {
-            info!("Emitted sync-progress: {}/{}", inserted, total);
-        }
+        info!("sync_files completed successfully, inserted {inserted} items");
+        Ok(inserted)
     }
+    .await;
 
-    info!(
-        "sync_files completed successfully, inserted {} items",
-        inserted
-    );
-    Ok(inserted)
+    result.map_err(|e| to_frontend_error("sync_files failed", e))
 }
 
 #[tauri::command]
 fn get_countries(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
-    let db = &state.db;
     info!("get_countries called");
-    match db.get_countries() {
-        Ok(res) => {
+    state
+        .db
+        .get_countries()
+        .map(|res| {
             info!("get_countries returned {} entries", res.len());
-            Ok(res)
-        }
-        Err(e) => {
-            error!("get_countries failed: {}", e);
-            Err(e.to_string())
-        }
-    }
+            res
+        })
+        .map_err(|e| to_frontend_error("get_countries failed", e))
 }
 
 #[tauri::command]
 fn get_genres(state: tauri::State<'_, AppState>) -> Result<Vec<NumericalString>, String> {
-    let db = &state.db;
     info!("get_genres called");
-    match db.get_genres() {
-        Ok(res) => {
+    state
+        .db
+        .get_genres()
+        .map(|res| {
             info!("get_genres returned {} entries", res.len());
-            Ok(res)
-        }
-        Err(e) => {
-            error!("get_genres failed: {}", e);
-            Err(e.to_string())
-        }
-    }
+            res
+        })
+        .map_err(|e| to_frontend_error("get_genres failed", e))
 }
 
 #[tauri::command]
 fn get_people(state: tauri::State<'_, AppState>) -> Result<Vec<(String, String)>, String> {
-    let db = &state.db;
     info!("get_people called");
-    match db.get_people() {
-        Ok(res) => {
+    state
+        .db
+        .get_people()
+        .map(|res| {
             info!("get_people returned {} entries", res.len());
-            Ok(res)
-        }
-        Err(e) => {
-            error!("get_people failed: {}", e);
-            Err(e.to_string())
-        }
-    }
+            res
+        })
+        .map_err(|e| to_frontend_error("get_people failed", e))
 }
 
 #[tauri::command]
@@ -178,25 +166,22 @@ fn filter_medias(
     page: u32,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
-    let db = &state.db;
     info!(
         "filter_medias called with page {} and filters: {:?}",
         page, filters
     );
-    match db.filter_medias(&filters, page) {
-        Ok(res) => {
+    state
+        .db
+        .filter_medias(&filters, page)
+        .map(|res| {
             info!(
                 "filter_medias returned {} items for page {}",
                 res.len(),
                 page
             );
-            Ok(res)
-        }
-        Err(e) => {
-            error!("filter_medias failed: {}", e);
-            Err(e.to_string())
-        }
-    }
+            res
+        })
+        .map_err(|e| to_frontend_error("filter_medias failed", e))
 }
 
 #[tauri::command]
@@ -204,18 +189,20 @@ fn get_media_by_id(
     media_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<data_model::Media, String> {
-    let db = &state.db;
-    info!("get_media_by_id called with media_id: {:?}", media_id);
-    match db.get_media_by_id(media_id).map_err(|e| e.to_string())? {
-        Some(media) => {
-            info!("Media found: {:?}", media);
-            Ok(media)
-        }
-        None => {
-            warn!("Media not found for id: {:?}", media_id);
-            Err("movie not found".to_string())
-        }
-    }
+    info!("get_media_by_id called with media_id={media_id}");
+
+    let result: anyhow::Result<data_model::Media> = (|| {
+        let media = state
+            .db
+            .get_media_by_id(media_id)
+            .with_context(|| format!("failed to load media_id={media_id}"))?
+            .ok_or_else(|| anyhow!("media_id={media_id} not found"))?;
+
+        info!("Media found for media_id={media_id}");
+        Ok(media)
+    })();
+
+    result.map_err(|e| to_frontend_error("get_media_by_id failed", e))
 }
 
 #[tauri::command]
@@ -224,32 +211,31 @@ async fn update_media_imdb(
     imdb_id: &str,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
-    let db = &state.db;
-    info!(
-        "Updating media with ID: {} and IMDb ID: {}",
-        media_id, imdb_id
-    );
+    info!("update_media_imdb called with media_id={media_id}, imdb_id={imdb_id}");
 
-    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
-        .await
-        .map_err(|e| e.to_string())?;
+    let result: anyhow::Result<IdType> = async {
+        let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+            .await
+            .with_context(|| format!("failed to fetch imdb payload for imdb_id={imdb_id}"))?;
 
-    db.insert_imdb(&imdb).map_err(|e| e.to_string())?;
-    info!("Inserted IMDb data for media ID: {}", media_id);
+        state
+            .db
+            .insert_imdb(&imdb)
+            .with_context(|| format!("failed to persist imdb_id={} in DB", imdb.imdb_id))?;
 
-    match db
-        .update_media_imdb(media_id, imdb_id)
-        .map_err(|e| e.to_string())
-    {
-        Ok(id) => {
-            info!("update_media_imdb  updated");
-            Ok(id)
-        }
-        Err(e) => {
-            error!("update_media_imdb failed: {}", e);
-            Err(e.to_string())
-        }
+        let updated_id = state
+            .db
+            .update_media_imdb(media_id, imdb_id)
+            .with_context(|| {
+                format!("failed to attach imdb_id={imdb_id} to media_id={media_id}")
+            })?;
+
+        info!("Successfully updated media imdb for media_id={media_id}");
+        Ok(updated_id)
     }
+    .await;
+
+    result.map_err(|e| to_frontend_error("update_media_imdb failed", e))
 }
 
 #[tauri::command]
@@ -257,30 +243,31 @@ async fn create_media_from_imdb(
     imdb_id: &str,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
-    let db = &state.db;
-    info!("Creating media from IMDb ID: {}", imdb_id);
+    info!("create_media_from_imdb called with imdb_id={imdb_id}");
 
-    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
-        .await
-        .map_err(|e| {
-            error!("Failed to fetch IMDb data for ID {}: {}", imdb_id, e);
-            e.to_string()
-        })?;
+    let result: anyhow::Result<IdType> = async {
+        let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+            .await
+            .with_context(|| format!("failed to fetch imdb payload for imdb_id={imdb_id}"))?;
 
-    let media = Media {
-        name: imdb.title.clone(),
-        year: Some(imdb.year),
-        imdb: Some(imdb.clone()),
-        ..Media::default()
-    };
+        let media = Media {
+            name: imdb.title.clone(),
+            year: Some(imdb.year),
+            imdb: Some(imdb.clone()),
+            ..Media::default()
+        };
 
-    db.insert_media(&media).map_err(|e| {
-        error!("Failed to insert media for IMDb ID {}: {}", imdb_id, e);
-        e.to_string()
-    })?;
+        let new_media_id = state
+            .db
+            .insert_media(&media)
+            .with_context(|| format!("failed to insert media created from imdb_id={imdb_id}"))?;
 
-    info!("Successfully created media from IMDb ID: {}", imdb_id);
-    Ok(media.id)
+        info!("Successfully created media from IMDb ID: {imdb_id}, new media_id={new_media_id}");
+        Ok(new_media_id)
+    }
+    .await;
+
+    result.map_err(|e| to_frontend_error("create_media_from_imdb failed", e))
 }
 
 #[tauri::command]
@@ -289,19 +276,14 @@ fn update_watch_list(
     watch_list: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Updating watch list for media ID: {} to {}",
-        media_id, watch_list
-    );
-    db.update_watch_list(media_id, watch_list).map_err(|e| {
-        error!(
-            "Failed to update watch list for media ID {}: {}",
-            media_id, e
-        );
-        e.to_string()
-    })?;
-    info!("Successfully updated watch list for media ID: {}", media_id);
+    info!("update_watch_list called with media_id={media_id}, watch_list={watch_list}");
+    state
+        .db
+        .update_watch_list(media_id, watch_list)
+        .with_context(|| format!("failed to update watch_list for media_id={media_id}"))
+        .map_err(|e| to_frontend_error("update_watch_list failed", e))?;
+
+    info!("Successfully updated watch_list for media_id={media_id}");
     Ok(())
 }
 
@@ -311,26 +293,14 @@ fn update_media_watched(
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Updating watched status for media ID: {} to {}",
-        media_id, watched
-    );
-    db.update_media_watched(media_id, watched).map_err(|e| {
-        error!(
-            "Failed to update watched status for media ID {}: {}",
-            media_id, e
-        );
-        e.to_string()
-    })?;
-    info!(
-        "Successfully updated watched status for media ID: {}",
-        media_id
-    );
-    info!(
-        "Successfully updated watched status for media ID: {}",
-        media_id
-    );
+    info!("update_media_watched called with media_id={media_id}, watched={watched}");
+    state
+        .db
+        .update_media_watched(media_id, watched)
+        .with_context(|| format!("failed to update watched status for media_id={media_id}"))
+        .map_err(|e| to_frontend_error("update_media_watched failed", e))?;
+
+    info!("Successfully updated watched status for media_id={media_id}");
     Ok(())
 }
 
@@ -340,22 +310,14 @@ fn update_season_watched(
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Updating watched status for season ID: {} to {}",
-        season_id, watched
-    );
-    db.update_season_watched(season_id, watched).map_err(|e| {
-        error!(
-            "Failed to update watched status for season ID {}: {}",
-            season_id, e
-        );
-        e.to_string()
-    })?;
-    info!(
-        "Successfully updated watched status for season ID: {}",
-        season_id
-    );
+    info!("update_season_watched called with season_id={season_id}, watched={watched}");
+    state
+        .db
+        .update_season_watched(season_id, watched)
+        .with_context(|| format!("failed to update watched status for season_id={season_id}"))
+        .map_err(|e| to_frontend_error("update_season_watched failed", e))?;
+
+    info!("Successfully updated watched status for season_id={season_id}");
     Ok(())
 }
 
@@ -365,19 +327,14 @@ fn update_episode_watched(
     watched: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Updating watched status for episode ID: {} to {}",
-        episode_id, watched
-    );
-    db.update_episode_watched(episode_id, watched)
-        .map_err(|e| {
-            error!(
-                "Failed to update watched status for episode ID {}: {}",
-                episode_id, e
-            );
-            e.to_string()
-        })?;
+    info!("update_episode_watched called with episode_id={episode_id}, watched={watched}");
+    state
+        .db
+        .update_episode_watched(episode_id, watched)
+        .with_context(|| format!("failed to update watched status for episode_id={episode_id}"))
+        .map_err(|e| to_frontend_error("update_episode_watched failed", e))?;
+
+    info!("Successfully updated watched status for episode_id={episode_id}");
     Ok(())
 }
 
@@ -387,54 +344,49 @@ fn update_media_my_ranking(
     my_ranking: u8,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Updating my ranking for media ID: {} to {}",
-        media_id, my_ranking
-    );
-    db.update_media_my_ranking(media_id, my_ranking)
-        .map_err(|e| {
-            error!(
-                "Failed to update my ranking for media ID {}: {}",
-                media_id, e
-            );
-            e.to_string()
-        })?;
-    info!("Successfully updated my ranking for media ID: {}", media_id);
+    info!("update_media_my_ranking called with media_id={media_id}, my_ranking={my_ranking}");
+    state
+        .db
+        .update_media_my_ranking(media_id, my_ranking)
+        .with_context(|| format!("failed to update my_ranking for media_id={media_id}"))
+        .map_err(|e| to_frontend_error("update_media_my_ranking failed", e))?;
+
+    info!("Successfully updated my_ranking for media_id={media_id}");
     Ok(())
 }
 
 #[tauri::command]
 fn get_tags(state: tauri::State<'_, AppState>) -> Result<Vec<Tag>, String> {
-    let db = &state.db;
     info!("get_tags called");
-    db.get_tags().map_err(|e| {
-        error!("get_tags failed: {}", e);
-        e.to_string()
-    })
+    state
+        .db
+        .get_tags()
+        .map_err(|e| to_frontend_error("get_tags failed", e))
 }
 
 #[tauri::command]
 fn remove_tag(tag_id: IdType, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let db = &state.db;
-    info!("Removing tag with ID: {}", tag_id);
-    db.remove_tag(tag_id).map_err(|e| {
-        error!("Failed to remove tag with ID {}: {}", tag_id, e);
-        e.to_string()
-    })?;
-    info!("Successfully removed tag with ID: {}", tag_id);
+    info!("remove_tag called with tag_id={tag_id}");
+    state
+        .db
+        .remove_tag(tag_id)
+        .with_context(|| format!("failed to remove tag_id={tag_id}"))
+        .map_err(|e| to_frontend_error("remove_tag failed", e))?;
+
+    info!("Successfully removed tag_id={tag_id}");
     Ok(())
 }
 
 #[tauri::command]
 fn update_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let db = &state.db;
-    info!("Updating tag: {:?}", tag);
-    db.update_tag(&tag).map_err(|e| {
-        error!("Failed to update tag: {}", e);
-        e.to_string()
-    })?;
-    info!("Successfully updated tag");
+    info!("update_tag called for tag_id={}, name={}", tag.id, tag.name);
+    state
+        .db
+        .update_tag(&tag)
+        .with_context(|| format!("failed to update tag_id={}", tag.id))
+        .map_err(|e| to_frontend_error("update_tag failed", e))?;
+
+    info!("Successfully updated tag_id={}", tag.id);
     Ok(())
 }
 
@@ -443,22 +395,22 @@ fn get_medias_by_tag(
     tag_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<data_model::Media>, String> {
-    let db = &state.db;
-    info!("get_medias_by_tag called with tag_id: {:?}", tag_id);
-    db.get_medias_by_tag(tag_id).map_err(|e| {
-        error!("get_medias_by_tag failed: {}", e);
-        e.to_string()
-    })
+    info!("get_medias_by_tag called with tag_id={tag_id}");
+    state
+        .db
+        .get_medias_by_tag(tag_id)
+        .with_context(|| format!("failed to fetch medias for tag_id={tag_id}"))
+        .map_err(|e| to_frontend_error("get_medias_by_tag failed", e))
 }
 
 #[tauri::command]
 fn insert_tag(tag: Tag, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let db = &state.db;
-    info!("Inserting tag: {:?}", tag);
-    db.insert_tag(&tag).map_err(|e| {
-        error!("Failed to insert tag: {}", e);
-        e.to_string()
-    })
+    info!("insert_tag called for name={}", tag.name);
+    state
+        .db
+        .insert_tag(&tag)
+        .with_context(|| format!("failed to insert tag name={}", tag.name))
+        .map_err(|e| to_frontend_error("insert_tag failed", e))
 }
 
 #[tauri::command]
@@ -467,18 +419,14 @@ fn insert_media_tag(
     tag_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Inserting media tag - media_id: {:?}, tag_id: {:?}",
-        media_id, tag_id
-    );
-    db.insert_media_tag(media_id, tag_id).map_err(|e| {
-        error!(
-            "Failed to insert media tag - media_id: {:?}, tag_id: {:?}: {}",
-            media_id, tag_id, e
-        );
-        e.to_string()
-    })
+    info!("insert_media_tag called with media_id={media_id}, tag_id={tag_id}");
+    state
+        .db
+        .insert_media_tag(media_id, tag_id)
+        .with_context(|| {
+            format!("failed to insert tag relation media_id={media_id}, tag_id={tag_id}")
+        })
+        .map_err(|e| to_frontend_error("insert_media_tag failed", e))
 }
 
 #[tauri::command]
@@ -487,78 +435,72 @@ fn remove_media_tag(
     tag_id: IdType,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let db = &state.db;
-    info!(
-        "Removing media tag - media_id: {:?}, tag_id: {:?}",
-        media_id, tag_id
-    );
-    db.remove_media_tag(media_id, tag_id).map_err(|e| {
-        error!(
-            "Failed to remove media tag - media_id: {:?}, tag_id: {:?}: {}",
-            media_id, tag_id, e
-        );
-        e.to_string()
-    })
+    info!("remove_media_tag called with media_id={media_id}, tag_id={tag_id}");
+    state
+        .db
+        .remove_media_tag(media_id, tag_id)
+        .with_context(|| {
+            format!("failed to remove tag relation media_id={media_id}, tag_id={tag_id}")
+        })
+        .map_err(|e| to_frontend_error("remove_media_tag failed", e))
 }
 
 #[tauri::command]
 fn delete_media(media_id: IdType, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let db = &state.db;
-    info!("Deleting media with ID: {:?}", media_id);
-    db.delete_media(media_id).map_err(|e| {
-        error!("Failed to delete media with ID {:?}: {}", media_id, e);
-        e.to_string()
-    })
+    info!("delete_media called with media_id={media_id}");
+    state
+        .db
+        .delete_media(media_id)
+        .with_context(|| format!("failed to delete media_id={media_id}"))
+        .map_err(|e| to_frontend_error("delete_media failed", e))
 }
 
 #[tauri::command]
 async fn export_data(file_path: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
     use std::fs;
 
-    let db = &state.db;
-    info!("export_data called with file_path: {}", file_path);
+    info!("export_data called with file_path={file_path}");
+    let result: anyhow::Result<()> = (|| {
+        let medias = state
+            .db
+            .get_all_medias()
+            .context("failed to fetch all medias for export")?;
+        let tags = state
+            .db
+            .get_tags()
+            .context("failed to fetch tags for export")?;
 
-    let medias = db.get_all_medias().map_err(|e| {
-        error!("Failed to get all medias: {}", e);
-        e.to_string()
-    })?;
-    let tags = db.get_tags().map_err(|e| {
-        error!("Failed to get tags: {}", e);
-        e.to_string()
-    })?;
+        let data = ExportedData { medias, tags };
+        let json = serde_json::to_string(&data).context("failed to serialize export payload")?;
 
-    let data = ExportedData { medias, tags };
-    let json = serde_json::to_string(&data).map_err(|e| {
-        error!("Failed to serialize data to JSON: {}", e);
-        e.to_string()
-    })?;
+        fs::write(&file_path, json)
+            .with_context(|| format!("failed to write export file at path={file_path}"))?;
 
-    fs::write(&file_path, json).map_err(|e| {
-        error!("Failed to write file {}: {}", file_path, e);
-        format!("Failed to write file: {}", e)
-    })?;
+        info!("Successfully exported data to {file_path}");
+        Ok(())
+    })();
 
-    info!("Successfully exported data to {}", file_path);
-    Ok(())
+    result.map_err(|e| to_frontend_error("export_data failed", e))
 }
 
 #[tauri::command]
 fn import_data(data: String, state: tauri::State<'_, AppState>) -> Result<(), String> {
-    let db = &state.db;
     info!("import_data called");
 
-    let exported: ExportedData = serde_json::from_str(&data).map_err(|e| {
-        error!("Failed to deserialize import data: {}", e);
-        e.to_string()
-    })?;
+    let result: anyhow::Result<()> = (|| {
+        let exported: ExportedData =
+            serde_json::from_str(&data).context("failed to deserialize import payload")?;
 
-    db.import_data(&exported).map_err(|e| {
-        error!("Failed to import data: {}", e);
-        e.to_string()
-    })?;
+        state
+            .db
+            .import_data(&exported)
+            .context("failed to import data into DB")?;
 
-    info!("Successfully imported data");
-    Ok(())
+        info!("Successfully imported data");
+        Ok(())
+    })();
+
+    result.map_err(|e| to_frontend_error("import_data failed", e))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -583,7 +525,7 @@ pub fn run() {
                 ])
                 .timezone_strategy(TimezoneStrategy::UseLocal)
                 .rotation_strategy(RotationStrategy::KeepAll)
-                .max_file_size(1_000_000) // 1MB
+                .max_file_size(1_000_000)
                 .build(),
         )
         .plugin(tauri_plugin_updater::Builder::new().build())
