@@ -76,8 +76,8 @@ export async function update_tag(tag: Tag): Promise<void> {
   return await invokeCommand<void>('update_tag', { tag })
 }
 
-export async function get_medias_by_tag(tagId: number): Promise<Media> {
-  return await invokeCommand<Media>('get_medias_by_tag', { tagId })
+export async function get_medias_by_tag(tagId: number): Promise<Media[]> {
+  return await invokeCommand<Media[]>('get_medias_by_tag', { tagId })
 }
 
 export async function insert_tag(tag: Tag): Promise<void> {
