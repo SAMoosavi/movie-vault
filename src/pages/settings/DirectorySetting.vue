@@ -43,15 +43,15 @@ import { computed } from 'vue'
 import { open } from '@tauri-apps/plugin-dialog'
 
 // --- Stores ---
-import { useDirsStore } from '../../stores/Dirs'
-import { useMediasStore } from '../../stores/medias'
+import { useDirsStore } from '@/stores/Dirs'
+import { useMediasStore } from '@/stores/medias'
 
 // --- Components ---
-import AnimatedList from '../../component/AnimatedList.vue'
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import AnimatedList from '@/component/AnimatedList.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- Functions ---
-import { sync_files } from '../../functions/invoker'
+import { sync_files } from '@/functions/invoker'
 import { toast } from 'vue3-toastify'
 
 // --- State ---

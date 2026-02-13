@@ -98,7 +98,7 @@ import { fetch } from '@tauri-apps/plugin-http'
 import { toast } from 'vue3-toastify'
 import { SearchX, Search, CalendarIcon } from 'lucide-vue-next'
 import type { Media } from '../../type'
-import { update_media_imdb } from '../../functions/invoker'
+import { update_media_imdb } from '@/functions/invoker'
 
 const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{

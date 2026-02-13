@@ -4,10 +4,15 @@ import { relaunch } from '@tauri-apps/plugin-process'
 import { getVersion } from '@tauri-apps/api/app'
 import { info, error } from '@tauri-apps/plugin-log'
 import { toast } from 'vue3-toastify'
+import { getErrorMessage } from '@/functions/errorMessage'
 
 // Types
 interface UpdateSettings {
   autoUpdate: boolean
+}
+
+interface HandleUpdateCheckOptions {
+  notifyIfUpToDate?: boolean
 }
 
 // Store singleton with lazy initialization
@@ -44,10 +49,12 @@ export async function setAutoUpdate(enabled: boolean): Promise<void> {
   try {
     const store = await getStore()
     await store.set('autoUpdate', enabled)
+    await store.save()
     info(`Auto-update ${enabled ? 'enabled' : 'disabled'}`)
   } catch (err) {
-    error(`Failed to save auto-update setting: ${err}`)
-    throw err
+    const message = getErrorMessage(err)
+    error(`Failed to save auto-update setting: ${message}`)
+    throw new Error(message)
   }
 }
 
@@ -57,7 +64,7 @@ export async function checkForUpdates(): Promise<Update | null> {
     info('Checking for updates...')
     const update = await check()
 
-    if (!update?.available) {
+    if (!update) {
       info('No updates available')
       return null
     }
@@ -67,8 +74,9 @@ export async function checkForUpdates(): Promise<Update | null> {
 
     return update
   } catch (err) {
-    error(`Update check failed: ${err}`)
-    return null
+    const message = getErrorMessage(err)
+    error(`Update check failed: ${message}`)
+    throw new Error(message)
   }
 }
 
@@ -91,9 +99,14 @@ async function installUpdate(update: Update): Promise<void> {
 }
 
 // Main update handler
-export async function handleUpdateCheck(): Promise<void> {
+export async function handleUpdateCheck(options: HandleUpdateCheckOptions = {}): Promise<void> {
   const update = await checkForUpdates()
-  if (!update) return
+  if (!update) {
+    if (options.notifyIfUpToDate) {
+      toast.info('You are using the latest version.')
+    }
+    return
+  }
 
   const { autoUpdate } = await getUpdateSettings()
   const version = update.version
@@ -104,8 +117,9 @@ export async function handleUpdateCheck(): Promise<void> {
     try {
       await installUpdate(update)
     } catch (err) {
-      error(`Auto-update failed: ${err}`)
-      toast.error('Update failed. Please try again later.')
+      const message = getErrorMessage(err)
+      error(`Auto-update failed: ${message}`)
+      toast.error('Update failed: ' + message)
     }
   } else {
     toast.info(`Update ${version} available`, {
@@ -117,8 +131,9 @@ export async function handleUpdateCheck(): Promise<void> {
         try {
           await installUpdate(update)
         } catch (err) {
-          error(`Manual update failed: ${err}`)
-          toast.error('Update failed. Please try again.')
+          const message = getErrorMessage(err)
+          error(`Manual update failed: ${message}`)
+          toast.error('Update failed: ' + message)
         }
       },
     })

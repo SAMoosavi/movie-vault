@@ -60,7 +60,7 @@
 import { BookmarkIcon, EyeClosedIcon, EyeIcon, StarIcon, TagsIcon } from 'lucide-vue-next'
 import type { Media } from '../../type'
 import { useRouter } from 'vue-router'
-import { update_media_watched, update_media_watch_list } from '../../functions/invoker'
+import { update_media_watched, update_media_watch_list } from '@/functions/invoker'
 
 const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{

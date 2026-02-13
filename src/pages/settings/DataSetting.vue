@@ -15,11 +15,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { readTextFile } from '@tauri-apps/plugin-fs'
 import { toast } from 'vue3-toastify'
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
+import { export_data, import_data } from '@/functions/invoker'
+import { getErrorMessage } from '@/functions/errorMessage'
 
 const isExporting = ref(false)
 const isImporting = ref(false)
@@ -43,12 +44,13 @@ const exportData = async () => {
 
     isExporting.value = true
 
-    await invoke('export_data', { filePath })
+    await export_data(filePath)
 
     toast.success('Export completed successfully!')
-  } catch (error) {
-    console.error('Export failed:', error)
-    toast.error('Export failed: ' + error)
+  } catch (error: unknown) {
+    const message = getErrorMessage(error)
+    console.error('Export failed:', message, error)
+    toast.error('Export failed: ' + message)
   } finally {
     isExporting.value = false
   }
@@ -77,12 +79,13 @@ const importData = async () => {
     const text = await readTextFile(filePath)
 
     // Import data
-    await invoke('import_data', { data: text })
+    await import_data(text)
 
-    alert('Data imported successfully!')
-  } catch (error) {
-    console.error('Import failed:', error)
-    alert('Import failed: ' + error)
+    toast.success('Data imported successfully!')
+  } catch (error: unknown) {
+    const message = getErrorMessage(error)
+    console.error('Import failed:', message, error)
+    toast.error('Import failed: ' + message)
   } finally {
     isImporting.value = false
   }

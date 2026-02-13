@@ -38,16 +38,16 @@ import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
 import { toast } from 'vue3-toastify'
 
 // --- Components ---
-import FilterMedias from '../component/home_page/FilterMedias.vue'
-import LoadingView from '../component/home_page/LoadingView.vue'
-import ResultsInfo from '../component/home_page/ResultsInfo.vue'
-import NotFoundMedias from '../component/home_page/NotFoundMedias.vue'
-import MediaCard from '../component/home_page/MediaCard.vue'
-import MediaList from '../component/home_page/MediaList.vue'
+import FilterMedias from '@/component/home_page/FilterMedias.vue'
+import LoadingView from '@/component/home_page/LoadingView.vue'
+import ResultsInfo from '@/component/home_page/ResultsInfo.vue'
+import NotFoundMedias from '@/component/home_page/NotFoundMedias.vue'
+import MediaCard from '@/component/home_page/MediaCard.vue'
+import MediaList from '@/component/home_page/MediaList.vue'
 
 // --- Stores ---
-import { useMediasStore } from '../stores/medias'
-import { useFiltersStore } from '../stores/Filters'
+import { useMediasStore } from '@/stores/medias'
+import { useFiltersStore } from '@/stores/Filters'
 import { storeToRefs } from 'pinia'
 
 // --- Types ---

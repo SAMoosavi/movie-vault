@@ -81,12 +81,12 @@ import { onMounted, ref } from 'vue'
 
 // --- Types & API ---
 import type { Tag } from '../../type'
-import { get_tags, insert_tag, remove_tag, update_tag } from '../../functions/invoker'
+import { get_tags, insert_tag, remove_tag, update_tag } from '@/functions/invoker'
 
 // --- Components ---
-import AnimatedShow from '../../component/AnimatedShow.vue'
-import AnimatedList from '../../component/AnimatedList.vue'
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import AnimatedShow from '@/component/AnimatedShow.vue'
+import AnimatedList from '@/component/AnimatedList.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- State ---
 const emptyTag: Tag = { id: 0, name: '' }

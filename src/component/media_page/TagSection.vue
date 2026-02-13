@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import type { Media, Tag } from '../../type'
-import { get_tags, insert_media_tag, remove_media_tag } from '../../functions/invoker'
+import { get_tags, insert_media_tag, remove_media_tag } from '@/functions/invoker'
 import { toast } from 'vue3-toastify'
 import { TagIcon, PlusIcon, XCircleIcon } from 'lucide-vue-next'
 

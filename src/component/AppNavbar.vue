@@ -94,9 +94,9 @@ import { RouterLink } from 'vue-router'
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderPlus, Plus, HomeIcon, SettingsIcon, MenuIcon, XIcon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-import { useMediasStore } from '../stores/medias'
-import { useDirsStore } from '../stores/Dirs'
-import { sync_files } from '../functions/invoker'
+import { useMediasStore } from '@/stores/medias'
+import { useDirsStore } from '@/stores/Dirs'
+import { sync_files } from '@/functions/invoker'
 
 const isCollapsed = ref(false)
 

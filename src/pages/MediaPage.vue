@@ -45,18 +45,18 @@ import { useRouter, useRoute } from 'vue-router'
 import type { Media } from '../type'
 
 // --- Functions & components ---
-import { get_media_by_id } from '../functions/invoker'
+import { get_media_by_id } from '@/functions/invoker'
 
-import MediaHeader from '../component/media_page/MediaHeader.vue'
-import SearchMediaImdb from '../component/media_page/SearchMediaImdb.vue'
-import MediaHeaderSkeleton from '../component/media_page/MediaHeaderSkeleton.vue'
-import FilesSectionSkeleton from '../component/media_page/FilesSectionSkeleton.vue'
-import FilesSection from '../component/media_page/FilesSection.vue'
+import MediaHeader from '@/component/media_page/MediaHeader.vue'
+import SearchMediaImdb from '@/component/media_page/SearchMediaImdb.vue'
+import MediaHeaderSkeleton from '@/component/media_page/MediaHeaderSkeleton.vue'
+import FilesSectionSkeleton from '@/component/media_page/FilesSectionSkeleton.vue'
+import FilesSection from '@/component/media_page/FilesSection.vue'
 
-import TagSection from '../component/media_page/TagSection.vue'
-import ManageSection from '../component/media_page/ManageSection.vue'
-import ManageSectionSkeleton from '../component/media_page/ManageSectionSkeleton.vue'
-import TagSectionSkeleton from '../component/media_page/TagSectionSkeleton.vue'
+import TagSection from '@/component/media_page/TagSection.vue'
+import ManageSection from '@/component/media_page/ManageSection.vue'
+import ManageSectionSkeleton from '@/component/media_page/ManageSectionSkeleton.vue'
+import TagSectionSkeleton from '@/component/media_page/TagSectionSkeleton.vue'
 
 // --- State ---
 const route = useRoute()

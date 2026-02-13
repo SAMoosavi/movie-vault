@@ -92,7 +92,7 @@ import FileRow from './FileRow.vue'
 
 // --- Types ---
 import type { Media } from '../../type'
-import { update_episode_watched, update_season_watched } from '../../functions/invoker'
+import { update_episode_watched, update_season_watched } from '@/functions/invoker'
 
 // --- Props definition ---
 interface Props {

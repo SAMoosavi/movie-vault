@@ -327,10 +327,10 @@ import {
 } from 'lucide-vue-next'
 
 // --- Stores & helpers ---
-import { useFiltersStore } from '../../stores/Filters'
+import { useFiltersStore } from '@/stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
-import { get_people, get_countries, get_genres, get_tags } from '../../functions/invoker'
+import { get_people, get_countries, get_genres, get_tags } from '@/functions/invoker'
 
 // --- Components & types ---
 import AutocompleteSelect from '../AutocompleteSelect.vue'

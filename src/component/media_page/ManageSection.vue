@@ -96,7 +96,7 @@ import {
   update_media_watch_list,
   update_media_watched,
   delete_media,
-} from '../../functions/invoker'
+} from '@/functions/invoker'
 import Modal from '../Modal.vue'
 
 import { ref } from 'vue'

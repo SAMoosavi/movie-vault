@@ -64,13 +64,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import * as packageData from '../../../package.json'
+import * as packageData from '@/../package.json'
 
 // --- Components ---
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- Update functions ---
-import { getUpdateSettings, handleUpdateCheck, setAutoUpdate } from '../../functions/update.ts'
+import { getUpdateSettings, handleUpdateCheck, setAutoUpdate } from '@/functions/update.ts'
 
 import { toast } from 'vue3-toastify'
 
@@ -105,7 +105,7 @@ async function saveSettings() {
 
 async function checkNow() {
   try {
-    await handleUpdateCheck()
+    await handleUpdateCheck({ notifyIfUpToDate: true })
   } catch (error) {
     toast.error('Failed to check updates: ' + (error instanceof Error ? error.message : String(error)))
   }

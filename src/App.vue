@@ -36,14 +36,14 @@ import { dirname, normalize } from '@tauri-apps/api/path'
 import { info, error, warn } from '@tauri-apps/plugin-log'
 
 // --- Stores ---
-import { useDirsStore } from './stores/Dirs'
+import { useDirsStore } from '@/stores/Dirs'
 import { storeToRefs } from 'pinia'
-import { useMediasStore } from './stores/medias.ts'
+import { useMediasStore } from '@/stores/medias.ts'
 
 // --- Functions ---
-import { sync_files } from './functions/invoker'
-import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
-import { handleUpdateCheck } from './functions/update.ts'
+import { sync_files } from '@/functions/invoker'
+import { getDefaultTheme, initStore, loadTheme, setTheme } from '@/functions/theme.ts'
+import { handleUpdateCheck } from '@/functions/update.ts'
 
 // --- State ---
 const mediasStore = useMediasStore()

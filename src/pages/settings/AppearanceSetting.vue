@@ -35,10 +35,10 @@ import { ref, watch, onMounted } from 'vue'
 import { Store } from '@tauri-apps/plugin-store'
 
 // --- Theme helpers ---
-import { getDefaultTheme, initStore, loadTheme, setTheme, themes } from '../../functions/theme.ts'
+import { getDefaultTheme, initStore, loadTheme, setTheme, themes } from '@/functions/theme.ts'
 
 // --- Components ---
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- State ---
 let settingsStore: Store | null = null
