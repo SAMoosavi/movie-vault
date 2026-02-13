@@ -85,6 +85,8 @@ import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
 // --- Utilities ---
 import { toast } from 'vue3-toastify'
+import { getErrorMessage } from '@/functions/errorMessage'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Props & emits ---
 const props = defineProps<{ file: File }>()
@@ -95,7 +97,7 @@ const filePath = props.file.path
 
 // --- Function: Play the file using system default ---
 function playFile() {
-  openPath(filePath).catch((e) => console.error('Error playing file:', e))
+  void openPath(filePath).catch((error) => handleFrontendError('media.file.play', error, 'Failed to play file'))
 }
 
 // --- Function: Open the folder containing the file ---
@@ -103,8 +105,8 @@ async function openFileLocation() {
   try {
     const dir = await dirname(filePath)
     await openPath(dir)
-  } catch (e) {
-    console.error('Error opening location:', e)
+  } catch (error) {
+    handleFrontendError('media.file.open_location', error, 'Failed to open file location')
   }
 }
 
@@ -131,7 +133,7 @@ async function moveFile() {
     try {
       await rename(filePath, targetPath)
     } catch (err: unknown) {
-      const errorMessage = String(err)
+      const errorMessage = getErrorMessage(err)
       // Handle cross-device moves (different filesystems/drives)
       if (
         errorMessage.includes('Invalid cross-device link') ||
@@ -148,10 +150,8 @@ async function moveFile() {
 
     toast.success('File moved successfully')
     emit('reload')
-  } catch (e) {
-    const error = e as Error
-    toast.error(`Move failed: ${error.message || 'Unknown error'}`)
-    console.error('Error moving file:', error)
+  } catch (error) {
+    handleFrontendError('media.file.move', error, 'Move failed')
   }
 }
 
@@ -178,27 +178,29 @@ async function copyFile() {
     await fsCopyFile(filePath, targetPath)
 
     toast.success('File copied successfully')
-  } catch (e) {
-    const error = e as Error
-    toast.error(`Copy failed: ${error.message || 'Unknown error'}`)
-    console.error('Error copying file:', error)
+  } catch (error) {
+    handleFrontendError('media.file.copy', error, 'Copy failed')
   }
 }
 
 // --- Function: Delete the file ---
-function deleteFile() {
-  remove(filePath)
-    .then(() => {
-      toast.success('File deleted successfully')
-      emit('reload')
-    })
-    .catch((e) => toast.error('Error deleting file:', e))
+async function deleteFile() {
+  try {
+    await remove(filePath)
+    toast.success('File deleted successfully')
+    emit('reload')
+  } catch (error) {
+    handleFrontendError('media.file.delete', error, 'Failed to delete file')
+  }
 }
 
 // --- Function: Copy file path to clipboard ---
-function copyPathToClipboard() {
-  writeText(filePath)
-    .then(() => toast.success('Path copied to clipboard'))
-    .catch((err) => toast.error(`Failed to copy: ${err}`))
+async function copyPathToClipboard() {
+  try {
+    await writeText(filePath)
+    toast.success('Path copied to clipboard')
+  } catch (error) {
+    handleFrontendError('media.file.copy_path', error, 'Failed to copy path')
+  }
 }
 </script>

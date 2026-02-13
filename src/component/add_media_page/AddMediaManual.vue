@@ -121,6 +121,7 @@ import { SearchX, Search, CalendarIcon, PlusIcon, StarIcon } from 'lucide-vue-ne
 import { create_media_from_imdb } from '@/functions/invoker'
 import type { MediaSearchResult, SearchedMedia } from './SearchMediaImdb'
 import { useRouter } from 'vue-router'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const imdbId = ref('')
 const mediaName = ref('')
@@ -143,8 +144,7 @@ async function performSearch(query: string) {
     const data: MediaSearchResult = await res.json()
     searchItems.value = data?.titles ?? []
   } catch (err) {
-    console.error(err)
-    toast.error('Search failed')
+    handleFrontendError('add_media.search', err, 'Search failed')
     searchItems.value = []
   } finally {
     loadingSearch.value = false
@@ -173,8 +173,7 @@ async function addMedia() {
     mediaName.value = ''
     await router.push({ name: 'media_page', params: { id: media_id } })
   } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : 'Failed to add media')
-    console.error(e)
+    handleFrontendError('add_media.create', e, 'Failed to add media')
   } finally {
     loading.value = false
   }

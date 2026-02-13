@@ -61,6 +61,7 @@ import { BookmarkIcon, EyeClosedIcon, EyeIcon, StarIcon, TagsIcon } from 'lucide
 import type { Media } from '../../type'
 import { useRouter } from 'vue-router'
 import { update_media_watched, update_media_watch_list } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{
@@ -83,7 +84,7 @@ async function toggleWatched() {
       watched: newWatchedState,
     })
   } catch (error) {
-    console.error('Failed to update watched status:', error)
+    handleFrontendError('home.media.toggle_watched', error, 'Failed to update watched status')
   }
 }
 
@@ -98,7 +99,7 @@ async function toggleWatchList() {
       watch_list: newWatchListState,
     })
   } catch (error) {
-    console.error('Failed to update watchlist status:', error)
+    handleFrontendError('home.media.toggle_watchlist', error, 'Failed to update watchlist status')
   }
 }
 </script>

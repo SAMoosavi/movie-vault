@@ -97,6 +97,7 @@ import { toast } from 'vue3-toastify'
 import { useMediasStore } from '@/stores/medias'
 import { useDirsStore } from '@/stores/Dirs'
 import { sync_files } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const isCollapsed = ref(false)
 
@@ -123,8 +124,7 @@ async function onAddDirectory() {
     toast.success(`Successfully added directory with ${addedCount} items!`)
   } catch (error) {
     dirsStore.removeLastDirectory()
-    console.error(error)
-    toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    handleFrontendError('navbar.add_directory', error, 'Failed to add directory')
   }
 }
 </script>

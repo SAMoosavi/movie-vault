@@ -53,6 +53,7 @@ import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 // --- Functions ---
 import { sync_files } from '@/functions/invoker'
 import { toast } from 'vue3-toastify'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- State ---
 const dirsStore = useDirsStore()
@@ -75,8 +76,7 @@ async function handleAddDirectory() {
     }
   } catch (error) {
     dirsStore.removeLastDirectory()
-    console.error('Failed to add directory:', error)
-    toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    handleFrontendError('settings.directory.add', error, 'Failed to add directory')
   }
 }
 

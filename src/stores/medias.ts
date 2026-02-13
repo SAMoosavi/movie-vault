@@ -3,7 +3,8 @@ import type { Media } from '../type'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useFiltersStore } from './Filters'
-import { info, error } from '@tauri-apps/plugin-log'
+import { info } from '@tauri-apps/plugin-log'
+import { logFrontendError } from '@/functions/errorHandling'
 
 export const useMediasStore = defineStore('medias', () => {
   const filtersStore = useFiltersStore()
@@ -17,7 +18,8 @@ export const useMediasStore = defineStore('medias', () => {
       medias.value = medias.value.concat(newMedias)
       await info(`Loaded page ${page.value} with ${newMedias.length} new media items.`)
     } catch (err) {
-      await error(`Failed to load next page: ${err}`)
+      logFrontendError('store.medias.next_page', err)
+      throw err
     }
   }
 
@@ -25,7 +27,7 @@ export const useMediasStore = defineStore('medias', () => {
     try {
       return await filter_medias(filtersStore.filters, page.value)
     } catch (err) {
-      await error(`Failed to get data: ${err}`)
+      logFrontendError('store.medias.get_data', err)
       throw err
     }
   }
@@ -36,7 +38,8 @@ export const useMediasStore = defineStore('medias', () => {
       medias.value = await get_data()
       await info('Media list reloaded successfully.')
     } catch (err) {
-      await error(`Failed to reload media list: ${err}`)
+      logFrontendError('store.medias.reload', err)
+      throw err
     }
   }
 

@@ -331,6 +331,7 @@ import { useFiltersStore } from '@/stores/Filters'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { get_people, get_countries, get_genres, get_tags } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Components & types ---
 import AutocompleteSelect from '../AutocompleteSelect.vue'
@@ -358,7 +359,7 @@ onMounted(async () => {
     people.value = peopleData
     tags.value = tagsData.map((tag) => [tag.id, tag.name])
   } catch (e) {
-    console.error('Data fetching error:', e)
+    handleFrontendError('home.filters.load', e, 'Failed to load filter data')
   }
 })
 

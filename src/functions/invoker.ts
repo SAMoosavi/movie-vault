@@ -1,11 +1,13 @@
 import type { FilterValues, NumericalString, Media, Tag } from '../type'
 import { invoke } from '@tauri-apps/api/core'
 import { normalizeInvokeError } from './errorMessage'
+import { logFrontendError } from './errorHandling'
 
 async function invokeCommand<T>(command: string, payload?: Record<string, unknown>): Promise<T> {
   try {
     return await invoke<T>(command, payload)
   } catch (error: unknown) {
+    logFrontendError(`invoke.${command}`, error)
     throw normalizeInvokeError(error, `Command failed: ${command}`)
   }
 }

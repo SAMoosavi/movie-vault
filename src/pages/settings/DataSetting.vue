@@ -20,7 +20,7 @@ import { readTextFile } from '@tauri-apps/plugin-fs'
 import { toast } from 'vue3-toastify'
 import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 import { export_data, import_data } from '@/functions/invoker'
-import { getErrorMessage } from '@/functions/errorMessage'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const isExporting = ref(false)
 const isImporting = ref(false)
@@ -48,9 +48,7 @@ const exportData = async () => {
 
     toast.success('Export completed successfully!')
   } catch (error: unknown) {
-    const message = getErrorMessage(error)
-    console.error('Export failed:', message, error)
-    toast.error('Export failed: ' + message)
+    handleFrontendError('settings.data.export', error, 'Export failed')
   } finally {
     isExporting.value = false
   }
@@ -83,9 +81,7 @@ const importData = async () => {
 
     toast.success('Data imported successfully!')
   } catch (error: unknown) {
-    const message = getErrorMessage(error)
-    console.error('Import failed:', message, error)
-    toast.error('Import failed: ' + message)
+    handleFrontendError('settings.data.import', error, 'Import failed')
   } finally {
     isImporting.value = false
   }

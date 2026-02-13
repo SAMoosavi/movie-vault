@@ -71,8 +71,7 @@ import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- Update functions ---
 import { getUpdateSettings, handleUpdateCheck, setAutoUpdate } from '@/functions/update.ts'
-
-import { toast } from 'vue3-toastify'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- App Version ---
 const appVersion = packageData.version
@@ -100,14 +99,18 @@ const developerInfo = ref({
 watch(autoUpdate, saveSettings)
 
 async function saveSettings() {
-  await setAutoUpdate(autoUpdate.value)
+  try {
+    await setAutoUpdate(autoUpdate.value)
+  } catch (error: unknown) {
+    handleFrontendError('settings.about.auto_update', error, 'Failed to save auto-update setting')
+  }
 }
 
 async function checkNow() {
   try {
     await handleUpdateCheck({ notifyIfUpToDate: true })
   } catch (error) {
-    toast.error('Failed to check updates: ' + (error instanceof Error ? error.message : String(error)))
+    handleFrontendError('settings.about.check_updates', error, 'Failed to check updates')
   }
 }
 

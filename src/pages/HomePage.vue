@@ -35,7 +35,6 @@
 <script setup lang="ts">
 // --- Vue & toast ---
 import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
-import { toast } from 'vue3-toastify'
 
 // --- Components ---
 import FilterMedias from '@/component/home_page/FilterMedias.vue'
@@ -49,6 +48,7 @@ import MediaList from '@/component/home_page/MediaList.vue'
 import { useMediasStore } from '@/stores/medias'
 import { useFiltersStore } from '@/stores/Filters'
 import { storeToRefs } from 'pinia'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Types ---
 import type { Media } from '../type'
@@ -93,7 +93,7 @@ async function fetchMovies() {
   try {
     await mediasStore.reload()
   } catch (error) {
-    toast.error(`Failed to reload movies: ${error}`)
+    handleFrontendError('home.fetch_movies', error, 'Failed to reload movies')
   } finally {
     isLoading.value = false
   }
@@ -109,7 +109,7 @@ async function handleScroll() {
       await mediasStore.get_next_page()
       await new Promise((r) => setTimeout(r, 400))
     } catch (error) {
-      toast.error(`Failed to load more movies: ${error}`)
+      handleFrontendError('home.load_more_movies', error, 'Failed to load more movies')
     } finally {
       isFetchingMore.value = false
     }

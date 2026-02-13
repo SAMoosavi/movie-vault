@@ -2,9 +2,9 @@ import { Store } from '@tauri-apps/plugin-store'
 import { check, Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
 import { getVersion } from '@tauri-apps/api/app'
-import { info, error } from '@tauri-apps/plugin-log'
+import { info } from '@tauri-apps/plugin-log'
 import { toast } from 'vue3-toastify'
-import { getErrorMessage } from '@/functions/errorMessage'
+import { handleFrontendError, logFrontendError } from '@/functions/errorHandling'
 
 // Types
 interface UpdateSettings {
@@ -40,7 +40,7 @@ export async function getUpdateSettings(): Promise<UpdateSettings> {
     const autoUpdate = (await store.get<boolean>('autoUpdate')) ?? false
     return { autoUpdate }
   } catch (err) {
-    error(`Failed to load update settings: ${err}`)
+    logFrontendError('update.settings.load', err)
     return { autoUpdate: false }
   }
 }
@@ -52,8 +52,7 @@ export async function setAutoUpdate(enabled: boolean): Promise<void> {
     await store.save()
     info(`Auto-update ${enabled ? 'enabled' : 'disabled'}`)
   } catch (err) {
-    const message = getErrorMessage(err)
-    error(`Failed to save auto-update setting: ${message}`)
+    const message = logFrontendError('update.settings.save', err)
     throw new Error(message)
   }
 }
@@ -74,8 +73,7 @@ export async function checkForUpdates(): Promise<Update | null> {
 
     return update
   } catch (err) {
-    const message = getErrorMessage(err)
-    error(`Update check failed: ${message}`)
+    const message = logFrontendError('update.check', err)
     throw new Error(message)
   }
 }
@@ -117,9 +115,7 @@ export async function handleUpdateCheck(options: HandleUpdateCheckOptions = {}):
     try {
       await installUpdate(update)
     } catch (err) {
-      const message = getErrorMessage(err)
-      error(`Auto-update failed: ${message}`)
-      toast.error('Update failed: ' + message)
+      handleFrontendError('update.install.auto', err, 'Update failed')
     }
   } else {
     toast.info(`Update ${version} available`, {
@@ -131,9 +127,7 @@ export async function handleUpdateCheck(options: HandleUpdateCheckOptions = {}):
         try {
           await installUpdate(update)
         } catch (err) {
-          const message = getErrorMessage(err)
-          error(`Manual update failed: ${message}`)
-          toast.error('Update failed: ' + message)
+          handleFrontendError('update.install.manual', err, 'Update failed')
         }
       },
     })

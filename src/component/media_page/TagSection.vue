@@ -53,8 +53,8 @@
 import { computed, onMounted, ref } from 'vue'
 import type { Media, Tag } from '../../type'
 import { get_tags, insert_media_tag, remove_media_tag } from '@/functions/invoker'
-import { toast } from 'vue3-toastify'
 import { TagIcon, PlusIcon, XCircleIcon } from 'lucide-vue-next'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 /* Props */
 const props = defineProps<{ media: Media }>()
@@ -84,8 +84,7 @@ async function addTagToMedia() {
     selectedTagId.value = 0 // Reset selector
     fetchMedia()
   } catch (err) {
-    toast.error('Failed to add tag')
-    console.error(err)
+    handleFrontendError('media.tag.add', err, 'Failed to add tag')
   }
 }
 
@@ -94,8 +93,7 @@ async function removeTag(tagId: number) {
     await remove_media_tag(props.media.id, tagId)
     fetchMedia()
   } catch (err) {
-    toast.error('Failed to remove tag')
-    console.error(err)
+    handleFrontendError('media.tag.remove', err, 'Failed to remove tag')
   }
 }
 
@@ -104,7 +102,7 @@ onMounted(async () => {
   try {
     tags.value = await get_tags()
   } catch (err) {
-    console.error(err)
+    handleFrontendError('media.tag.load', err, 'Failed to load tags')
   }
 })
 </script>

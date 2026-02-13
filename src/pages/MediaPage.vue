@@ -38,11 +38,11 @@
 <script setup lang="ts">
 // --- External ---
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { toast } from 'vue3-toastify'
 
 // --- Routing & types ---
 import { useRouter, useRoute } from 'vue-router'
 import type { Media } from '../type'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Functions & components ---
 import { get_media_by_id } from '@/functions/invoker'
@@ -70,13 +70,13 @@ function goBack() {
 }
 
 // Fetch media data by ID (safer error handling)
-function fetchMedia() {
-  get_media_by_id(Number(route.params.id))
-    .then((data) => (media.value = data))
-    .catch((error) => {
-      toast.error(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Failed to fetch media')
-      goBack()
-    })
+async function fetchMedia() {
+  try {
+    media.value = await get_media_by_id(Number(route.params.id))
+  } catch (error) {
+    handleFrontendError('media.page.fetch', error, 'Failed to fetch media')
+    goBack()
+  }
 }
 
 // --- Edit mode handlers ---
