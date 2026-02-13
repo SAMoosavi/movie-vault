@@ -34,8 +34,12 @@ struct AppState {
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SyncFileProgressBare {
-    inserted: usize,
+    processed: usize,
     total: usize,
+    inserted_new: usize,
+    merged_existing: usize,
+    imdb_enriched: usize,
+    imdb_failures: usize,
 }
 
 fn to_frontend_error(context: &str, err: anyhow::Error) -> String {
@@ -77,44 +81,80 @@ async fn sync_files(
         }
 
         let chunk_size = 50;
-        let mut inserted = 0usize;
+        let mut processed = 0usize;
+        let mut inserted_new = 0usize;
+        let mut merged_existing = 0usize;
+        let mut imdb_enriched = 0usize;
+        let mut imdb_failures = 0usize;
 
         for (i, chunk_slice) in metadata.chunks(chunk_size).enumerate() {
             let mut chunk = chunk_slice.to_vec();
             info!(
                 "Processing chunk {} (items {}..{})",
                 i + 1,
-                inserted + 1,
-                inserted + chunk.len()
+                processed + 1,
+                processed + chunk.len()
             );
 
-            fetch_imdb::set_imdb_data(&mut chunk)
+            let imdb_stats = fetch_imdb::set_imdb_data(&mut chunk)
                 .await
                 .with_context(|| format!("failed to enrich imdb data for chunk {}", i + 1))?;
-            info!("Fetched IMDB data for chunk {}", i + 1);
+            imdb_enriched += imdb_stats.enriched;
+            imdb_failures += imdb_stats.failed_total();
 
-            db.insert_medias(&chunk)
+            if imdb_stats.failed_total() > 0 {
+                warn!(
+                    "Chunk {} IMDB enrichment partial failure: requested={}, enriched={}, id_lookup_failed={}, batch_missing={}, batch_fetch_failed={}",
+                    i + 1,
+                    imdb_stats.requested,
+                    imdb_stats.enriched,
+                    imdb_stats.id_lookup_failed,
+                    imdb_stats.batch_missing,
+                    imdb_stats.batch_fetch_failed
+                );
+            } else {
+                info!("Fetched IMDB data for chunk {}", i + 1);
+            }
+
+            let db_stats = db
+                .insert_medias(&chunk)
                 .with_context(|| format!("failed to insert chunk {} into DB", i + 1))?;
 
-            inserted += chunk.len();
+            processed += chunk.len();
+            inserted_new += db_stats.inserted_new;
+            merged_existing += db_stats.merged_existing;
             info!(
-                "Inserted {} items from chunk {} (total inserted: {} / {})",
-                chunk.len(),
+                "Chunk {} DB upsert stats: inserted_new={}, merged_existing={} (processed {} / {})",
                 i + 1,
-                inserted,
-                total
+                db_stats.inserted_new,
+                db_stats.merged_existing,
+                processed,
+                total,
             );
 
-            let progress = SyncFileProgressBare { inserted, total };
+            let progress = SyncFileProgressBare {
+                processed,
+                total,
+                inserted_new,
+                merged_existing,
+                imdb_enriched,
+                imdb_failures,
+            };
             if let Err(e) = app_handle.emit("sync-progress", progress) {
                 error!("Failed to emit sync-progress for chunk {}: {}", i + 1, e);
             } else {
-                info!("Emitted sync-progress: {inserted}/{total}");
+                info!(
+                    "Emitted sync-progress: processed={}/{}, inserted_new={}, merged_existing={}, imdb_enriched={}, imdb_failures={}",
+                    processed, total, inserted_new, merged_existing, imdb_enriched, imdb_failures
+                );
             }
         }
 
-        info!("sync_files completed successfully, inserted {inserted} items");
-        Ok(inserted)
+        info!(
+            "sync_files completed successfully: processed={}, inserted_new={}, merged_existing={}, imdb_enriched={}, imdb_failures={}",
+            processed, inserted_new, merged_existing, imdb_enriched, imdb_failures
+        );
+        Ok(inserted_new)
     }
     .await;
 

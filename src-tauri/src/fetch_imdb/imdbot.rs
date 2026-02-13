@@ -1,8 +1,9 @@
-use super::freeimdb;
+use super::{ImdbSyncStats, freeimdb};
 use crate::data_model::Media;
 use anyhow::{Result, anyhow};
 use futures::future::join_all;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tauri_plugin_http::reqwest::Client;
 use tauri_plugin_log::log::{error, info, warn};
 
@@ -64,9 +65,13 @@ async fn get_imdb_id(client: &Client, media: &Media) -> Result<String> {
         })
 }
 
-pub async fn set_imdb_data(medias: &mut [Media]) -> Result<()> {
+pub async fn set_imdb_data(medias: &mut [Media]) -> Result<ImdbSyncStats> {
     info!("Starting set_imdb_data for {} media items", medias.len());
     let client = Client::new();
+    let mut stats = ImdbSyncStats {
+        requested: medias.len(),
+        ..ImdbSyncStats::default()
+    };
 
     let results = join_all(medias.iter_mut().map(|media| {
         let client = client.clone();
@@ -86,11 +91,20 @@ pub async fn set_imdb_data(medias: &mut [Media]) -> Result<()> {
     }))
     .await;
 
-    let mut pairs: Vec<_> = results.into_iter().filter_map(Result::ok).collect();
+    let mut pairs = Vec::new();
+    for result in results {
+        match result {
+            Ok(pair) => pairs.push(pair),
+            Err(err) => {
+                stats.id_lookup_failed += 1;
+                warn!("IMDB ID lookup failed: {}", err);
+            }
+        }
+    }
 
     if pairs.is_empty() {
         warn!("No IMDB IDs were found for any media items");
-        return Ok(());
+        return Ok(stats);
     }
 
     let ids: Vec<_> = pairs.iter().map(|(id, _)| id.clone()).collect();
@@ -99,28 +113,47 @@ pub async fn set_imdb_data(medias: &mut [Media]) -> Result<()> {
     match freeimdb::process_movies(ids).await {
         Ok(imdbs) => {
             info!("Successfully fetched {} IMDB records", imdbs.len());
-            for imdb in imdbs {
-                if let Some((_, media)) = pairs.iter_mut().find(|(id, _)| id == &imdb.imdb_id) {
-                    info!(
-                        "Attaching IMDB data (id {}) to media '{}'",
-                        imdb.imdb_id, media.name
-                    );
-                    media.imdb = Some(imdb);
+            let imdb_by_id: HashMap<String, crate::data_model::Imdb> = imdbs
+                .into_iter()
+                .map(|imdb| (imdb.imdb_id.clone(), imdb))
+                .collect();
+
+            for (id, media) in pairs {
+                if let Some(imdb) = imdb_by_id.get(&id) {
+                    info!("Attaching IMDB data (id {}) to media '{}'", imdb.imdb_id, media.name);
+                    media.imdb = Some(imdb.clone());
+                    stats.enriched += 1;
                 } else {
-                    error!(
-                        "Received IMDB data for id {} but no matching media was found",
-                        imdb.imdb_id
+                    stats.batch_missing += 1;
+                    warn!(
+                        "No IMDB payload returned for id {} (media '{}')",
+                        id, media.name
                     );
                 }
             }
         }
         Err(err) => {
-            error!("Failed to fetch movies batch: {}", err);
-            return Err(anyhow!("failed to fetch imdb batch data: {err}"));
+            stats.batch_fetch_failed += pairs.len();
+            warn!(
+                "Failed to fetch IMDB batch data for {} items: {}",
+                pairs.len(),
+                err
+            );
         }
     }
 
-    Ok(())
+    if stats.failed_total() > 0 {
+        warn!(
+            "IMDB enrichment completed with failures: requested={}, enriched={}, id_lookup_failed={}, batch_missing={}, batch_fetch_failed={}",
+            stats.requested,
+            stats.enriched,
+            stats.id_lookup_failed,
+            stats.batch_missing,
+            stats.batch_fetch_failed
+        );
+    }
+
+    Ok(stats)
 }
 
 #[cfg(test)]
@@ -160,7 +193,10 @@ mod real_api_test {
         ));
 
         let mut medias = vec![m1, m2];
-        super::set_imdb_data(&mut medias).await.unwrap();
+        let stats = super::set_imdb_data(&mut medias).await.unwrap();
+        assert_eq!(stats.requested, 2);
+        assert_eq!(stats.enriched, 2);
+        assert_eq!(stats.failed_total(), 0);
 
         let new_m1 = &medias[0];
         assert_eq!(new_m1.name, "black mirror");

@@ -24,6 +24,7 @@
 <script setup lang="ts">
 // --- External Libraries ---
 import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
+import { toast } from 'vue3-toastify'
 
 // --- Local Components ---
 import AppNavbar from './component/AppNavbar.vue'
@@ -59,8 +60,12 @@ function stopWatching() {
 }
 
 interface SyncFileProgressBare {
-  inserted: number
+  processed: number
   total: number
+  insertedNew: number
+  mergedExisting: number
+  imdbEnriched: number
+  imdbFailures: number
 }
 
 const progress = ref(0)
@@ -69,12 +74,21 @@ let unlistenProgress: EventUnlistenFn | null = null
 
 async function setupProgressListener() {
   unlistenProgress = await listen<SyncFileProgressBare>('sync-progress', (event) => {
-    const { inserted, total } = event.payload
-    progress.value = total > 0 ? Math.round((inserted / total) * 100) : 0
+    const { processed, total, insertedNew, mergedExisting, imdbEnriched, imdbFailures } = event.payload
+    progress.value = total > 0 ? Math.round((processed / total) * 100) : 0
     showProgress.value = true
     console.log(`Sync progress: ${progress.value}%`)
 
-    if (inserted === total) {
+    if (processed === total) {
+      if (imdbFailures > 0) {
+        toast.warning(
+          `Sync completed with partial IMDb enrichment (${imdbFailures} failed, ${imdbEnriched} enriched).`,
+        )
+      } else {
+        info(
+          `Sync completed successfully: inserted_new=${insertedNew}, merged_existing=${mergedExisting}, imdb_enriched=${imdbEnriched}`,
+        )
+      }
       setTimeout(() => (showProgress.value = false), 500)
     }
   })

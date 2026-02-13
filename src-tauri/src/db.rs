@@ -80,9 +80,15 @@ pub struct FilterValues {
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct InsertMediasStats {
+    pub inserted_new: usize,
+    pub merged_existing: usize,
+}
+
 #[automock]
 pub trait DB {
-    fn insert_medias(&self, medias: &[Media]) -> Result<()>;
+    fn insert_medias(&self, medias: &[Media]) -> Result<InsertMediasStats>;
     fn delete_media(&self, media_id: IdType) -> Result<()>;
     fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize>;
     fn update_watch_list(&self, media_id: IdType, watch_list: bool) -> Result<()>;

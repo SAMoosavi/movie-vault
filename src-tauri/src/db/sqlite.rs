@@ -2,8 +2,8 @@ mod data_models;
 pub mod schema;
 
 use super::{
-    ContentType, DB, FilterValues, MultiFileFilterType, NumericalString, Result, SortByType,
-    SortDirectionType,
+    ContentType, DB, FilterValues, InsertMediasStats, MultiFileFilterType, NumericalString,
+    Result, SortByType, SortDirectionType,
 };
 use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
@@ -52,6 +52,11 @@ impl fmt::Display for PersonType {
 
 pub struct Sqlite {
     pool: DbPool,
+}
+
+struct InsertMediaOutcome {
+    media_id: IdType,
+    inserted_new: bool,
 }
 
 impl Sqlite {
@@ -229,7 +234,7 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<IdType> {
+    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<InsertMediaOutcome> {
         let imdb_id = media.imdb.as_ref().map(|imdb| imdb.imdb_id.as_str());
 
         if let Some(imdb) = &media.imdb {
@@ -255,9 +260,9 @@ impl Sqlite {
                 .optional()?
         };
 
-        let id = if let Some(id) = existing_media_id {
+        let (id, inserted_new) = if let Some(id) = existing_media_id {
             // Media already exists, use the existing ID
-            id
+            (id, false)
         } else {
             // Prepare new media for insertion
             let new = NewMedia {
@@ -275,7 +280,11 @@ impl Sqlite {
                 .execute(conn)?;
 
             // Retrieve the last inserted ID
-            diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)? as i32
+            (
+                diesel::select(sql::<BigInt>("last_insert_rowid()"))
+                    .get_result::<i64>(conn)? as i32,
+                true,
+            )
         };
 
         for season in &media.seasons {
@@ -284,7 +293,10 @@ impl Sqlite {
 
         Self::insert_files(conn, &media.files, Some(id), None)?;
 
-        Ok(id)
+        Ok(InsertMediaOutcome {
+            media_id: id,
+            inserted_new,
+        })
     }
 
     fn insert_season(conn: &mut SqliteConnection, media_id: IdType, season: &Season) -> Result<()> {
@@ -884,12 +896,18 @@ impl Sqlite {
 }
 
 impl DB for Sqlite {
-    fn insert_medias(&self, media_list: &[Media]) -> Result<()> {
+    fn insert_medias(&self, media_list: &[Media]) -> Result<InsertMediasStats> {
         self.get_conn()?.transaction(|conn| {
+            let mut stats = InsertMediasStats::default();
             for media in media_list {
-                Self::insert_media(conn, media)?;
+                let outcome = Self::insert_media(conn, media)?;
+                if outcome.inserted_new {
+                    stats.inserted_new += 1;
+                } else {
+                    stats.merged_existing += 1;
+                }
             }
-            Ok(())
+            Ok(stats)
         })
     }
 
@@ -944,13 +962,13 @@ impl DB for Sqlite {
             let imdb = Self::get_imdb(conn, Some(imdb_id.into()))?;
             media.imdb = imdb;
 
-            Self::insert_media(conn, &media)
+            Ok(Self::insert_media(conn, &media)?.media_id)
         })
     }
 
     fn insert_media(&self, media: &Media) -> Result<IdType> {
         self.get_conn()?
-            .transaction(|conn| Self::insert_media(conn, media))
+            .transaction(|conn| Ok(Self::insert_media(conn, media)?.media_id))
     }
 
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()> {
@@ -1315,7 +1333,7 @@ impl DB for Sqlite {
 
             // Insert medias
             for media in &data.medias {
-                Self::insert_media(conn, media)?;
+                let _ = Self::insert_media(conn, media)?;
             }
 
             Ok(())
