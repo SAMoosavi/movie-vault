@@ -94,6 +94,7 @@ async function updated(id: number) {
 let interval = 0
 
 onMounted(() => {
+  // check each 100ms if metadata changed find and update
   interval = setInterval(fetchMedia, 100)
 })
 

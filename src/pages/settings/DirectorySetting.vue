@@ -62,22 +62,48 @@ const mediasStore = useMediasStore()
 // Computed
 const directoryPaths = computed(() => dirsStore.directoryPaths)
 
+function normalizeDirectoryPath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/$/, '')
+}
+
 async function handleAddDirectory() {
-  try {
-    const selected = await open({
-      directory: true,
-      multiple: false,
-    })
-    if (selected && typeof selected === 'string') {
-      dirsStore.addDirectory(selected)
-      const addedCount = await sync_files(selected)
-      await mediasStore.reload()
-      toast.success(`Successfully added directory with ${addedCount} items!`)
-    }
-  } catch (error) {
-    dirsStore.removeLastDirectory()
-    handleFrontendError('settings.directory.add', error, 'Failed to add directory')
+  const selected = await open({
+    directory: true,
+    multiple: false,
+  })
+
+  if (!selected || typeof selected !== 'string') {
+    return
   }
+
+  const normalizedDirectory = normalizeDirectoryPath(selected)
+  const wasAdded = dirsStore.addDirectory(normalizedDirectory)
+  if (!wasAdded) {
+    toast.warning('Directory already exists or is already covered by another directory.')
+    return
+  }
+
+  let addedCount = 0
+  try {
+    addedCount = await sync_files(normalizedDirectory)
+  } catch (error) {
+    dirsStore.removeDirectory(normalizedDirectory)
+    handleFrontendError('settings.directory.add.sync', error, 'Failed to sync added directory')
+    return
+  }
+
+  try {
+    await mediasStore.reload()
+  } catch (error) {
+    handleFrontendError(
+      'settings.directory.add.reload',
+      error,
+      'Directory added and synced, but failed to refresh media list',
+    )
+    return
+  }
+
+  toast.success(`Successfully added directory with ${addedCount} items!`)
 }
 
 async function handleRemoveDirectory(dir: string) {
