@@ -26,6 +26,7 @@
                   <span>Season {{ season.number }}</span>
                   <button
                     class="z-10 flex cursor-pointer items-center gap-2"
+                    :disabled="isSeasonPending(season.id)"
                     @click="setWatchedSeason(season.id, !season.watched)"
                   >
                     <div v-if="season.watched" class="badge badge-lg badge-success gap-1">
@@ -48,6 +49,7 @@
                         <span>Episode {{ episode.number }}</span>
                         <button
                           class="z-10 flex cursor-pointer items-center gap-2"
+                          :disabled="isEpisodePending(episode.id)"
                           @click="setWatchedEpisode(episode.id, !episode.watched)"
                         >
                           <div v-if="episode.watched" class="badge badge-lg badge-success gap-1">
@@ -84,7 +86,7 @@
 
 <script setup lang="ts">
 // --- External Libraries ---
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { FileText, Eye, EyeOff } from 'lucide-vue-next'
 
 // --- Local Components ---
@@ -93,6 +95,7 @@ import FileRow from './FileRow.vue'
 // --- Types ---
 import type { Media } from '@/type'
 import { update_episode_watched, update_season_watched } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Props definition ---
 interface Props {
@@ -109,14 +112,55 @@ function fetchMedia() {
   emit('fetch-media')
 }
 
+const pendingEpisodeIds = ref<Set<number>>(new Set())
+const pendingSeasonIds = ref<Set<number>>(new Set())
+
+function setPendingEpisode(episodeId: number, pending: boolean) {
+  const next = new Set(pendingEpisodeIds.value)
+  if (pending) next.add(episodeId)
+  else next.delete(episodeId)
+  pendingEpisodeIds.value = next
+}
+
+function setPendingSeason(seasonId: number, pending: boolean) {
+  const next = new Set(pendingSeasonIds.value)
+  if (pending) next.add(seasonId)
+  else next.delete(seasonId)
+  pendingSeasonIds.value = next
+}
+
+function isEpisodePending(episodeId: number): boolean {
+  return pendingEpisodeIds.value.has(episodeId)
+}
+
+function isSeasonPending(seasonId: number): boolean {
+  return pendingSeasonIds.value.has(seasonId)
+}
+
 async function setWatchedEpisode(episodeId: number, newState: boolean) {
-  await update_episode_watched(episodeId, newState)
-  fetchMedia()
+  if (isEpisodePending(episodeId)) return
+  setPendingEpisode(episodeId, true)
+  try {
+    await update_episode_watched(episodeId, newState)
+    fetchMedia()
+  } catch (error) {
+    handleFrontendError('media.files.toggle_episode_watched', error, 'Failed to update episode watched status')
+  } finally {
+    setPendingEpisode(episodeId, false)
+  }
 }
 
 async function setWatchedSeason(seasonId: number, newState: boolean) {
-  await update_season_watched(seasonId, newState)
-  fetchMedia()
+  if (isSeasonPending(seasonId)) return
+  setPendingSeason(seasonId, true)
+  try {
+    await update_season_watched(seasonId, newState)
+    fetchMedia()
+  } catch (error) {
+    handleFrontendError('media.files.toggle_season_watched', error, 'Failed to update season watched status')
+  } finally {
+    setPendingSeason(seasonId, false)
+  }
 }
 
 // --- Helper: Check if media has files ---

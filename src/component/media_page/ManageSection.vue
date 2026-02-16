@@ -13,17 +13,17 @@
             <component :is="isEditing ? XCircleIcon : PencilIcon" class="h-5 w-5" />
           </button>
 
-          <button class="btn btn-outline w-full justify-between" @click="toggleWatchList">
+          <button class="btn btn-outline w-full justify-between" :disabled="isWatchListPending" @click="toggleWatchList">
             <span>{{ media.watch_list ? 'Remove from Watchlist' : 'Add to Watchlist' }}</span>
             <component :is="media.watch_list ? BookmarkMinusIcon : BookmarkPlusIcon" class="h-5 w-5" />
           </button>
 
-          <button class="btn btn-outline w-full justify-between" @click="toggleWatched">
+          <button class="btn btn-outline w-full justify-between" :disabled="isWatchedPending" @click="toggleWatched">
             <span>{{ media.watched ? 'Watched' : 'Not watched' }}</span>
             <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
           </button>
 
-          <button class="btn btn-error w-full justify-between" @click="showDeleteModal = true">
+          <button class="btn btn-error w-full justify-between" :disabled="isDeletePending" @click="showDeleteModal = true">
             <span>Delete Media</span>
             <TrashIcon class="h-5 w-5" />
           </button>
@@ -47,7 +47,10 @@
                   v-for="i in 5"
                   :key="i"
                   class="text-warning h-5 w-5 transform cursor-pointer transition-colors duration-200 hover:scale-110"
-                  :class="{ 'fill-warning': media.my_ranking >= i }"
+                  :class="{
+                    'fill-warning': media.my_ranking >= i,
+                    'pointer-events-none opacity-50': isRankingPending,
+                  }"
                   @click="setRanking(i)"
                 />
               </div>
@@ -97,6 +100,7 @@ import {
   update_media_watched,
   delete_media,
 } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 import Modal from '../Modal.vue'
 
 import { ref } from 'vue'
@@ -109,28 +113,65 @@ const emit = defineEmits<{
 }>()
 
 const showDeleteModal = ref(false)
+const isWatchListPending = ref(false)
+const isWatchedPending = ref(false)
+const isRankingPending = ref(false)
+const isDeletePending = ref(false)
 
 function fetchMedia() {
   emit('fetch-media')
 }
 
 async function toggleWatched() {
-  await update_media_watched(props.media.id, !props.media.watched)
-  fetchMedia()
+  if (isWatchedPending.value) return
+  isWatchedPending.value = true
+  try {
+    await update_media_watched(props.media.id, !props.media.watched)
+    fetchMedia()
+  } catch (error) {
+    handleFrontendError('media.manage.toggle_watched', error, 'Failed to update watched status')
+  } finally {
+    isWatchedPending.value = false
+  }
 }
+
 async function toggleWatchList() {
-  await update_media_watch_list(props.media.id, !props.media.watch_list)
-  fetchMedia()
+  if (isWatchListPending.value) return
+  isWatchListPending.value = true
+  try {
+    await update_media_watch_list(props.media.id, !props.media.watch_list)
+    fetchMedia()
+  } catch (error) {
+    handleFrontendError('media.manage.toggle_watch_list', error, 'Failed to update watch list status')
+  } finally {
+    isWatchListPending.value = false
+  }
 }
 
 async function setRanking(rank: number) {
-  await update_media_my_ranking(props.media.id, rank)
-  fetchMedia()
+  if (isRankingPending.value) return
+  isRankingPending.value = true
+  try {
+    await update_media_my_ranking(props.media.id, rank)
+    fetchMedia()
+  } catch (error) {
+    handleFrontendError('media.manage.set_ranking', error, 'Failed to update ranking')
+  } finally {
+    isRankingPending.value = false
+  }
 }
 
 async function confirmDelete() {
-  await delete_media(props.media.id)
-  showDeleteModal.value = false
-  emit('delete-media')
+  if (isDeletePending.value) return
+  isDeletePending.value = true
+  try {
+    await delete_media(props.media.id)
+    showDeleteModal.value = false
+    emit('delete-media')
+  } catch (error) {
+    handleFrontendError('media.manage.delete', error, 'Failed to delete media')
+  } finally {
+    isDeletePending.value = false
+  }
 }
 </script>

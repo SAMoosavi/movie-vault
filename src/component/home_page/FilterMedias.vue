@@ -290,23 +290,25 @@
                 class="btn filter-reset btn-error"
                 type="radio"
                 @click="filters.type = 'all'"
-                name="watch_list"
+                name="type"
                 aria-label="All"
-                :checked="filters.type === null"
+                :checked="filters.type === 'all'"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
                 @click="filters.type = 'movie'"
-                name="watch_list"
+                name="type"
                 aria-label="Movies"
+                :checked="filters.type === 'movie'"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
                 @click="filters.type = 'series'"
-                name="watch_list"
+                name="type"
                 aria-label="Series"
+                :checked="filters.type === 'series'"
               />
             </div>
           </div>
