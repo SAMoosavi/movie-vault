@@ -31,19 +31,21 @@ import AppNavbar from './component/AppNavbar.vue'
 
 // --- Tauri API ---
 import { watch as fsWatch, stat, type UnwatchFn } from '@tauri-apps/plugin-fs'
-import { listen } from '@tauri-apps/api/event'
+import { listen, type UnlistenFn as EventUnlistenFn } from '@tauri-apps/api/event'
 import { dirname, normalize } from '@tauri-apps/api/path'
-import { info, error, warn } from '@tauri-apps/plugin-log'
+import { info, warn } from '@tauri-apps/plugin-log'
 
 // --- Stores ---
-import { useDirsStore } from './stores/Dirs'
+import { useDirsStore } from '@/stores/Dirs'
 import { storeToRefs } from 'pinia'
-import { useMediasStore } from './stores/medias.ts'
+import { useMediasStore } from '@/stores/medias.ts'
 
 // --- Functions ---
-import { sync_files } from './functions/invoker'
-import { getDefaultTheme, initStore, loadTheme, setTheme } from './functions/theme.ts'
-import { handleUpdateCheck } from './functions/update.ts'
+import { sync_files } from '@/functions/invoker'
+import { getDefaultTheme, initStore, loadTheme, setTheme } from '@/functions/theme.ts'
+import { handleUpdateCheck } from '@/functions/update.ts'
+import { getErrorMessage } from '@/functions/errorMessage'
+import { handleFrontendError, logFrontendError } from '@/functions/errorHandling'
 
 // --- State ---
 const mediasStore = useMediasStore()
@@ -58,23 +60,37 @@ function stopWatching() {
 }
 
 interface SyncFileProgressBare {
-  inserted: number
+  processed: number
   total: number
+  insertedNew: number
+  mergedExisting: number
+  imdbEnriched: number
+  imdbFailures: number
 }
 
 const progress = ref(0)
 const showProgress = ref(false)
+let unlistenProgress: EventUnlistenFn | null = null
 
-listen<SyncFileProgressBare>('sync-progress', (event) => {
-  const { inserted, total } = event.payload
-  progress.value = total > 0 ? Math.round((inserted / total) * 100) : 0
-  showProgress.value = true
-  console.log(`Sync progress: ${progress.value}%`)
+async function setupProgressListener() {
+  unlistenProgress = await listen<SyncFileProgressBare>('sync-progress', (event) => {
+    const { processed, total, insertedNew, mergedExisting, imdbEnriched, imdbFailures } = event.payload
+    progress.value = total > 0 ? Math.round((processed / total) * 100) : 0
+    showProgress.value = true
+    console.log(`Sync progress: ${progress.value}%`)
 
-  if (inserted === total) {
-    setTimeout(() => (showProgress.value = false), 500)
-  }
-})
+    if (processed === total) {
+      if (imdbFailures > 0) {
+        toast.warning(`Sync completed with partial IMDb enrichment (${imdbFailures} failed, ${imdbEnriched} enriched).`)
+      } else {
+        info(
+          `Sync completed successfully: inserted_new=${insertedNew}, merged_existing=${mergedExisting}, imdb_enriched=${imdbEnriched}`,
+        )
+      }
+      setTimeout(() => (showProgress.value = false), 500)
+    }
+  })
+}
 
 async function resolveToDirectory(inputPath: string) {
   const cleanPath = await normalize(inputPath)
@@ -83,8 +99,8 @@ async function resolveToDirectory(inputPath: string) {
     const info = await stat(cleanPath)
     if (info.isDirectory) return cleanPath
     return await dirname(cleanPath)
-  } catch {
-    warn(`Failed to stat path, using dirname: ${inputPath}`)
+  } catch (error) {
+    warn(`Failed to stat path, using dirname: ${inputPath}. Reason: ${getErrorMessage(error)}`)
     return await dirname(cleanPath)
   }
 }
@@ -98,17 +114,21 @@ async function startWatching(paths: string[]) {
       paths,
       async (e) => {
         if (typeof e.type === 'object' && !('access' in e.type)) {
-          info(`File change detected: ${e.paths.join(', ')}`)
-          for (const path of e.paths) {
-            info(`File change detected: ${path}`)
-            const dir = await resolveToDirectory(path)
-            info(`File change detected dir: ${dir}`)
-            await sync_files(dir)
-            info(`sync_file successfully from ${dir}`)
-          }
+          try {
+            info(`File change detected: ${e.paths.join(', ')}`)
+            for (const path of e.paths) {
+              info(`File change detected: ${path}`)
+              const dir = await resolveToDirectory(path)
+              info(`File change detected dir: ${dir}`)
+              await sync_files(dir)
+              info(`sync_file successfully from ${dir}`)
+            }
 
-          info('reload media')
-          await mediasStore.reload()
+            info('reload media')
+            await mediasStore.reload()
+          } catch (error) {
+            handleFrontendError('app.sync.watch_event', error, 'Automatic sync failed')
+          }
         }
       },
       { recursive: true, delayMs: 1000 },
@@ -116,13 +136,20 @@ async function startWatching(paths: string[]) {
     unwatchFns.push(unwatch)
     info('File watchers started successfully')
   } catch (err) {
-    error(`Failed to set up file watcher for ${paths}: ${err}`)
+    logFrontendError('app.sync.watch_setup', err)
   }
 }
 
 // --- Lifecycle: On mount, initialize theme and sync files ---
 onMounted(async () => {
   info('App mounted: initializing theme and syncing files')
+
+  try {
+    await setupProgressListener()
+    info('Sync progress listener initialized')
+  } catch (error) {
+    logFrontendError('app.sync.progress_listener', error)
+  }
 
   try {
     info('Initializing store for theme')
@@ -133,16 +160,14 @@ onMounted(async () => {
     await setTheme(theme, store)
     info('Theme applied successfully')
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    warn(`Theme initialization failed: ${msg}`)
-    toast.error(msg)
+    handleFrontendError('app.theme.init', e, 'Theme initialization failed')
   }
 
   try {
     info('Checking for updates')
     await handleUpdateCheck()
   } catch (e) {
-    error(`Update check failed: ${e}`)
+    logFrontendError('app.update.check', e)
   }
 
   try {
@@ -156,9 +181,7 @@ onMounted(async () => {
     await mediasStore.reload()
     info('Media store reloaded successfully')
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    error(`Initial sync failed: ${msg}`)
-    toast.error(msg)
+    handleFrontendError('app.sync.initial', e, 'Initial sync failed')
   }
 })
 
@@ -176,5 +199,9 @@ watch(
 onBeforeUnmount(() => {
   info('Cleaning up watchers on unmount')
   stopWatching()
+  if (unlistenProgress) {
+    unlistenProgress()
+    unlistenProgress = null
+  }
 })
 </script>

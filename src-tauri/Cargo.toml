@@ -40,7 +40,7 @@ walkdir = "2"
 regex = "1"
 tempfile = "3.20"
 itertools = "0.14"
-rand = "0.9"
+rand = "0.10"
 
 # Data & Serialization
 serde = { version = "1", features = ["derive"] }

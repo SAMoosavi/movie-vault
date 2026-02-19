@@ -127,7 +127,7 @@
 
 <script setup lang="ts">
 import { UsersIcon, InfoIcon, GlobeIcon, PuzzleIcon } from 'lucide-vue-next'
-import type { Media } from '../../type'
+import type { Media } from '@/type'
 
 defineProps<{ media: Media }>()
 </script>

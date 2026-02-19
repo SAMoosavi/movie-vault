@@ -139,7 +139,11 @@ async fn fetch_movies(client: &Client, ids: &[String], base_url: &str) -> Result
             Ok(resp) => {
                 error!("Request failed with status {}", resp.status());
                 if attempt == MAX_RETRIES {
-                    return Err(resp.error_for_status().unwrap_err().into());
+                    return Err(anyhow!(
+                        "request failed with status {} after {} attempts",
+                        resp.status(),
+                        MAX_RETRIES
+                    ));
                 }
             }
             Err(err) => {
@@ -241,7 +245,12 @@ async fn get_imdb_data_by_id_inner(client: &Client, id: &str, base_url: &str) ->
                     resp.status()
                 );
                 if attempt == MAX_RETRIES {
-                    return Err(resp.error_for_status().unwrap_err().into());
+                    return Err(anyhow!(
+                        "request failed for id {} with status {} after {} attempts",
+                        id,
+                        resp.status(),
+                        MAX_RETRIES
+                    ));
                 }
             }
             Err(err) => {

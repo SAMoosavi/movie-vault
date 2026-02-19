@@ -1,3 +1,4 @@
+use anyhow::{Context, anyhow};
 use futures::future::join_all;
 use std::path::PathBuf;
 use tokio::{fs, task};
@@ -9,15 +10,17 @@ use crate::db::DB;
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "avi"];
 
 /// Recursively scan a directory to find video
-pub async fn find_movies<T: DB + 'static>(
-    db: &T,
-    root: PathBuf,
-) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
+pub async fn find_movies<T: DB + 'static>(db: &T, root: PathBuf) -> anyhow::Result<Vec<PathBuf>> {
     if !root.exists() {
-        return Err(format!("Directory does not exist: {}", root.display()).into());
+        return Err(anyhow!("directory does not exist: {}", root.display()));
     }
 
-    let files = db.get_all_files()?;
+    let files = db.get_all_files().with_context(|| {
+        format!(
+            "failed to fetch existing files from DB for root={}",
+            root.display()
+        )
+    })?;
     let videos = task::spawn_blocking(move || {
         WalkDir::new(root)
             .into_iter()
@@ -33,18 +36,21 @@ pub async fn find_movies<T: DB + 'static>(
             .filter(|path| files.iter().all(|x| x.path != path.to_string_lossy()))
             .collect::<Vec<_>>()
     })
-    .await?;
+    .await
+    .context("walkdir worker task failed")?;
 
     Ok(videos)
 }
 
-async fn find_non_existent_paths<T: DB>(
-    db: &T,
-) -> Result<Vec<PathBuf>, Box<dyn std::error::Error>> {
-    let files = db.get_all_files()?.into_iter().map(|video| async move {
-        let exists = fs::try_exists(&video.path).await.unwrap_or(false);
-        if !exists { Some(video) } else { None }
-    });
+async fn find_non_existent_paths<T: DB>(db: &T) -> anyhow::Result<Vec<PathBuf>> {
+    let files = db
+        .get_all_files()
+        .context("failed to fetch files from DB for stale-path scan")?
+        .into_iter()
+        .map(|video| async move {
+            let exists = fs::try_exists(&video.path).await.unwrap_or(false);
+            if !exists { Some(video) } else { None }
+        });
 
     let paths = join_all(files)
         .await
@@ -56,9 +62,12 @@ async fn find_non_existent_paths<T: DB>(
     Ok(paths)
 }
 
-pub async fn sync_files<T: DB>(db: &T) -> Result<(), Box<dyn std::error::Error>> {
-    let paths = find_non_existent_paths(db).await?;
-    db.remove_file_by_path(&paths)?;
+pub async fn sync_files<T: DB>(db: &T) -> anyhow::Result<()> {
+    let paths = find_non_existent_paths(db)
+        .await
+        .context("failed to locate non-existent paths")?;
+    db.remove_file_by_path(&paths)
+        .with_context(|| format!("failed to remove {} stale file entries", paths.len()))?;
     // db.clear_empty_data()?;
     Ok(())
 }
