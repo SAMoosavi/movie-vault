@@ -120,7 +120,10 @@ pub async fn set_imdb_data(medias: &mut [Media]) -> Result<ImdbSyncStats> {
 
             for (id, media) in pairs {
                 if let Some(imdb) = imdb_by_id.get(&id) {
-                    info!("Attaching IMDB data (id {}) to media '{}'", imdb.imdb_id, media.name);
+                    info!(
+                        "Attaching IMDB data (id {}) to media '{}'",
+                        imdb.imdb_id, media.name
+                    );
                     media.imdb = Some(imdb.clone());
                     stats.enriched += 1;
                 } else {

@@ -2,8 +2,8 @@ mod data_models;
 pub mod schema;
 
 use super::{
-    ContentType, DB, FilterValues, InsertMediasStats, MultiFileFilterType, NumericalString,
-    Result, SortByType, SortDirectionType,
+    ContentType, DB, FilterValues, InsertMediasStats, MultiFileFilterType, NumericalString, Result,
+    SortByType, SortDirectionType,
 };
 use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
@@ -281,8 +281,8 @@ impl Sqlite {
 
             // Retrieve the last inserted ID
             (
-                diesel::select(sql::<BigInt>("last_insert_rowid()"))
-                    .get_result::<i64>(conn)? as i32,
+                diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)?
+                    as i32,
                 true,
             )
         };
