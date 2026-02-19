@@ -38,25 +38,25 @@
 <script setup lang="ts">
 // --- External ---
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { toast } from 'vue3-toastify'
 
 // --- Routing & types ---
 import { useRouter, useRoute } from 'vue-router'
-import type { Media } from '../type'
+import type { Media } from '@/type'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Functions & components ---
-import { get_media_by_id } from '../functions/invoker'
+import { get_media_by_id } from '@/functions/invoker'
 
-import MediaHeader from '../component/media_page/MediaHeader.vue'
-import SearchMediaImdb from '../component/media_page/SearchMediaImdb.vue'
-import MediaHeaderSkeleton from '../component/media_page/MediaHeaderSkeleton.vue'
-import FilesSectionSkeleton from '../component/media_page/FilesSectionSkeleton.vue'
-import FilesSection from '../component/media_page/FilesSection.vue'
+import MediaHeader from '@/component/media_page/MediaHeader.vue'
+import SearchMediaImdb from '@/component/media_page/SearchMediaImdb.vue'
+import MediaHeaderSkeleton from '@/component/media_page/MediaHeaderSkeleton.vue'
+import FilesSectionSkeleton from '@/component/media_page/FilesSectionSkeleton.vue'
+import FilesSection from '@/component/media_page/FilesSection.vue'
 
-import TagSection from '../component/media_page/TagSection.vue'
-import ManageSection from '../component/media_page/ManageSection.vue'
-import ManageSectionSkeleton from '../component/media_page/ManageSectionSkeleton.vue'
-import TagSectionSkeleton from '../component/media_page/TagSectionSkeleton.vue'
+import TagSection from '@/component/media_page/TagSection.vue'
+import ManageSection from '@/component/media_page/ManageSection.vue'
+import ManageSectionSkeleton from '@/component/media_page/ManageSectionSkeleton.vue'
+import TagSectionSkeleton from '@/component/media_page/TagSectionSkeleton.vue'
 
 // --- State ---
 const route = useRoute()
@@ -70,13 +70,13 @@ function goBack() {
 }
 
 // Fetch media data by ID (safer error handling)
-function fetchMedia() {
-  get_media_by_id(Number(route.params.id))
-    .then((data) => (media.value = data))
-    .catch((error) => {
-      toast.error(typeof error === 'string' ? error : error instanceof Error ? error.message : 'Failed to fetch media')
-      goBack()
-    })
+async function fetchMedia() {
+  try {
+    media.value = await get_media_by_id(Number(route.params.id))
+  } catch (error) {
+    handleFrontendError('media.page.fetch', error, 'Failed to fetch media')
+    goBack()
+  }
 }
 
 // --- Edit mode handlers ---
@@ -94,6 +94,7 @@ async function updated(id: number) {
 let interval = 0
 
 onMounted(() => {
+  // check each 100ms if metadata changed find and update
   interval = setInterval(fetchMedia, 100)
 })
 

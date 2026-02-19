@@ -15,14 +15,19 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { invoke } from '@tauri-apps/api/core'
 import { save, open } from '@tauri-apps/plugin-dialog'
 import { readTextFile } from '@tauri-apps/plugin-fs'
 import { toast } from 'vue3-toastify'
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
+import { export_data, import_data } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
+import { useMediasStore } from '@/stores/medias'
+import { useTagsStore } from '@/stores/tags'
 
 const isExporting = ref(false)
 const isImporting = ref(false)
+const mediasStore = useMediasStore()
+const tagsStore = useTagsStore()
 
 const exportData = async () => {
   try {
@@ -43,12 +48,11 @@ const exportData = async () => {
 
     isExporting.value = true
 
-    await invoke('export_data', { filePath })
+    await export_data(filePath)
 
     toast.success('Export completed successfully!')
-  } catch (error) {
-    console.error('Export failed:', error)
-    toast.error('Export failed: ' + error)
+  } catch (error: unknown) {
+    handleFrontendError('settings.data.export', error, 'Export failed')
   } finally {
     isExporting.value = false
   }
@@ -77,12 +81,23 @@ const importData = async () => {
     const text = await readTextFile(filePath)
 
     // Import data
-    await invoke('import_data', { data: text })
+    await import_data(text)
 
-    alert('Data imported successfully!')
-  } catch (error) {
-    console.error('Import failed:', error)
-    alert('Import failed: ' + error)
+    let refreshFailed = false
+    try {
+      await Promise.all([mediasStore.reload(), tagsStore.reload()])
+    } catch (refreshError) {
+      refreshFailed = true
+      handleFrontendError('settings.data.import.refresh', refreshError, 'Data imported but failed to refresh all views')
+    }
+
+    toast.success(
+      refreshFailed
+        ? 'Data imported successfully. Some views may need a manual refresh.'
+        : 'Data imported successfully!',
+    )
+  } catch (error: unknown) {
+    handleFrontendError('settings.data.import', error, 'Import failed')
   } finally {
     isImporting.value = false
   }

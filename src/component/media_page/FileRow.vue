@@ -53,16 +53,23 @@
       <button
         class="btn btn-xs btn-square btn-accent btn-outline tooltip tooltip-top"
         data-tip="Move"
+        :disabled="isFileOperationPending"
         @click="moveFile"
       >
         <Scissors class="h-3 w-3" />
       </button>
-      <button class="btn btn-xs btn-square btn-info btn-outline tooltip tooltip-top" data-tip="Copy" @click="copyFile">
+      <button
+        class="btn btn-xs btn-square btn-info btn-outline tooltip tooltip-top"
+        data-tip="Copy"
+        :disabled="isFileOperationPending"
+        @click="copyFile"
+      >
         <Files class="h-3 w-3" />
       </button>
       <button
         class="btn btn-xs btn-square btn-error btn-outline tooltip tooltip-top"
         data-tip="Delete"
+        :disabled="isFileOperationPending"
         @click="deleteFile"
       >
         <Trash2 class="h-3 w-3" />
@@ -73,7 +80,8 @@
 
 <script setup lang="ts">
 // --- External types & icons ---
-import type { File } from '../../type'
+import type { File } from '@/type'
+import { ref } from 'vue'
 import { Files, FolderOpen, Play, Scissors, Trash2 } from 'lucide-vue-next'
 
 // --- Tauri APIs (rename copyFile import to avoid collision with local function) ---
@@ -84,7 +92,9 @@ import { save } from '@tauri-apps/plugin-dialog'
 import { writeText } from '@tauri-apps/plugin-clipboard-manager'
 
 // --- Utilities ---
-import { toast } from 'vue3-toastify'
+import { toast, type Id } from 'vue3-toastify'
+import { getErrorMessage } from '@/functions/errorMessage'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Props & emits ---
 const props = defineProps<{ file: File }>()
@@ -93,9 +103,53 @@ const emit = defineEmits<{
 }>()
 const filePath = props.file.path
 
+interface ProgressToastController {
+  set: (message: string, progress: number) => void
+  complete: (successMessage: string) => void
+  cancel: () => void
+}
+
+function createProgressToast(initialMessage: string): ProgressToastController {
+  const toastId: Id = toast.loading(initialMessage, {
+    autoClose: false,
+    closeOnClick: false,
+    closeButton: false,
+    hideProgressBar: false,
+    pauseOnHover: false,
+    progress: 0,
+  })
+
+  const clampProgress = (value: number) => Math.max(0, Math.min(1, value))
+
+  return {
+    set(message: string, progress: number) {
+      toast.update(toastId, {
+        render: message,
+        progress: clampProgress(progress),
+      })
+    },
+    complete(successMessage: string) {
+      toast.update(toastId, {
+        render: successMessage,
+        type: 'success',
+        isLoading: false,
+        progress: 1,
+        autoClose: 2500,
+        closeOnClick: true,
+        closeButton: true,
+      })
+    },
+    cancel() {
+      toast.remove(toastId)
+    },
+  }
+}
+
+const isFileOperationPending = ref(false)
+
 // --- Function: Play the file using system default ---
 function playFile() {
-  openPath(filePath).catch((e) => console.error('Error playing file:', e))
+  void openPath(filePath).catch((error) => handleFrontendError('media.file.play', error, 'Failed to play file'))
 }
 
 // --- Function: Open the folder containing the file ---
@@ -103,13 +157,16 @@ async function openFileLocation() {
   try {
     const dir = await dirname(filePath)
     await openPath(dir)
-  } catch (e) {
-    console.error('Error opening location:', e)
+  } catch (error) {
+    handleFrontendError('media.file.open_location', error, 'Failed to open file location')
   }
 }
 
 // --- Function: Move the file to a selected location ---
 async function moveFile() {
+  if (isFileOperationPending.value) return
+  isFileOperationPending.value = true
+
   try {
     const fileName = await basename(filePath)
 
@@ -126,37 +183,49 @@ async function moveFile() {
       return
     }
 
-    toast.info('Moving file...')
+    const moveToast = createProgressToast('Moving file...')
 
     try {
-      await rename(filePath, targetPath)
-    } catch (err: unknown) {
-      const errorMessage = String(err)
-      // Handle cross-device moves (different filesystems/drives)
-      if (
-        errorMessage.includes('Invalid cross-device link') ||
-        errorMessage.includes('cross-device') ||
-        errorMessage.includes('EXDEV')
-      ) {
-        // Copy then delete for cross-device moves
-        await fsCopyFile(filePath, targetPath)
-        await remove(filePath)
-      } else {
-        throw err
+      try {
+        moveToast.set('Moving file...', 0.4)
+        await rename(filePath, targetPath)
+      } catch (err: unknown) {
+        const errorMessage = getErrorMessage(err)
+        // Handle cross-device moves (different filesystems/drives)
+        if (
+          errorMessage.includes('Invalid cross-device link') ||
+          errorMessage.includes('cross-device') ||
+          errorMessage.includes('EXDEV')
+        ) {
+          // Copy then delete for cross-device moves
+          moveToast.set('Copying file...', 0.45)
+          await fsCopyFile(filePath, targetPath)
+          moveToast.set('Removing original...', 0.8)
+          await remove(filePath)
+        } else {
+          throw err
+        }
       }
-    }
 
-    toast.success('File moved successfully')
-    emit('reload')
-  } catch (e) {
-    const error = e as Error
-    toast.error(`Move failed: ${error.message || 'Unknown error'}`)
-    console.error('Error moving file:', error)
+      moveToast.set('Finalizing move...', 0.95)
+      moveToast.complete('File moved successfully')
+      emit('reload')
+    } catch (error) {
+      moveToast.cancel()
+      throw error
+    }
+  } catch (error) {
+    handleFrontendError('media.file.move', error, 'Move failed')
+  } finally {
+    isFileOperationPending.value = false
   }
 }
 
 // --- Function: Copy the file to a selected location ---
 async function copyFile() {
+  if (isFileOperationPending.value) return
+  isFileOperationPending.value = true
+
   try {
     const fileName = await basename(filePath)
 
@@ -173,32 +242,48 @@ async function copyFile() {
       return
     }
 
-    toast.info('Copying file...')
+    const copyToast = createProgressToast('Copying file...')
 
-    await fsCopyFile(filePath, targetPath)
+    try {
+      copyToast.set('Copying file...', 0.45)
+      await fsCopyFile(filePath, targetPath)
+    } catch (error) {
+      copyToast.cancel()
+      throw error
+    }
 
-    toast.success('File copied successfully')
-  } catch (e) {
-    const error = e as Error
-    toast.error(`Copy failed: ${error.message || 'Unknown error'}`)
-    console.error('Error copying file:', error)
+    copyToast.set('Finalizing copy...', 0.95)
+    copyToast.complete('File copied successfully')
+  } catch (error) {
+    handleFrontendError('media.file.copy', error, 'Copy failed')
+  } finally {
+    isFileOperationPending.value = false
   }
 }
 
 // --- Function: Delete the file ---
-function deleteFile() {
-  remove(filePath)
-    .then(() => {
-      toast.success('File deleted successfully')
-      emit('reload')
-    })
-    .catch((e) => toast.error('Error deleting file:', e))
+async function deleteFile() {
+  if (isFileOperationPending.value) return
+  isFileOperationPending.value = true
+
+  try {
+    await remove(filePath)
+    toast.success('File deleted successfully')
+    emit('reload')
+  } catch (error) {
+    handleFrontendError('media.file.delete', error, 'Failed to delete file')
+  } finally {
+    isFileOperationPending.value = false
+  }
 }
 
 // --- Function: Copy file path to clipboard ---
-function copyPathToClipboard() {
-  writeText(filePath)
-    .then(() => toast.success('Path copied to clipboard'))
-    .catch((err) => toast.error(`Failed to copy: ${err}`))
+async function copyPathToClipboard() {
+  try {
+    await writeText(filePath)
+    toast.success('Path copied to clipboard')
+  } catch (error) {
+    handleFrontendError('media.file.copy_path', error, 'Failed to copy path')
+  }
 }
 </script>

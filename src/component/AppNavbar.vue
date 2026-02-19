@@ -94,9 +94,10 @@ import { RouterLink } from 'vue-router'
 import { open } from '@tauri-apps/plugin-dialog'
 import { FolderPlus, Plus, HomeIcon, SettingsIcon, MenuIcon, XIcon } from 'lucide-vue-next'
 import { toast } from 'vue3-toastify'
-import { useMediasStore } from '../stores/medias'
-import { useDirsStore } from '../stores/Dirs'
-import { sync_files } from '../functions/invoker'
+import { useMediasStore } from '@/stores/medias'
+import { useDirsStore } from '@/stores/Dirs'
+import { sync_files } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const isCollapsed = ref(false)
 
@@ -109,22 +110,45 @@ function toggleSidebar() {
 
 defineExpose({ toggleSidebar })
 
+function normalizeDirectoryPath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/\/$/, '')
+}
+
 async function onAddDirectory() {
-  try {
-    const selectedDirectory = await open({ multiple: false, directory: true })
-    if (!selectedDirectory) return toast.info('No directory selected')
-
-    const wasAdded = dirsStore.addDirectory(selectedDirectory)
-    if (!wasAdded) return toast.warning('Directory already added')
-
-    toast.info('Adding directory and syncing files...')
-    const addedCount = await sync_files(selectedDirectory)
-    await mediasStore.reload()
-    toast.success(`Successfully added directory with ${addedCount} items!`)
-  } catch (error) {
-    dirsStore.removeLastDirectory()
-    console.error(error)
-    toast.error(`Failed to add directory: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  const selectedDirectory = await open({ multiple: false, directory: true })
+  if (!selectedDirectory || typeof selectedDirectory !== 'string') {
+    toast.info('No directory selected')
+    return
   }
+
+  const normalizedDirectory = normalizeDirectoryPath(selectedDirectory)
+  const wasAdded = dirsStore.addDirectory(normalizedDirectory)
+  if (!wasAdded) {
+    toast.warning('Directory already exists or is already covered by another directory.')
+    return
+  }
+
+  toast.info('Adding directory and syncing files...')
+  let addedCount = 0
+  try {
+    addedCount = await sync_files(normalizedDirectory)
+  } catch (error) {
+    dirsStore.removeDirectory(normalizedDirectory)
+    handleFrontendError('navbar.add_directory.sync', error, 'Failed to sync added directory')
+    return
+  }
+
+  try {
+    await mediasStore.reload()
+  } catch (error) {
+    handleFrontendError(
+      'navbar.add_directory.reload',
+      error,
+      'Directory added and synced, but failed to refresh media list',
+    )
+    return
+  }
+
+  toast.success(`Successfully added directory with ${addedCount} items!`)
 }
 </script>

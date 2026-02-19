@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { FilterValues } from '../type'
+import type { FilterValues } from '@/type'
 import { info } from '@tauri-apps/plugin-log'
 
 const defaultFilters: FilterValues = {
