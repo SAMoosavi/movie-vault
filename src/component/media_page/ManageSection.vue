@@ -13,7 +13,11 @@
             <component :is="isEditing ? XCircleIcon : PencilIcon" class="h-5 w-5" />
           </button>
 
-          <button class="btn btn-outline w-full justify-between" :disabled="isWatchListPending" @click="toggleWatchList">
+          <button
+            class="btn btn-outline w-full justify-between"
+            :disabled="isWatchListPending"
+            @click="toggleWatchList"
+          >
             <span>{{ media.watch_list ? 'Remove from Watchlist' : 'Add to Watchlist' }}</span>
             <component :is="media.watch_list ? BookmarkMinusIcon : BookmarkPlusIcon" class="h-5 w-5" />
           </button>
@@ -23,7 +27,11 @@
             <component :is="media.watched ? EyeIcon : EyeOffIcon" class="h-5 w-5" />
           </button>
 
-          <button class="btn btn-error w-full justify-between" :disabled="isDeletePending" @click="showDeleteModal = true">
+          <button
+            class="btn btn-error w-full justify-between"
+            :disabled="isDeletePending"
+            @click="showDeleteModal = true"
+          >
             <span>Delete Media</span>
             <TrashIcon class="h-5 w-5" />
           </button>

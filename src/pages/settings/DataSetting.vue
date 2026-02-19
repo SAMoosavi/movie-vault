@@ -88,11 +88,7 @@ const importData = async () => {
       await Promise.all([mediasStore.reload(), tagsStore.reload()])
     } catch (refreshError) {
       refreshFailed = true
-      handleFrontendError(
-        'settings.data.import.refresh',
-        refreshError,
-        'Data imported but failed to refresh all views',
-      )
+      handleFrontendError('settings.data.import.refresh', refreshError, 'Data imported but failed to refresh all views')
     }
 
     toast.success(

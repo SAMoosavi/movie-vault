@@ -16,7 +16,7 @@ This list captures remaining open bugs and high-impact improvements after fixing
 - **Bug scenario:** User types quickly (`bat` -> `batman`); slow response for old query arrives late and overwrites new results.
 - **How to fix:** Add request token/version check or abort previous request (`AbortController`) and ignore stale responses.
 
-## 3) Media scanning duplicate check is O(N*M)
+## 3) Media scanning duplicate check is O(N\*M)
 
 - **Location:** `src-tauri/src/media_scanner.rs:32`
 - **What is wrong:** For each discovered file, code checks all DB file rows with `files.iter().all(...)`.

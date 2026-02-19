@@ -15,9 +15,119 @@ interface HandleUpdateCheckOptions {
   notifyIfUpToDate?: boolean
 }
 
+const TARGETS_NOT_FOUND_PATTERN = /fallback platforms `(\[[^\]]*])`/
+const LINUX_INSTALLERS = ['appimage', 'deb', 'rpm']
+const WINDOWS_INSTALLERS = ['nsis', 'msi']
+const DARWIN_INSTALLERS = ['app']
+
 // Store singleton with lazy initialization
 let storeInstance: Store | null = null
 let storePromise: Promise<Store> | null = null
+
+function installersForOs(os: string): string[] {
+  if (os === 'linux') return LINUX_INSTALLERS
+  if (os === 'windows') return WINDOWS_INSTALLERS
+  if (os === 'darwin') return DARWIN_INSTALLERS
+  return []
+}
+
+function addTargetWithArchAliases(target: string, targets: Set<string>) {
+  targets.add(target)
+  if (target.includes('x86_64')) {
+    targets.add(target.replace('x86_64', 'x64'))
+  } else if (target.includes('x64')) {
+    targets.add(target.replace('x64', 'x86_64'))
+  }
+}
+
+function extractMissingTargets(error: unknown): string[] {
+  const message = error instanceof Error ? error.message : String(error)
+  const match = message.match(TARGETS_NOT_FOUND_PATTERN)
+  if (!match) return []
+
+  try {
+    const serializedTargets = match[1]
+    if (!serializedTargets) return []
+    const parsed = JSON.parse(serializedTargets)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is string => typeof item === 'string' && item.length > 0)
+  } catch {
+    return []
+  }
+}
+
+function buildRetryTargets(baseTargets: string[]): string[] {
+  const candidates = new Set<string>()
+
+  for (const target of baseTargets) {
+    addTargetWithArchAliases(target, candidates)
+
+    const parts = target.split('-')
+    if (parts.length === 2) {
+      const [os, arch] = parts
+      if (!os || !arch) continue
+      const installers = installersForOs(os)
+      for (const installer of installers) {
+        addTargetWithArchAliases(`${os}-${arch}-${installer}`, candidates)
+        if (os === 'linux') {
+          addTargetWithArchAliases(`${os}-${installer}-${arch}`, candidates)
+        }
+      }
+      continue
+    }
+
+    if (parts.length !== 3) continue
+    const [os, second, third] = parts
+    if (!os || !second || !third) continue
+    const installers = installersForOs(os)
+
+    // Supports current format: os-arch-installer
+    if (installers.includes(third)) {
+      addTargetWithArchAliases(`${os}-${second}`, candidates)
+      if (os === 'linux') {
+        addTargetWithArchAliases(`${os}-${third}-${second}`, candidates)
+      }
+    }
+
+    // Supports legacy format: os-installer-arch
+    if (installers.includes(second)) {
+      addTargetWithArchAliases(`${os}-${third}`, candidates)
+      addTargetWithArchAliases(`${os}-${third}-${second}`, candidates)
+    }
+  }
+
+  return Array.from(candidates).filter((target) => !baseTargets.includes(target))
+}
+
+async function checkWithTargetFallbacks(): Promise<Update | null> {
+  try {
+    return await check()
+  } catch (error) {
+    const missingTargets = extractMissingTargets(error)
+    if (missingTargets.length === 0) {
+      throw error
+    }
+
+    const retryTargets = buildRetryTargets(missingTargets)
+    if (retryTargets.length === 0) {
+      throw error
+    }
+
+    info(`Updater targets missing (${missingTargets.join(', ')}). Retrying with: ${retryTargets.join(', ')}`)
+
+    let lastError: unknown = error
+    for (const target of retryTargets) {
+      try {
+        info(`Retrying update check with explicit target: ${target}`)
+        return await check({ target })
+      } catch (retryError) {
+        lastError = retryError
+      }
+    }
+
+    throw lastError
+  }
+}
 
 async function getStore(): Promise<Store> {
   if (storeInstance) return storeInstance
@@ -61,7 +171,7 @@ export async function setAutoUpdate(enabled: boolean): Promise<void> {
 export async function checkForUpdates(): Promise<Update | null> {
   try {
     info('Checking for updates...')
-    const update = await check()
+    const update = await checkWithTargetFallbacks()
 
     if (!update) {
       info('No updates available')

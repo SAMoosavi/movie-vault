@@ -81,9 +81,7 @@ async function setupProgressListener() {
 
     if (processed === total) {
       if (imdbFailures > 0) {
-        toast.warning(
-          `Sync completed with partial IMDb enrichment (${imdbFailures} failed, ${imdbEnriched} enriched).`,
-        )
+        toast.warning(`Sync completed with partial IMDb enrichment (${imdbFailures} failed, ${imdbEnriched} enriched).`)
       } else {
         info(
           `Sync completed successfully: inserted_new=${insertedNew}, merged_existing=${mergedExisting}, imdb_enriched=${imdbEnriched}`,

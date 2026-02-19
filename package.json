@@ -20,7 +20,7 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.1.18",
+    "@tailwindcss/vite": "^4.2.0",
     "@tauri-apps/api": "^2.10.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-dialog": "^2.6.0",
@@ -35,7 +35,7 @@
     "lucide-vue-next": "0.555.0",
     "pinia": "^3.0.4",
     "pinia-plugin-persistedstate": "^4.7.1",
-    "tailwindcss": "^4.1.18",
+    "tailwindcss": "^4.2.0",
     "vue": "^3.5.28",
     "vue-router": "^5.0.2",
     "vue3-toastify": "^0.2.8"
@@ -43,10 +43,10 @@
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.0",
     "@tsconfig/node22": "^22.0.5",
-    "@types/node": "^25.2.3",
+    "@types/node": "^25.3.0",
     "@vitejs/plugin-vue": "^6.0.4",
     "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.6.0",
+    "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/tsconfig": "^0.8.1",
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "10.4.0",
