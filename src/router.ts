@@ -10,6 +10,11 @@ const settingChildren: RouteRecordRaw[] = [
     component: () => import('./pages/settings/DirectorySetting.vue'),
     name: 'directories_setting',
   },
+  {
+    path: 'api-keys',
+    component: () => import('./pages/settings/ApiKeySetting.vue'),
+    name: 'api_keys_setting',
+  },
   { path: 'data', component: () => import('./pages/settings/DataSetting.vue'), name: 'data_setting' },
 ]
 

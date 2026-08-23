@@ -38,7 +38,7 @@ struct SyncFileProgressBare {
 }
 
 // ponytail: heals medias inserted while the old IMDb API was dead; cheap SELECT once healed
-async fn backfill_missing_imdb(db: &Sqlite) -> Result<usize, String> {
+async fn backfill_missing_imdb(db: &Sqlite, api_keys: &[String]) -> Result<usize, String> {
     let missing: Vec<Media> = db
         .get_all_medias()
         .map_err(|e| e.to_string())?
@@ -54,7 +54,7 @@ async fn backfill_missing_imdb(db: &Sqlite) -> Result<usize, String> {
     let mut updated = 0usize;
     for chunk in missing.chunks(50) {
         let mut chunk = chunk.to_vec();
-        fetch_imdb::set_imdb_data(&mut chunk).await;
+        fetch_imdb::set_imdb_data(&mut chunk, api_keys).await;
 
         for media in &chunk {
             if let Some(imdb) = &media.imdb {
@@ -76,6 +76,7 @@ async fn backfill_missing_imdb(db: &Sqlite) -> Result<usize, String> {
 #[tauri::command]
 async fn sync_files(
     root: String,
+    api_keys: Vec<String>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<usize, String> {
@@ -83,7 +84,7 @@ async fn sync_files(
 
     info!("Starting sync_files for root: {}", root);
 
-    if let Err(e) = backfill_missing_imdb(db).await {
+    if let Err(e) = backfill_missing_imdb(db, &api_keys).await {
         error!("IMDb backfill failed: {}", e);
     }
 
@@ -128,7 +129,7 @@ async fn sync_files(
             inserted + chunk.len()
         );
 
-        fetch_imdb::set_imdb_data(&mut chunk).await;
+        fetch_imdb::set_imdb_data(&mut chunk, &api_keys).await;
         info!("Fetched IMDB data for chunk {}", i + 1);
 
         match db.insert_medias(&chunk) {
@@ -262,6 +263,7 @@ fn get_media_by_id(
 async fn update_media_imdb(
     media_id: IdType,
     imdb_id: &str,
+    api_keys: Vec<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     let db = &state.db;
@@ -270,7 +272,7 @@ async fn update_media_imdb(
         media_id, imdb_id
     );
 
-    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id, &api_keys)
         .await
         .map_err(|e| e.to_string())?;
 
@@ -295,12 +297,13 @@ async fn update_media_imdb(
 #[tauri::command]
 async fn create_media_from_imdb(
     imdb_id: &str,
+    api_keys: Vec<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     let db = &state.db;
     info!("Creating media from IMDb ID: {}", imdb_id);
 
-    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+    let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id, &api_keys)
         .await
         .map_err(|e| {
             error!("Failed to fetch IMDb data for ID {}: {}", imdb_id, e);

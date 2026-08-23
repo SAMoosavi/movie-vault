@@ -7,18 +7,21 @@ use tauri_plugin_http::reqwest::{Client, StatusCode};
 use tauri_plugin_log::log::{error, info, warn};
 
 const BASE_URL: &str = "https://www.omdbapi.com";
-// ponytail: hardcoded shared OMDb key pool, rotated on 401/429; move to settings if the pool dies
-const API_KEYS: &[&str] = &["e8f12113", "1e97e442"];
 const CONCURRENCY: usize = 4;
 
 async fn omdb_get<T: DeserializeOwned>(
     client: &Client,
     base_url: &str,
     query: &[(&str, String)],
+    api_keys: &[String],
 ) -> Result<T> {
+    if api_keys.is_empty() {
+        return Err(anyhow!("No OMDb API keys configured (Settings > API Keys)"));
+    }
+
     let url = format!("{}/", base_url);
 
-    for key in API_KEYS {
+    for key in api_keys {
         let mut params: Vec<(&str, &str)> = query.iter().map(|(k, v)| (*k, v.as_str())).collect();
         params.push(("apikey", key));
 
@@ -84,7 +87,12 @@ struct SearchItem {
     imdb_id: String,
 }
 
-async fn get_imdb_id_inner(client: &Client, media: &Media, base_url: &str) -> Result<String> {
+async fn get_imdb_id_inner(
+    client: &Client,
+    media: &Media,
+    base_url: &str,
+    api_keys: &[String],
+) -> Result<String> {
     info!("Searching OMDb for: {}", media.name);
 
     let mut query = vec![("s", media.name.clone()), ("r", "json".to_string())];
@@ -92,11 +100,11 @@ async fn get_imdb_id_inner(client: &Client, media: &Media, base_url: &str) -> Re
         query.push(("y", year.to_string()));
     }
 
-    let mut result: SearchResponse = omdb_get(client, base_url, &query).await?;
+    let mut result: SearchResponse = omdb_get(client, base_url, &query, api_keys).await?;
 
     if result.search.is_empty() && media.year.is_some() {
         query.pop();
-        result = omdb_get(client, base_url, &query).await?;
+        result = omdb_get(client, base_url, &query, api_keys).await?;
     }
 
     result
@@ -166,32 +174,42 @@ fn parse_title(resp: TitleResponse) -> Result<Imdb> {
     })
 }
 
-async fn get_imdb_data_by_id_inner(client: &Client, id: &str, base_url: &str) -> Result<Imdb> {
+async fn get_imdb_data_by_id_inner(
+    client: &Client,
+    id: &str,
+    base_url: &str,
+    api_keys: &[String],
+) -> Result<Imdb> {
     info!("Fetching OMDb data for ID: {}", id);
     let query = [
         ("i", id.to_string()),
         ("plot", "full".to_string()),
         ("r", "json".to_string()),
     ];
-    let resp: TitleResponse = omdb_get(client, base_url, &query).await?;
+    let resp: TitleResponse = omdb_get(client, base_url, &query, api_keys).await?;
     parse_title(resp)
 }
 
-pub async fn get_imdb_data_by_id(id: &str) -> Result<Imdb> {
-    get_imdb_data_by_id_inner(&Client::new(), id, BASE_URL).await
+pub async fn get_imdb_data_by_id(id: &str, api_keys: &[String]) -> Result<Imdb> {
+    get_imdb_data_by_id_inner(&Client::new(), id, BASE_URL, api_keys).await
 }
 
-pub async fn set_imdb_data(medias: &mut [Media]) {
-    set_imdb_data_inner(medias, BASE_URL).await;
+pub async fn set_imdb_data(medias: &mut [Media], api_keys: &[String]) {
+    set_imdb_data_inner(medias, BASE_URL, api_keys).await;
 }
 
-async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str) {
+async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str, api_keys: &[String]) {
     info!("Setting IMDb data for {} media items", medias.len());
     let client = Client::new();
 
     let results = join_all(medias.iter_mut().map(|media| {
         let client = client.clone();
-        async move { (get_imdb_id_inner(&client, media, base_url).await, media) }
+        async move {
+            (
+                get_imdb_id_inner(&client, media, base_url, api_keys).await,
+                media,
+            )
+        }
     }))
     .await;
 
@@ -215,7 +233,7 @@ async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str) {
     let imdbs: Vec<Imdb> = stream::iter(ids)
         .map(|id| {
             let client = client.clone();
-            async move { get_imdb_data_by_id_inner(&client, &id, base_url).await }
+            async move { get_imdb_data_by_id_inner(&client, &id, base_url, api_keys).await }
         })
         .buffered(CONCURRENCY)
         .filter_map(|res| async move {
@@ -246,6 +264,10 @@ async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str) {
 mod tests {
     use super::*;
 
+    fn keys() -> Vec<String> {
+        vec!["e8f12113".to_string(), "1e97e442".to_string()]
+    }
+
     #[tokio::test]
     async fn test_search_maps_first_result() {
         let mut server = mockito::Server::new_async().await;
@@ -260,7 +282,7 @@ mod tests {
             )
             .create();
         let media = Media::from(std::path::PathBuf::from("black.mirror.s01.e01.mkv"));
-        let result = get_imdb_id_inner(&Client::new(), &media, &base_url).await;
+        let result = get_imdb_id_inner(&Client::new(), &media, &base_url, &keys()).await;
         assert_eq!(result.unwrap(), "tt2085059");
     }
 
@@ -277,7 +299,7 @@ mod tests {
             .create();
         let media = Media::from(std::path::PathBuf::from("nonexistent.movie.2020.mkv"));
         assert!(
-            get_imdb_id_inner(&Client::new(), &media, &base_url)
+            get_imdb_id_inner(&Client::new(), &media, &base_url, &keys())
                 .await
                 .is_err()
         );
@@ -361,13 +383,13 @@ mod tests {
             .expect(1)
             .create();
         let media = Media::from(std::path::PathBuf::from("3.days.to.kill.2014.mkv"));
-        let result = get_imdb_id_inner(&Client::new(), &media, &base_url).await;
+        let result = get_imdb_id_inner(&Client::new(), &media, &base_url, &keys()).await;
         assert_eq!(result.unwrap(), "tt2172934");
     }
 
     #[tokio::test]
     async fn test_real_api_by_id() {
-        let imdb = get_imdb_data_by_id("tt0111161").await.unwrap();
+        let imdb = get_imdb_data_by_id("tt0111161", &keys()).await.unwrap();
         assert_eq!(imdb.imdb_id, "tt0111161");
         assert_eq!(imdb.title, "The Shawshank Redemption");
     }
@@ -381,7 +403,7 @@ mod tests {
             "black.mirror.s01.e01.480p.web-dl.x264.mkv",
         ));
         let mut medias = vec![m1, m2];
-        set_imdb_data(&mut medias).await;
+        set_imdb_data(&mut medias, &keys()).await;
 
         let movie = &medias[0];
         assert_eq!(movie.name, "3 days to kill");
