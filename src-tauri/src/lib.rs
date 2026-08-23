@@ -37,6 +37,42 @@ struct SyncFileProgressBare {
     total: usize,
 }
 
+// ponytail: heals medias inserted while the old IMDb API was dead; cheap SELECT once healed
+async fn backfill_missing_imdb(db: &Sqlite) -> Result<usize, String> {
+    let missing: Vec<Media> = db
+        .get_all_medias()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|m| m.imdb.is_none())
+        .collect();
+
+    if missing.is_empty() {
+        return Ok(0);
+    }
+    info!("Backfilling IMDb data for {} medias", missing.len());
+
+    let mut updated = 0usize;
+    for chunk in missing.chunks(50) {
+        let mut chunk = chunk.to_vec();
+        fetch_imdb::set_imdb_data(&mut chunk).await;
+
+        for media in &chunk {
+            if let Some(imdb) = &media.imdb {
+                if imdb.imdb_id.is_empty() {
+                    continue;
+                }
+                db.insert_imdb(imdb).map_err(|e| e.to_string())?;
+                db.update_media_imdb(media.id, &imdb.imdb_id)
+                    .map_err(|e| e.to_string())?;
+                updated += 1;
+            }
+        }
+        info!("Backfilled {}/{} medias", updated, missing.len());
+    }
+
+    Ok(updated)
+}
+
 #[tauri::command]
 async fn sync_files(
     root: String,
@@ -46,6 +82,10 @@ async fn sync_files(
     let db = &state.db;
 
     info!("Starting sync_files for root: {}", root);
+
+    if let Err(e) = backfill_missing_imdb(db).await {
+        error!("IMDb backfill failed: {}", e);
+    }
 
     if let Err(e) = media_scanner::sync_files(db).await {
         error!("media_scanner::sync_files failed: {}", e);

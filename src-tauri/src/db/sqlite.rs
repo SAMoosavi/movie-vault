@@ -1518,6 +1518,34 @@ mod tests_filter_values {
     }
 
     #[test]
+    fn test_min_rating_zero_keeps_medias_without_imdb() {
+        let sqlite = setup_test_db();
+        setup_filter_test_data(&sqlite);
+
+        let filters = FilterValues {
+            name: "".to_string(),
+            r#type: ContentType::All,
+            min_rating: Some(0.0),
+            country: vec![],
+            genre: vec![],
+            people: vec![],
+            exist_imdb: None,
+            exist_multi_file: None,
+            watched: None,
+            sort_by: SortByType::Name,
+            sort_direction: SortDirectionType::Asc,
+            watch_list: None,
+            tags: vec![],
+        };
+
+        let results = sqlite.filter_medias(&filters, 0).unwrap();
+        assert!(
+            results.iter().any(|m| m.name == "No IMDB Media"),
+            "medias without IMDb data must show under the default rating filter"
+        );
+    }
+
+    #[test]
     fn test_filter_by_country() {
         let sqlite = setup_test_db();
         let (_, country_id, _, _) = setup_filter_test_data(&sqlite);
