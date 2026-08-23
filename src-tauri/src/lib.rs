@@ -260,6 +260,19 @@ fn get_media_by_id(
 }
 
 #[tauri::command]
+async fn search_imdb(
+    query: String,
+    api_keys: Vec<String>,
+) -> Result<Vec<fetch_imdb::SearchResult>, String> {
+    fetch_imdb::search_imdb(&query, &api_keys)
+        .await
+        .map_err(|e| {
+            error!("IMDb search failed for '{}': {}", query, e);
+            e.to_string()
+        })
+}
+
+#[tauri::command]
 async fn update_media_imdb(
     media_id: IdType,
     imdb_id: &str,
@@ -642,6 +655,7 @@ pub fn run() {
             get_genres,
             filter_medias,
             get_media_by_id,
+            search_imdb,
             get_people,
             update_media_imdb,
             create_media_from_imdb,

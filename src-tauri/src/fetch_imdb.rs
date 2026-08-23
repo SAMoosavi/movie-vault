@@ -2,7 +2,7 @@ use crate::data_model::{Imdb, Media, Person};
 use anyhow::{Result, anyhow};
 use futures::future::join_all;
 use futures::stream::{self, StreamExt};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use tauri_plugin_http::reqwest::{Client, StatusCode};
 use tauri_plugin_log::log::{error, info, warn};
 
@@ -63,12 +63,7 @@ fn people(value: Option<String>) -> Vec<Person> {
 }
 
 fn parse_year(value: Option<&str>) -> i32 {
-    value
-        .unwrap_or_default()
-        .split(['-', '\u{2013}'])
-        .next()
-        .and_then(|y| y.trim().parse().ok())
-        .unwrap_or_default()
+    value.and_then(parse_year_opt).unwrap_or_default()
 }
 
 fn parse_votes(value: Option<String>) -> i32 {
@@ -85,6 +80,51 @@ struct SearchResponse {
 struct SearchItem {
     #[serde(rename = "imdbID")]
     imdb_id: String,
+    #[serde(rename = "Title", default)]
+    title: String,
+    #[serde(rename = "Year")]
+    year: Option<String>,
+    #[serde(rename = "Poster")]
+    poster: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResult {
+    pub imdb_id: String,
+    pub title: String,
+    pub year: Option<i32>,
+    pub poster: String,
+}
+
+fn parse_year_opt(value: &str) -> Option<i32> {
+    value.split(['-', '\u{2013}']).next()?.trim().parse().ok()
+}
+
+pub async fn search_imdb(query: &str, api_keys: &[String]) -> Result<Vec<SearchResult>> {
+    info!("Searching OMDb for: {}", query);
+    search_imdb_inner(&Client::new(), query, BASE_URL, api_keys).await
+}
+
+async fn search_imdb_inner(
+    client: &Client,
+    query: &str,
+    base_url: &str,
+    api_keys: &[String],
+) -> Result<Vec<SearchResult>> {
+    let params = [("s", query.to_string()), ("r", "json".to_string())];
+    let resp: SearchResponse = omdb_get(client, base_url, &params, api_keys).await?;
+
+    Ok(resp
+        .search
+        .into_iter()
+        .map(|m| SearchResult {
+            imdb_id: m.imdb_id,
+            title: m.title,
+            year: m.year.as_deref().and_then(parse_year_opt),
+            poster: field(m.poster),
+        })
+        .collect())
 }
 
 async fn get_imdb_id_inner(
@@ -385,6 +425,31 @@ mod tests {
         let media = Media::from(std::path::PathBuf::from("3.days.to.kill.2014.mkv"));
         let result = get_imdb_id_inner(&Client::new(), &media, &base_url, &keys()).await;
         assert_eq!(result.unwrap(), "tt2172934");
+    }
+
+    #[tokio::test]
+    async fn test_search_imdb_maps_results() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        server
+            .mock("GET", "/")
+            .match_query(mockito::Matcher::Any)
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{"Search":[{"Title":"Black Mirror","Year":"2011\u2013","imdbID":"tt2085059","Type":"series","Poster":"https://x/p.jpg"},{"Title":"N/A","Year":"N/A","imdbID":"tt0000001","Type":"movie","Poster":"N/A"}],"totalResults":"2","Response":"True"}"#,
+            )
+            .create();
+        let results = search_imdb_inner(&Client::new(), "black mirror", &base_url, &keys())
+            .await
+            .unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].imdb_id, "tt2085059");
+        assert_eq!(results[0].title, "Black Mirror");
+        assert_eq!(results[0].year, Some(2011));
+        assert_eq!(results[0].poster, "https://x/p.jpg");
+        assert_eq!(results[1].year, None);
+        assert_eq!(results[1].poster, "");
     }
 
     #[tokio::test]

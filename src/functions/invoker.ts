@@ -30,6 +30,17 @@ export async function get_media_by_id(mediaId: number): Promise<Media> {
   return await invoke('get_media_by_id', { mediaId })
 }
 
+export interface ImdbSearchResult {
+  imdbId: string
+  title: string
+  year?: number
+  poster: string
+}
+
+export async function search_imdb(query: string): Promise<ImdbSearchResult[]> {
+  return await invoke('search_imdb', { query, apiKeys: api_keys() })
+}
+
 export async function update_media_imdb(mediaId: number, imdbId: string): Promise<number> {
   return await invoke('update_media_imdb', { mediaId, imdbId, apiKeys: api_keys() })
 }

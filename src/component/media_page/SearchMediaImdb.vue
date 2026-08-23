@@ -43,17 +43,15 @@
           <template v-else>
             <div
               v-for="item in searchItems"
-              :key="item['#IMDB_ID']"
+              :key="item.imdbId"
               class="card from-primary/50 to-secondary/50 cursor-pointer bg-gradient-to-br p-0.5 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
-              @click="selectMedia(item['#IMDB_ID'])"
+              @click="selectMedia(item.imdbId)"
             >
               <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
                 <figure class="relative h-full">
                   <img
-                    :src="
-                      item['#IMG_POSTER'] !== 'N/A' ? item['#IMG_POSTER'] : 'https://placehold.co/300x450?text=No+Image'
-                    "
-                    :alt="item['#TITLE']"
+                    :src="item.poster !== '' ? item.poster : 'https://placehold.co/300x450?text=No+Image'"
+                    :alt="item.title"
                     class="h-full w-full object-cover"
                     loading="lazy"
                   />
@@ -61,14 +59,14 @@
                   <!-- Year -->
                   <div class="badge badge-primary absolute top-2 right-2 flex items-center gap-1 text-xs">
                     <CalendarIcon class="h-3 w-3" />
-                    <span>{{ item['#YEAR'] }}</span>
+                    <span>{{ item.year }}</span>
                   </div>
 
                   <!-- Title -->
                   <div
                     class="bg-secondary text-secondary-content card absolute bottom-2 left-1/2 max-w-3/4 -translate-x-1/2 p-1 text-center text-xs text-wrap"
                   >
-                    {{ item['#TITLE'] }}
+                    {{ item.title }}
                   </div>
                 </figure>
               </div>
@@ -94,11 +92,10 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { fetch } from '@tauri-apps/plugin-http'
 import { toast } from 'vue3-toastify'
 import { SearchX, Search, CalendarIcon } from 'lucide-vue-next'
 import type { Media } from '../../type'
-import { update_media_imdb } from '../../functions/invoker'
+import { update_media_imdb, search_imdb, type ImdbSearchResult } from '../../functions/invoker'
 
 const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{
@@ -106,7 +103,7 @@ const emit = defineEmits<{
 }>()
 
 const mediaName = ref(props.media?.name ?? '')
-const searchItems = ref([])
+const searchItems = ref<ImdbSearchResult[]>([])
 const loading = ref(false)
 
 let debounceTimer: number | undefined
@@ -119,9 +116,7 @@ async function performSearch(query: string) {
   }
   loading.value = true
   try {
-    const res = await fetch(`https://imdb.iamidiotareyoutoo.com/search?q=${encodeURIComponent(title)}`)
-    const data = await res.json()
-    searchItems.value = data?.description ?? []
+    searchItems.value = await search_imdb(title)
   } catch (err) {
     console.error(err)
     toast.error('Search failed')
