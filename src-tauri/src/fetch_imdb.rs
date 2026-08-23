@@ -101,22 +101,17 @@ fn parse_year_opt(value: &str) -> Option<i32> {
     value.split(['-', '\u{2013}']).next()?.trim().parse().ok()
 }
 
-pub async fn search_imdb(query: &str, api_keys: &[String]) -> Result<Vec<SearchResult>> {
-    info!("Searching OMDb for: {}", query);
-    search_imdb_inner(&Client::new(), query, BASE_URL, api_keys).await
+fn search_result_from_imdb(imdb: Imdb) -> SearchResult {
+    SearchResult {
+        imdb_id: imdb.imdb_id,
+        title: imdb.title,
+        year: (imdb.year > 0).then_some(imdb.year),
+        poster: imdb.poster,
+    }
 }
 
-async fn search_imdb_inner(
-    client: &Client,
-    query: &str,
-    base_url: &str,
-    api_keys: &[String],
-) -> Result<Vec<SearchResult>> {
-    let params = [("s", query.to_string()), ("r", "json".to_string())];
-    let resp: SearchResponse = omdb_get(client, base_url, &params, api_keys).await?;
-
-    Ok(resp
-        .search
+fn map_search_items(items: Vec<SearchItem>) -> Vec<SearchResult> {
+    items
         .into_iter()
         .map(|m| SearchResult {
             imdb_id: m.imdb_id,
@@ -124,7 +119,51 @@ async fn search_imdb_inner(
             year: m.year.as_deref().and_then(parse_year_opt),
             poster: field(m.poster),
         })
-        .collect())
+        .collect()
+}
+
+async fn search_results_inner(
+    client: &Client,
+    query: &str,
+    year: Option<i32>,
+    base_url: &str,
+    api_keys: &[String],
+) -> Result<Vec<SearchResult>> {
+    let mut params = vec![("s", query.to_string()), ("r", "json".to_string())];
+    if let Some(y) = year {
+        params.push(("y", y.to_string()));
+    }
+
+    let mut results = map_search_items(
+        omdb_get::<SearchResponse>(client, base_url, &params, api_keys)
+            .await?
+            .search,
+    );
+
+    if results.is_empty() && year.is_some() {
+        params.pop();
+        results = map_search_items(
+            omdb_get::<SearchResponse>(client, base_url, &params, api_keys)
+                .await?
+                .search,
+        );
+    }
+
+    if !results.is_empty() {
+        return Ok(results);
+    }
+
+    // ponytail: OMDb ?s= fails outright ("Too many results.") on short/partial queries; ?t= returns its best match
+    let params = [("t", query.to_string()), ("r", "json".to_string())];
+    let title: TitleResponse = omdb_get(client, base_url, &params, api_keys).await?;
+    Ok(parse_title(title)
+        .map(|imdb| vec![search_result_from_imdb(imdb)])
+        .unwrap_or_default())
+}
+
+pub async fn search_imdb(query: &str, api_keys: &[String]) -> Result<Vec<SearchResult>> {
+    info!("Searching OMDb for: {}", query);
+    search_results_inner(&Client::new(), query, None, BASE_URL, api_keys).await
 }
 
 async fn get_imdb_id_inner(
@@ -135,23 +174,15 @@ async fn get_imdb_id_inner(
 ) -> Result<String> {
     info!("Searching OMDb for: {}", media.name);
 
-    let mut query = vec![("s", media.name.clone()), ("r", "json".to_string())];
-    if let Some(year) = media.year {
-        query.push(("y", year.to_string()));
-    }
+    let results = search_results_inner(client, &media.name, media.year, base_url, api_keys).await?;
 
-    let mut result: SearchResponse = omdb_get(client, base_url, &query, api_keys).await?;
+    let matched = media
+        .year
+        .and_then(|y| results.iter().find(|r| r.year == Some(y)))
+        .or_else(|| results.first());
 
-    if result.search.is_empty() && media.year.is_some() {
-        query.pop();
-        result = omdb_get(client, base_url, &query, api_keys).await?;
-    }
-
-    result
-        .search
-        .into_iter()
-        .next()
-        .map(|m| m.imdb_id)
+    matched
+        .map(|r| r.imdb_id.clone())
         .ok_or_else(|| anyhow!("No results found for {}", media.name))
 }
 
@@ -330,12 +361,14 @@ mod tests {
     async fn test_search_not_found_is_error() {
         let mut server = mockito::Server::new_async().await;
         let base_url = server.url();
+        // s=+y, s=, then t= fallback all miss
         server
             .mock("GET", "/")
             .match_query(mockito::Matcher::Any)
             .with_status(200)
             .with_header("content-type", "application/json")
             .with_body(r#"{"Response":"False","Error":"Movie not found!"}"#)
+            .expect(3)
             .create();
         let media = Media::from(std::path::PathBuf::from("nonexistent.movie.2020.mkv"));
         assert!(
@@ -343,6 +376,41 @@ mod tests {
                 .await
                 .is_err()
         );
+    }
+
+    #[tokio::test]
+    async fn test_search_falls_back_to_title_lookup() {
+        let mut server = mockito::Server::new_async().await;
+        server
+            .mock("GET", "/")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("s".into(), "f1".into()),
+                mockito::Matcher::UrlEncoded("r".into(), "json".into()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"Response":"False","Error":"Too many results."}"#)
+            .expect(1)
+            .create();
+        server
+            .mock("GET", "/")
+            .match_query(mockito::Matcher::AllOf(vec![
+                mockito::Matcher::UrlEncoded("t".into(), "f1".into()),
+                mockito::Matcher::UrlEncoded("r".into(), "json".into()),
+            ]))
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{"Title":"F1: The Movie","Year":"2025","imdbID":"tt16311594","Type":"movie","Poster":"https://x/p.jpg","Response":"True"}"#,
+            )
+            .expect(1)
+            .create();
+
+        let results = search_imdb("f1", &keys()).await.unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].imdb_id, "tt16311594");
+        assert_eq!(results[0].title, "F1: The Movie");
+        assert_eq!(results[0].year, Some(2025));
     }
 
     #[tokio::test]
@@ -440,9 +508,10 @@ mod tests {
                 r#"{"Search":[{"Title":"Black Mirror","Year":"2011\u2013","imdbID":"tt2085059","Type":"series","Poster":"https://x/p.jpg"},{"Title":"N/A","Year":"N/A","imdbID":"tt0000001","Type":"movie","Poster":"N/A"}],"totalResults":"2","Response":"True"}"#,
             )
             .create();
-        let results = search_imdb_inner(&Client::new(), "black mirror", &base_url, &keys())
-            .await
-            .unwrap();
+        let results =
+            search_results_inner(&Client::new(), "black mirror", None, &base_url, &keys())
+                .await
+                .unwrap();
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].imdb_id, "tt2085059");
         assert_eq!(results[0].title, "Black Mirror");
