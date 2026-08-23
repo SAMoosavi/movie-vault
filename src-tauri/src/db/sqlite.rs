@@ -1038,8 +1038,9 @@ impl DB for Sqlite {
 
         // -- Minimum Rating Filter --
         if let Some(min_rating) = filters.min_rating {
-            // Use a raw SQL cast for the column type
-            let rating_clause = sql::<Double>("CAST(imdb_rating AS REAL)").ge(min_rating);
+            // COALESCE keeps medias without IMDb data visible under the default 0.0 filter
+            let rating_clause =
+                sql::<Double>("COALESCE(CAST(imdb_rating AS REAL), 0)").ge(min_rating);
             query = query.filter(rating_clause);
         }
 
