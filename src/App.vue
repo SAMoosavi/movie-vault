@@ -14,7 +14,7 @@
       </div>
 
       <!-- Router View -->
-      <div class="flex-1 overflow-auto">
+      <div ref="scrollContainer" class="flex-1 overflow-auto">
         <router-view />
       </div>
     </div>
@@ -23,7 +23,8 @@
 
 <script setup lang="ts">
 // --- External Libraries ---
-import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
+import { onMounted, onBeforeUnmount, watch, ref, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue3-toastify'
 
 // --- Local Components ---
@@ -64,6 +65,27 @@ interface SyncFileProgressBare {
 
 const progress = ref(0)
 const showProgress = ref(false)
+
+// ponytail: manual scroll memory because pages scroll this div, not the window (vue-router can't save it)
+const router = useRouter()
+const scrollContainer = ref<HTMLElement | null>(null)
+const scrollMemory = new Map<string, number>()
+let lastHistPos = -1
+
+router.beforeEach((_to, from) => {
+  if (scrollContainer.value) {
+    scrollMemory.set(from.fullPath, scrollContainer.value.scrollTop)
+  }
+})
+
+router.afterEach(async (to) => {
+  await nextTick()
+  if (!scrollContainer.value) return
+  const histPos = Number(router.options.history.state.position ?? 0)
+  const goingBack = histPos < lastHistPos
+  lastHistPos = histPos
+  scrollContainer.value.scrollTop = goingBack ? (scrollMemory.get(to.fullPath) ?? 0) : 0
+})
 
 listen<SyncFileProgressBare>('sync-progress', (event) => {
   const { inserted, total } = event.payload

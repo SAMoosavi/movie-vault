@@ -28,12 +28,4 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior(_to, _from, savedPosition) {
-    // Always scroll to top when navigating to a new page
-    // except when using browser back/forward buttons with saved position
-    if (savedPosition) {
-      return savedPosition
-    }
-    return { top: 0 }
-  },
 })
