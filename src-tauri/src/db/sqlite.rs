@@ -33,6 +33,20 @@ use tauri_plugin_log::log::{error, info, warn};
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
+/// Applies per-connection PRAGMAs to every pooled connection.
+#[derive(Debug)]
+struct PragmaCustomizer;
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error> for PragmaCustomizer {
+    fn on_acquire(
+        &self,
+        conn: &mut SqliteConnection,
+    ) -> std::result::Result<(), diesel::r2d2::Error> {
+        conn.batch_execute("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;")
+            .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
+
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 enum PersonType {
     Actor,
@@ -81,12 +95,14 @@ impl Sqlite {
         info!("Opening SQLite database at {}", url);
 
         let manager = ConnectionManager::<SqliteConnection>::new(url.clone());
-        let pool = Pool::builder().max_size(8).build(manager)?;
+        // PRAGMAs must be applied to EVERY pooled connection, not just one
+        let pool = Pool::builder()
+            .max_size(8)
+            .connection_customizer(Box::new(PragmaCustomizer))
+            .build(manager)?;
 
         let mut conn = pool.get()?;
-        conn.batch_execute(
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;",
-        )?;
+        conn.batch_execute("PRAGMA journal_mode = WAL;")?;
         conn.run_pending_migrations(MIGRATIONS)
             .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
@@ -954,16 +970,11 @@ impl DB for Sqlite {
     }
 
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType> {
-        self.get_conn()?.transaction(|conn| {
-            let mut media = Self::get_media_by_id(conn, media_id)?.ok_or_else(|| {
-                anyhow::anyhow!("cannot update imdb for media_id={media_id}: media not found")
-            })?;
-            diesel::delete(medias::table.filter(medias::id.eq(media.id))).execute(conn)?;
-            let imdb = Self::get_imdb(conn, Some(imdb_id.into()))?;
-            media.imdb = imdb;
-
-            Ok(Self::insert_media(conn, &media)?.media_id)
-        })
+        let conn = &mut self.get_conn()?;
+        diesel::update(medias::table.filter(medias::id.eq(media_id)))
+            .set(medias::imdb_id.eq(imdb_id))
+            .execute(conn)?;
+        Ok(media_id)
     }
 
     fn insert_media(&self, media: &Media) -> Result<IdType> {
@@ -1062,8 +1073,9 @@ impl DB for Sqlite {
 
         // -- Minimum Rating Filter --
         if let Some(min_rating) = filters.min_rating {
-            // Use a raw SQL cast for the column type
-            let rating_clause = sql::<Double>("CAST(imdb_rating AS REAL)").ge(min_rating);
+            // COALESCE keeps medias without IMDb data visible under the default 0.0 filter
+            let rating_clause =
+                sql::<Double>("COALESCE(CAST(imdb_rating AS REAL), 0)").ge(min_rating);
             query = query.filter(rating_clause);
         }
 
@@ -1539,6 +1551,34 @@ mod tests_filter_values {
                 assert!(rating >= 8.0);
             }
         }
+    }
+
+    #[test]
+    fn test_min_rating_zero_keeps_medias_without_imdb() {
+        let sqlite = setup_test_db();
+        setup_filter_test_data(&sqlite);
+
+        let filters = FilterValues {
+            name: "".to_string(),
+            r#type: ContentType::All,
+            min_rating: Some(0.0),
+            country: vec![],
+            genre: vec![],
+            people: vec![],
+            exist_imdb: None,
+            exist_multi_file: None,
+            watched: None,
+            sort_by: SortByType::Name,
+            sort_direction: SortDirectionType::Asc,
+            watch_list: None,
+            tags: vec![],
+        };
+
+        let results = sqlite.filter_medias(&filters, 0).unwrap();
+        assert!(
+            results.iter().any(|m| m.name == "No IMDB Media"),
+            "medias without IMDb data must show under the default rating filter"
+        );
     }
 
     #[test]
