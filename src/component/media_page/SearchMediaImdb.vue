@@ -92,10 +92,10 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { toast } from 'vue3-toastify'
 import { SearchX, Search, CalendarIcon } from 'lucide-vue-next'
-import type { Media } from '../../type'
-import { update_media_imdb, search_imdb, type ImdbSearchResult } from '../../functions/invoker'
+import type { Media } from '@/type'
+import { update_media_imdb, search_imdb, type ImdbSearchResult } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const props = defineProps<{ media: Media }>()
 const emit = defineEmits<{
@@ -118,8 +118,7 @@ async function performSearch(query: string) {
   try {
     searchItems.value = await search_imdb(title)
   } catch (err) {
-    console.error(err)
-    toast.error('Search failed')
+    handleFrontendError('media.imdb.search', err, 'Search failed')
     searchItems.value = []
   } finally {
     loading.value = false
@@ -139,8 +138,7 @@ async function selectMedia(imdb_id: string) {
     const id = await update_media_imdb(props.media.id, imdb_id)
     emit('updated', id)
   } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : 'Failed to set imdb')
-    console.error(e)
+    handleFrontendError('media.imdb.update', e, 'Failed to set IMDb')
   }
 }
 </script>

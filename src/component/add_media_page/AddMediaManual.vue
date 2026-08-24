@@ -112,8 +112,9 @@
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { toast } from 'vue3-toastify'
 import { SearchX, Search, CalendarIcon, PlusIcon } from 'lucide-vue-next'
-import { create_media_from_imdb, search_imdb, type ImdbSearchResult } from '../../functions/invoker'
+import { create_media_from_imdb, search_imdb, type ImdbSearchResult } from '@/functions/invoker'
 import { useRouter } from 'vue-router'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 const imdbId = ref('')
 const mediaName = ref('')
@@ -134,8 +135,7 @@ async function performSearch(query: string) {
   try {
     searchItems.value = await search_imdb(title)
   } catch (err) {
-    console.error(err)
-    toast.error('Search failed')
+    handleFrontendError('add_media.search', err, 'Search failed')
     searchItems.value = []
   } finally {
     loadingSearch.value = false
@@ -164,8 +164,7 @@ async function addMedia() {
     mediaName.value = ''
     await router.push({ name: 'media_page', params: { id: media_id } })
   } catch (e: unknown) {
-    toast.error(e instanceof Error ? e.message : 'Failed to add media')
-    console.error(e)
+    handleFrontendError('add_media.create', e, 'Failed to add media')
   } finally {
     loading.value = false
   }

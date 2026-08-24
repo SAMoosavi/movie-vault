@@ -9,6 +9,22 @@ use tauri_plugin_log::log::{error, info, warn};
 const BASE_URL: &str = "https://www.omdbapi.com";
 const CONCURRENCY: usize = 4;
 
+#[derive(Debug, Clone, Copy, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImdbSyncStats {
+    pub requested: usize,
+    pub enriched: usize,
+    pub id_lookup_failed: usize,
+    pub batch_missing: usize,
+    pub batch_fetch_failed: usize,
+}
+
+impl ImdbSyncStats {
+    pub fn failed_total(self) -> usize {
+        self.id_lookup_failed + self.batch_missing + self.batch_fetch_failed
+    }
+}
+
 async fn omdb_get<T: DeserializeOwned>(
     client: &Client,
     base_url: &str,
@@ -343,8 +359,8 @@ pub async fn get_imdb_data_by_id(id: &str, api_keys: &[String]) -> Result<Imdb> 
     get_imdb_data_by_id_inner(&Client::new(), id, BASE_URL, api_keys).await
 }
 
-pub async fn set_imdb_data(medias: &mut [Media], api_keys: &[String]) {
-    set_imdb_data_inner(medias, BASE_URL, api_keys).await;
+pub async fn set_imdb_data(medias: &mut [Media], api_keys: &[String]) -> Result<ImdbSyncStats> {
+    set_imdb_data_inner(medias, BASE_URL, api_keys).await
 }
 
 /// Re-fetch full IMDb data for medias that already have an IMDb ID; search by name otherwise.
@@ -376,8 +392,15 @@ pub async fn refresh_by_ids(medias: &mut [Media], api_keys: &[String]) {
     }
 }
 
-async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str, api_keys: &[String]) {
+async fn set_imdb_data_inner(
+    medias: &mut [Media],
+    base_url: &str,
+    api_keys: &[String],
+) -> Result<ImdbSyncStats> {
     info!("Setting IMDb data for {} media items", medias.len());
+    let requested = medias.len();
+    let mut id_lookup_failed = 0usize;
+    let mut batch_fetch_failed = 0usize;
     let client = Client::new();
 
     let results = join_all(medias.iter_mut().map(|media| {
@@ -396,6 +419,7 @@ async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str, api_keys: &[S
         .filter_map(|(res, media)| match res {
             Ok(id) => Some((id, media)),
             Err(e) => {
+                id_lookup_failed += 1;
                 warn!("Failed to resolve IMDb ID for '{}': {}", media.name, e);
                 None
             }
@@ -404,38 +428,53 @@ async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str, api_keys: &[S
 
     if found.is_empty() {
         warn!("No IMDb IDs found for any media items");
-        return;
+        return Ok(ImdbSyncStats {
+            requested,
+            enriched: 0,
+            id_lookup_failed,
+            batch_missing: 0,
+            batch_fetch_failed,
+        });
     }
 
     let ids: Vec<String> = found.iter().map(|(id, _)| id.clone()).collect();
-    let imdbs: Vec<Imdb> = stream::iter(ids)
+    let results: Vec<Result<Imdb>> = stream::iter(ids)
         .map(|id| {
             let client = client.clone();
             async move { get_imdb_data_by_id_inner(&client, &id, base_url, api_keys).await }
         })
         .buffered(CONCURRENCY)
-        .filter_map(|res| async move {
-            match res {
-                Ok(imdb) => Some(imdb),
-                Err(e) => {
-                    error!("Failed to fetch IMDb data: {}", e);
-                    None
-                }
-            }
-        })
         .collect()
         .await;
 
-    for imdb in imdbs {
-        if let Some((_, media)) = found.iter_mut().find(|(id, _)| *id == imdb.imdb_id) {
-            media.imdb = Some(imdb);
-        } else {
-            error!(
-                "Received IMDb data for id {} but no matching media was found",
-                imdb.imdb_id
-            );
+    let mut enriched = 0usize;
+    for res in results {
+        match res {
+            Ok(imdb) => {
+                if let Some((_, media)) = found.iter_mut().find(|(id, _)| *id == imdb.imdb_id) {
+                    media.imdb = Some(imdb);
+                    enriched += 1;
+                } else {
+                    error!(
+                        "Received IMDb data for id {} but no matching media was found",
+                        imdb.imdb_id
+                    );
+                }
+            }
+            Err(e) => {
+                batch_fetch_failed += 1;
+                error!("Failed to fetch IMDb data: {}", e);
+            }
         }
     }
+
+    Ok(ImdbSyncStats {
+        requested,
+        enriched,
+        id_lookup_failed,
+        batch_missing: 0,
+        batch_fetch_failed,
+    })
 }
 
 #[cfg(test)]
@@ -698,7 +737,7 @@ mod tests {
             "black.mirror.s01.e01.480p.web-dl.x264.mkv",
         ));
         let mut medias = vec![m1, m2];
-        set_imdb_data(&mut medias, &keys()).await;
+        set_imdb_data(&mut medias, &keys()).await.unwrap();
 
         let movie = &medias[0];
         assert_eq!(movie.name, "3 days to kill");

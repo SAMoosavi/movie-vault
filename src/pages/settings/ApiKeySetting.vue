@@ -5,21 +5,12 @@
         <h2 class="card-title text-xl">Add API Key</h2>
         <p class="text-base-content/60 mt-1 text-sm">
           Get a free key at
-          <a
-            href="https://www.omdbapi.com/apikey.aspx"
-            target="_blank"
-            rel="noopener"
-            class="link link-primary"
+          <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noopener" class="link link-primary"
             >omdbapi.com</a
           >. Keys are tried in order when one is rejected or rate-limited.
         </p>
         <form class="mt-4 flex gap-2" @submit.prevent="handleAddKey">
-          <input
-            v-model="newKey"
-            type="text"
-            placeholder="Enter API key"
-            class="input input-bordered w-full"
-          />
+          <input v-model="newKey" type="text" placeholder="Enter API key" class="input input-bordered w-full" />
           <button type="submit" class="btn btn-primary">
             <PlusIcon class="h-5 w-5" />
             Add

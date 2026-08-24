@@ -97,15 +97,17 @@ impl Media {
 }
 
 impl Media {
-    /// Assumes `input` is already lowercase for consistent matching.
+    /// Normalizes `input` to lowercase for consistent matching.
     fn detect_name(input: &str) -> String {
         #[cfg(debug_assertions)]
         {
             if input != input.to_lowercase() {
                 eprintln!("Warning: input is not lowercase: '{input}'");
-                return String::new();
             }
         }
+
+        let normalized_input = input.to_lowercase();
+        let input = normalized_input.as_str();
 
         // List of junk tags to remove from the input string.
         // These represent common metadata noise in filenames.
@@ -259,6 +261,10 @@ mod detect_name_tests {
             (
                 "197863_harry_potter_and_the_halfblood_prince_2009_dubbed_1080p_brrip_anoxmous_salamdl",
                 "197863 harry potter and the halfblood prince",
+            ),
+            (
+                "Awara.Paagal.Deewana.2002.720p.WEB-DL",
+                "awara paagal deewana",
             ),
         ];
 

@@ -12,9 +12,10 @@
               type="text"
               placeholder="Enter tag name"
               class="input input-bordered flex-1"
+              :disabled="isAddingTag"
               @keyup.enter="handleAddTag"
             />
-            <button @click="handleAddTag" class="btn btn-primary">
+            <button @click="handleAddTag" class="btn btn-primary" :disabled="isAddingTag || !newTag.name.trim()">
               <Plus class="h-5 w-5" />
               Add
             </button>
@@ -55,14 +56,23 @@
               <label class="label">
                 <span class="label-text font-medium">Tag Name</span>
               </label>
-              <input v-model="selectedTag.name" type="text" class="input input-bordered w-full" />
+              <input
+                v-model="selectedTag.name"
+                type="text"
+                class="input input-bordered w-full"
+                :disabled="isUpdatingTag || isRemovingTag"
+              />
             </div>
             <div class="flex gap-2">
-              <button @click="handleUpdateTag" class="btn btn-success">
+              <button
+                @click="handleUpdateTag"
+                class="btn btn-success"
+                :disabled="isUpdatingTag || isRemovingTag || !selectedTag.name.trim()"
+              >
                 <Save class="h-5 w-5" />
                 Update
               </button>
-              <button @click="handleRemoveTag" class="btn btn-error">
+              <button @click="handleRemoveTag" class="btn btn-error" :disabled="isUpdatingTag || isRemovingTag">
                 <Trash2 class="h-5 w-5" />
                 Remove
               </button>
@@ -78,50 +88,91 @@
 // --- Icons & Vue ---
 import { Plus, CircleCheckBig, Save, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 
 // --- Types & API ---
-import type { Tag } from '../../type'
-import { get_tags, insert_tag, remove_tag, update_tag } from '../../functions/invoker'
+import type { Tag } from '@/type'
+import { insert_tag, remove_tag, update_tag } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
+import { useTagsStore } from '@/stores/tags'
 
 // --- Components ---
-import AnimatedShow from '../../component/AnimatedShow.vue'
-import AnimatedList from '../../component/AnimatedList.vue'
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import AnimatedShow from '@/component/AnimatedShow.vue'
+import AnimatedList from '@/component/AnimatedList.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- State ---
 const emptyTag: Tag = { id: 0, name: '' }
-const tagList = ref<Tag[]>([])
 const newTag = ref<Tag>({ ...emptyTag })
 const selectedTag = ref<Tag>({ ...emptyTag })
+const tagsStore = useTagsStore()
+const { tags: tagList } = storeToRefs(tagsStore)
+const isLoadingTags = ref(false)
+const isAddingTag = ref(false)
+const isRemovingTag = ref(false)
+const isUpdatingTag = ref(false)
 
-onMounted(fetchTags)
+onMounted(async () => {
+  await fetchTags()
+})
 
 async function fetchTags() {
-  tagList.value = await get_tags()
+  isLoadingTags.value = true
+  try {
+    await tagsStore.reload()
+  } catch (error) {
+    handleFrontendError('settings.tags.load', error, 'Failed to load tags')
+  } finally {
+    isLoadingTags.value = false
+  }
 }
 
 async function handleAddTag() {
-  if (!newTag.value.name.trim()) return
-  await insert_tag(newTag.value)
-  newTag.value = { ...emptyTag }
-  await fetchTags()
+  const tagName = newTag.value.name.trim()
+  if (!tagName || isAddingTag.value) return
+  isAddingTag.value = true
+  try {
+    await insert_tag({ ...newTag.value, name: tagName })
+    newTag.value = { ...emptyTag }
+    await fetchTags()
+  } catch (error) {
+    handleFrontendError('settings.tags.add', error, 'Failed to add tag')
+  } finally {
+    isAddingTag.value = false
+  }
 }
 
 async function handleRemoveTag() {
-  if (!selectedTag.value.id) return
-  await remove_tag(selectedTag.value.id)
-  selectedTag.value = { ...emptyTag }
-  await fetchTags()
+  if (!selectedTag.value.id || isRemovingTag.value) return
+  isRemovingTag.value = true
+  try {
+    await remove_tag(selectedTag.value.id)
+    selectedTag.value = { ...emptyTag }
+    await fetchTags()
+  } catch (error) {
+    handleFrontendError('settings.tags.remove', error, 'Failed to remove tag')
+  } finally {
+    isRemovingTag.value = false
+  }
 }
 
 async function handleUpdateTag() {
-  if (!selectedTag.value.id || !selectedTag.value.name.trim()) return
-  await update_tag(selectedTag.value)
-  selectedTag.value = { ...emptyTag }
-  await fetchTags()
+  const tagName = selectedTag.value.name.trim()
+  if (!selectedTag.value.id || !tagName || isUpdatingTag.value) return
+  isUpdatingTag.value = true
+  try {
+    await update_tag({ ...selectedTag.value, name: tagName })
+    selectedTag.value = { ...emptyTag }
+    await fetchTags()
+  } catch (error) {
+    handleFrontendError('settings.tags.update', error, 'Failed to update tag')
+  } finally {
+    isUpdatingTag.value = false
+  }
 }
 
 function handleSelectTag(tag: Tag) {
+  if (isLoadingTags.value || isUpdatingTag.value || isRemovingTag.value) return
   selectedTag.value = { ...tag }
 }
 </script>

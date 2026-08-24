@@ -51,10 +51,12 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import type { Media, Tag } from '../../type'
-import { get_tags, insert_media_tag, remove_media_tag } from '../../functions/invoker'
-import { toast } from 'vue3-toastify'
+import { storeToRefs } from 'pinia'
+import type { Media } from '@/type'
+import { insert_media_tag, remove_media_tag } from '@/functions/invoker'
 import { TagIcon, PlusIcon, XCircleIcon } from 'lucide-vue-next'
+import { handleFrontendError } from '@/functions/errorHandling'
+import { useTagsStore } from '@/stores/tags'
 
 /* Props */
 const props = defineProps<{ media: Media }>()
@@ -67,8 +69,9 @@ function fetchMedia() {
 }
 
 /* State */
-const tags = ref<Tag[]>([])
 const selectedTagId = ref<number>(0)
+const tagsStore = useTagsStore()
+const { tags } = storeToRefs(tagsStore)
 
 /* Computed */
 const selectableTags = computed(() => {
@@ -84,8 +87,7 @@ async function addTagToMedia() {
     selectedTagId.value = 0 // Reset selector
     fetchMedia()
   } catch (err) {
-    toast.error('Failed to add tag')
-    console.error(err)
+    handleFrontendError('media.tag.add', err, 'Failed to add tag')
   }
 }
 
@@ -94,17 +96,16 @@ async function removeTag(tagId: number) {
     await remove_media_tag(props.media.id, tagId)
     fetchMedia()
   } catch (err) {
-    toast.error('Failed to remove tag')
-    console.error(err)
+    handleFrontendError('media.tag.remove', err, 'Failed to remove tag')
   }
 }
 
 /* Lifecycle */
 onMounted(async () => {
   try {
-    tags.value = await get_tags()
+    await tagsStore.reload()
   } catch (err) {
-    console.error(err)
+    handleFrontendError('media.tag.load', err, 'Failed to load tags')
   }
 })
 </script>
