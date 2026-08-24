@@ -245,6 +245,78 @@ fn parse_title(resp: TitleResponse) -> Result<Imdb> {
     })
 }
 
+const SUGGEST_URL: &str = "https://v3.sg.media-imdb.com/suggestion/x";
+
+#[derive(Deserialize, Debug)]
+struct SuggestResponse {
+    #[serde(rename = "d", default)]
+    d: Vec<SuggestItem>,
+}
+
+#[derive(Deserialize, Debug)]
+struct SuggestItem {
+    #[serde(default)]
+    id: String,
+    #[serde(rename = "l", default)]
+    name: Option<String>,
+    #[serde(rename = "i")]
+    image: Option<SuggestImage>,
+}
+
+#[derive(Deserialize, Debug)]
+struct SuggestImage {
+    #[serde(rename = "imageUrl")]
+    image_url: String,
+}
+
+async fn lookup_person(client: &Client, name: &str, base_url: &str) -> Option<(String, String)> {
+    let slug = name.to_lowercase().replace(' ', "_");
+    let url = format!("{}/{}.json", base_url, slug);
+    let body = client.get(&url).send().await.ok()?.text().await.ok()?;
+    let resp: SuggestResponse = serde_json::from_str(&body).ok()?;
+
+    resp.d
+        .into_iter()
+        .find(|item| {
+            item.id.starts_with("nm")
+                && item
+                    .name
+                    .as_deref()
+                    .is_some_and(|n| n.eq_ignore_ascii_case(name))
+        })
+        .map(|item| {
+            (
+                item.id,
+                item.image.map(|img| img.image_url).unwrap_or_default(),
+            )
+        })
+}
+
+// ponytail: one suggestion-API call per person, no cache; add an LRU if it shows up in profiles
+async fn enrich_person(client: &Client, person: &Person, suggest_base_url: &str) -> Person {
+    let mut updated = person.clone();
+    if let Some((id, url)) = lookup_person(client, &person.name, suggest_base_url).await {
+        updated.id = id;
+        updated.url = url;
+    }
+    updated
+}
+
+async fn enrich_people(
+    client: &Client,
+    people: Vec<Person>,
+    suggest_base_url: &str,
+) -> Vec<Person> {
+    stream::iter(people)
+        .map(|person| {
+            let client = client.clone();
+            async move { enrich_person(&client, &person, suggest_base_url).await }
+        })
+        .buffered(CONCURRENCY)
+        .collect()
+        .await
+}
+
 async fn get_imdb_data_by_id_inner(
     client: &Client,
     id: &str,
@@ -258,7 +330,13 @@ async fn get_imdb_data_by_id_inner(
         ("r", "json".to_string()),
     ];
     let resp: TitleResponse = omdb_get(client, base_url, &query, api_keys).await?;
-    parse_title(resp)
+    let mut imdb = parse_title(resp)?;
+
+    imdb.actors = enrich_people(client, std::mem::take(&mut imdb.actors), SUGGEST_URL).await;
+    imdb.writers = enrich_people(client, std::mem::take(&mut imdb.writers), SUGGEST_URL).await;
+    imdb.directors = enrich_people(client, std::mem::take(&mut imdb.directors), SUGGEST_URL).await;
+
+    Ok(imdb)
 }
 
 pub async fn get_imdb_data_by_id(id: &str, api_keys: &[String]) -> Result<Imdb> {
@@ -267,6 +345,35 @@ pub async fn get_imdb_data_by_id(id: &str, api_keys: &[String]) -> Result<Imdb> 
 
 pub async fn set_imdb_data(medias: &mut [Media], api_keys: &[String]) {
     set_imdb_data_inner(medias, BASE_URL, api_keys).await;
+}
+
+/// Re-fetch full IMDb data for medias that already have an IMDb ID; search by name otherwise.
+pub async fn refresh_by_ids(medias: &mut [Media], api_keys: &[String]) {
+    let client = Client::new();
+
+    let results = join_all(medias.iter_mut().map(|media| {
+        let client = client.clone();
+        async move {
+            let res = match media.imdb.as_ref().map(|i| i.imdb_id.clone()) {
+                Some(id) if !id.is_empty() => {
+                    get_imdb_data_by_id_inner(&client, &id, BASE_URL, api_keys).await
+                }
+                _ => match get_imdb_id_inner(&client, media, BASE_URL, api_keys).await {
+                    Ok(id) => get_imdb_data_by_id_inner(&client, &id, BASE_URL, api_keys).await,
+                    Err(e) => Err(e),
+                },
+            };
+            (res, media)
+        }
+    }))
+    .await;
+
+    for (res, media) in results {
+        match res {
+            Ok(imdb) => media.imdb = Some(imdb),
+            Err(e) => warn!("Failed to refresh IMDb data for '{}': {}", media.name, e),
+        }
+    }
 }
 
 async fn set_imdb_data_inner(medias: &mut [Media], base_url: &str, api_keys: &[String]) {
@@ -522,10 +629,64 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_enrich_person_fills_id_and_photo() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        server
+            .mock("GET", "/tim_robbins.json")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(
+                r#"{"d":[
+                    {"id":"/emmys/","l":"Primetime Emmys"},
+                    {"id":"nm0000209","l":"Tim Robbins","i":{"imageUrl":"https://m.media-amazon.com/x.jpg"}},
+                    {"id":"nm13763340","l":"tim robbins","i":{"imageUrl":"https://m.media-amazon.com/wrong.jpg"}}
+                ]}"#,
+            )
+            .create();
+
+        let person = Person {
+            id: "Tim Robbins".to_string(),
+            name: "Tim Robbins".to_string(),
+            url: String::new(),
+        };
+        let enriched = enrich_person(&Client::new(), &person, &base_url).await;
+        assert_eq!(enriched.id, "nm0000209");
+        assert_eq!(enriched.url, "https://m.media-amazon.com/x.jpg");
+    }
+
+    #[tokio::test]
+    async fn test_enrich_person_keeps_original_when_not_found() {
+        let mut server = mockito::Server::new_async().await;
+        let base_url = server.url();
+        server
+            .mock("GET", "/nobody_nobody.json")
+            .with_status(200)
+            .with_header("content-type", "application/json")
+            .with_body(r#"{"d":[]}"#)
+            .create();
+
+        let person = Person {
+            id: "Nobody Nobody".to_string(),
+            name: "Nobody Nobody".to_string(),
+            url: String::new(),
+        };
+        let enriched = enrich_person(&Client::new(), &person, &base_url).await;
+        assert_eq!(enriched, person);
+    }
+
+    #[tokio::test]
     async fn test_real_api_by_id() {
         let imdb = get_imdb_data_by_id("tt0111161", &keys()).await.unwrap();
         assert_eq!(imdb.imdb_id, "tt0111161");
         assert_eq!(imdb.title, "The Shawshank Redemption");
+        let actor = imdb.actors.first().expect("actors should not be empty");
+        assert!(
+            actor.id.starts_with("nm"),
+            "actor id should be an nm ID, got {}",
+            actor.id
+        );
+        assert!(actor.url.starts_with("http"), "actor photo should be a URL");
     }
 
     #[tokio::test]

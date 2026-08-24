@@ -38,23 +38,34 @@ struct SyncFileProgressBare {
 }
 
 // ponytail: heals medias inserted while the old IMDb API was dead; cheap SELECT once healed
+// ponytail: treats entries with people missing photos/IDs as stale (pre-OMDb rows); drop once all users are migrated
+fn needs_imdb_refresh(media: &Media) -> bool {
+    match &media.imdb {
+        None => true,
+        Some(imdb) => [&imdb.actors, &imdb.writers, &imdb.directors]
+            .iter()
+            .any(|people| !people.is_empty() && people.iter().any(|p| p.url.is_empty())),
+    }
+}
+
 async fn backfill_missing_imdb(db: &Sqlite, api_keys: &[String]) -> Result<usize, String> {
     let missing: Vec<Media> = db
         .get_all_medias()
         .map_err(|e| e.to_string())?
         .into_iter()
-        .filter(|m| m.imdb.is_none())
+        .filter(needs_imdb_refresh)
         .collect();
 
     if missing.is_empty() {
         return Ok(0);
     }
-    info!("Backfilling IMDb data for {} medias", missing.len());
+    info!("Refreshing IMDb data for {} medias", missing.len());
 
     let mut updated = 0usize;
     for chunk in missing.chunks(50) {
         let mut chunk = chunk.to_vec();
-        fetch_imdb::set_imdb_data(&mut chunk, api_keys).await;
+        // refetch by existing ID when known so titles resolve even with odd names
+        fetch_imdb::refresh_by_ids(&mut chunk, api_keys).await;
 
         for media in &chunk {
             if let Some(imdb) = &media.imdb {
@@ -683,4 +694,35 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod backfill_tests {
+    use super::*;
+
+    #[test]
+    fn needs_imdb_refresh_flags_stale_people() {
+        let person = |url: &str| crate::data_model::Person {
+            id: url.to_string(),
+            name: "X".to_string(),
+            url: url.to_string(),
+        };
+
+        let mut media = Media::default();
+        assert!(needs_imdb_refresh(&media), "no imdb at all");
+
+        let imdb = crate::data_model::Imdb {
+            actors: vec![person("http://photo")],
+            ..Default::default()
+        };
+        media.imdb = Some(imdb.clone());
+        assert!(!needs_imdb_refresh(&media));
+
+        let stale = crate::data_model::Imdb {
+            writers: vec![person("")],
+            ..imdb
+        };
+        media.imdb = Some(stale);
+        assert!(needs_imdb_refresh(&media), "writer without photo is stale");
+    }
 }
