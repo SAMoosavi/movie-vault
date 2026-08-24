@@ -28,6 +28,8 @@ mod metadata_extractor;
 
 struct AppState {
     db: Sqlite,
+    // serializes sync_files so startup sync, mount-poll and watcher events can't interleave
+    sync_lock: tokio::sync::Mutex<()>,
 }
 
 #[derive(Clone, Serialize)]
@@ -92,8 +94,15 @@ async fn sync_files(
     app_handle: tauri::AppHandle,
 ) -> Result<usize, String> {
     let db = &state.db;
+    let _sync_guard = state.sync_lock.lock().await;
 
     info!("Starting sync_files for root: {}", root);
+
+    if !PathBuf::from(&root).exists() {
+        // ponytail: unmounted drive is not a deletion; keep rows so remount recovers without a full rescan
+        warn!("Root {} does not exist (unmounted?); skipping sync", root);
+        return Ok(0);
+    }
 
     if let Err(e) = backfill_missing_imdb(db, &api_keys).await {
         error!("IMDb backfill failed: {}", e);
@@ -688,7 +697,10 @@ pub fn run() {
         ])
         .setup(|app| {
             let db = Sqlite::from_app_handle(app.app_handle())?;
-            app.manage(AppState { db });
+            app.manage(AppState {
+                db,
+                sync_lock: tokio::sync::Mutex::new(()),
+            });
             info!("Tauri app setup complete");
             Ok(())
         })

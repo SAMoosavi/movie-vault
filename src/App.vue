@@ -31,7 +31,7 @@ import { toast } from 'vue3-toastify'
 import AppNavbar from './component/AppNavbar.vue'
 
 // --- Tauri API ---
-import { watch as fsWatch, stat, type UnwatchFn } from '@tauri-apps/plugin-fs'
+import { watch as fsWatch, stat, exists, type UnwatchFn } from '@tauri-apps/plugin-fs'
 import { listen } from '@tauri-apps/api/event'
 import { dirname, normalize } from '@tauri-apps/api/path'
 import { info, error, warn } from '@tauri-apps/plugin-log'
@@ -51,11 +51,14 @@ const mediasStore = useMediasStore()
 const dirsStore = useDirsStore()
 const { directoryPaths } = storeToRefs(dirsStore)
 let unwatchFns: UnwatchFn[] = []
+const watchedDirs = new Set<string>()
+let checkingMounts = false
 
 // --- Helper: Stop watching directories ---
 function stopWatching() {
   unwatchFns.forEach((fn) => fn())
   unwatchFns = []
+  watchedDirs.clear()
 }
 
 interface SyncFileProgressBare {
@@ -111,34 +114,57 @@ async function resolveToDirectory(inputPath: string) {
   }
 }
 
-// --- Helper: Start watching directories ---
+// --- Helper: Start watching existing directories ---
 async function startWatching(paths: string[]) {
   stopWatching()
-  try {
-    info(`Setting up file watchers for: ${paths.join(', ')}`)
-    const unwatch = await fsWatch(
-      paths,
-      async (e) => {
-        if (typeof e.type === 'object' && !('access' in e.type)) {
-          info(`File change detected: ${e.paths.join(', ')}`)
-          for (const path of e.paths) {
-            info(`File change detected: ${path}`)
-            const dir = await resolveToDirectory(path)
-            info(`File change detected dir: ${dir}`)
-            await sync_files(dir)
-            info(`sync_file successfully from ${dir}`)
-          }
+  for (const path of paths) {
+    try {
+      info(`Setting up file watcher for: ${path}`)
+      const unwatch = await fsWatch(
+        path,
+        async (e) => {
+          if (typeof e.type === 'object' && !('access' in e.type)) {
+            info(`File change detected: ${e.paths.join(', ')}`)
+            for (const changed of e.paths) {
+              const dir = await resolveToDirectory(changed)
+              await sync_files(dir)
+              info(`sync_file successfully from ${dir}`)
+            }
 
-          info('reload media')
-          await mediasStore.reload()
-        }
-      },
-      { recursive: true, delayMs: 1000 },
-    )
-    unwatchFns.push(unwatch)
-    info('File watchers started successfully')
-  } catch (err) {
-    error(`Failed to set up file watcher for ${paths}: ${err}`)
+            info('reload media')
+            await mediasStore.reload()
+          }
+        },
+        { recursive: true, delayMs: 1000 },
+      )
+      unwatchFns.push(unwatch)
+      watchedDirs.add(path)
+    } catch (err) {
+      warn(`Failed to set up file watcher for ${path}: ${err}`)
+    }
+  }
+}
+
+// --- Poll for mounts/unmounts of media directories ---
+// ponytail: mounting a drive emits no file events inside it; poll so watchers start when it appears
+async function checkMounts() {
+  if (checkingMounts) return
+  checkingMounts = true
+  try {
+    for (const dir of directoryPaths.value) {
+      const dirExists = await exists(dir).catch(() => false)
+      if (dirExists && !watchedDirs.has(dir)) {
+        info(`Directory ${dir} appeared; starting watcher and syncing`)
+        await startWatching(directoryPaths.value)
+        await sync_files(dir)
+        await mediasStore.reload()
+      } else if (!dirExists && watchedDirs.has(dir)) {
+        info(`Directory ${dir} disappeared; dropping its watcher`)
+        await startWatching(directoryPaths.value.filter((d) => d !== dir))
+      }
+    }
+  } finally {
+    checkingMounts = false
   }
 }
 
@@ -194,9 +220,12 @@ watch(
   { immediate: true, deep: true },
 )
 
+const mountTimer = window.setInterval(() => void checkMounts(), 5000)
+
 // --- Clean up watchers on unmount ---
 onBeforeUnmount(() => {
   info('Cleaning up watchers on unmount')
   stopWatching()
+  window.clearInterval(mountTimer)
 })
 </script>
