@@ -2,8 +2,8 @@ mod data_models;
 pub mod schema;
 
 use super::{
-    ContentType, DB, FilterValues, MultiFileFilterType, NumericalString, Result, SortByType,
-    SortDirectionType,
+    ContentType, DB, FilterValues, InsertMediasStats, MultiFileFilterType, NumericalString, Result,
+    SortByType, SortDirectionType,
 };
 use crate::data_model::{Episode, IdType, Imdb, Media, MediaFile, Person, Season, Tag};
 use anyhow::Ok;
@@ -33,6 +33,20 @@ use tauri_plugin_log::log::{error, info, warn};
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
+/// Applies per-connection PRAGMAs to every pooled connection.
+#[derive(Debug)]
+struct PragmaCustomizer;
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error> for PragmaCustomizer {
+    fn on_acquire(
+        &self,
+        conn: &mut SqliteConnection,
+    ) -> std::result::Result<(), diesel::r2d2::Error> {
+        conn.batch_execute("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;")
+            .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
+
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 enum PersonType {
     Actor,
@@ -52,6 +66,11 @@ impl fmt::Display for PersonType {
 
 pub struct Sqlite {
     pool: DbPool,
+}
+
+struct InsertMediaOutcome {
+    media_id: IdType,
+    inserted_new: bool,
 }
 
 impl Sqlite {
@@ -76,12 +95,14 @@ impl Sqlite {
         info!("Opening SQLite database at {}", url);
 
         let manager = ConnectionManager::<SqliteConnection>::new(url.clone());
-        let pool = Pool::builder().max_size(8).build(manager)?;
+        // PRAGMAs must be applied to EVERY pooled connection, not just one
+        let pool = Pool::builder()
+            .max_size(8)
+            .connection_customizer(Box::new(PragmaCustomizer))
+            .build(manager)?;
 
         let mut conn = pool.get()?;
-        conn.batch_execute(
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;",
-        )?;
+        conn.batch_execute("PRAGMA journal_mode = WAL;")?;
         conn.run_pending_migrations(MIGRATIONS)
             .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
@@ -229,7 +250,7 @@ impl Sqlite {
         Ok(())
     }
 
-    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<IdType> {
+    fn insert_media(conn: &mut SqliteConnection, media: &Media) -> Result<InsertMediaOutcome> {
         let imdb_id = media.imdb.as_ref().map(|imdb| imdb.imdb_id.as_str());
 
         if let Some(imdb) = &media.imdb {
@@ -255,9 +276,9 @@ impl Sqlite {
                 .optional()?
         };
 
-        let id = if let Some(id) = existing_media_id {
+        let (id, inserted_new) = if let Some(id) = existing_media_id {
             // Media already exists, use the existing ID
-            id
+            (id, false)
         } else {
             // Prepare new media for insertion
             let new = NewMedia {
@@ -275,7 +296,11 @@ impl Sqlite {
                 .execute(conn)?;
 
             // Retrieve the last inserted ID
-            diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)? as i32
+            (
+                diesel::select(sql::<BigInt>("last_insert_rowid()")).get_result::<i64>(conn)?
+                    as i32,
+                true,
+            )
         };
 
         for season in &media.seasons {
@@ -284,7 +309,10 @@ impl Sqlite {
 
         Self::insert_files(conn, &media.files, Some(id), None)?;
 
-        Ok(id)
+        Ok(InsertMediaOutcome {
+            media_id: id,
+            inserted_new,
+        })
     }
 
     fn insert_season(conn: &mut SqliteConnection, media_id: IdType, season: &Season) -> Result<()> {
@@ -488,11 +516,9 @@ impl Sqlite {
 // get
 impl Sqlite {
     fn get_imdb(conn: &mut SqliteConnection, imdb_id_val: Option<String>) -> Result<Option<Imdb>> {
-        if imdb_id_val.is_none() {
+        let Some(imdb_id_val) = imdb_id_val.as_ref() else {
             return Ok(None);
-        }
-
-        let imdb_id_val = &imdb_id_val.unwrap();
+        };
 
         // Load basic metadata
         let imdb_db: Option<DbImdb> = imdbs::table
@@ -886,12 +912,18 @@ impl Sqlite {
 }
 
 impl DB for Sqlite {
-    fn insert_medias(&self, media_list: &[Media]) -> Result<()> {
+    fn insert_medias(&self, media_list: &[Media]) -> Result<InsertMediasStats> {
         self.get_conn()?.transaction(|conn| {
+            let mut stats = InsertMediasStats::default();
             for media in media_list {
-                Self::insert_media(conn, media)?;
+                let outcome = Self::insert_media(conn, media)?;
+                if outcome.inserted_new {
+                    stats.inserted_new += 1;
+                } else {
+                    stats.merged_existing += 1;
+                }
             }
-            Ok(())
+            Ok(stats)
         })
     }
 
@@ -901,6 +933,12 @@ impl DB for Sqlite {
     }
 
     fn update_media_my_ranking(&self, media_id: IdType, my_ranking: u8) -> Result<usize> {
+        if my_ranking > 10 {
+            return Err(anyhow::anyhow!(
+                "invalid my_ranking={my_ranking}; expected range 0..=10"
+            ));
+        }
+
         let conn = &mut self.get_conn()?;
         diesel::update(medias::table.filter(medias::id.eq(media_id)))
             .set(medias::my_ranking.eq(my_ranking as i32))
@@ -932,19 +970,16 @@ impl DB for Sqlite {
     }
 
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType> {
-        self.get_conn()?.transaction(|conn| {
-            let mut media = Self::get_media_by_id(conn, media_id)?.unwrap();
-            diesel::delete(medias::table.filter(medias::id.eq(media.id))).execute(conn)?;
-            let imdb = Self::get_imdb(conn, Some(imdb_id.into()))?;
-            media.imdb = imdb;
-
-            Self::insert_media(conn, &media)
-        })
+        let conn = &mut self.get_conn()?;
+        diesel::update(medias::table.filter(medias::id.eq(media_id)))
+            .set(medias::imdb_id.eq(imdb_id))
+            .execute(conn)?;
+        Ok(media_id)
     }
 
     fn insert_media(&self, media: &Media) -> Result<IdType> {
         self.get_conn()?
-            .transaction(|conn| Self::insert_media(conn, media))
+            .transaction(|conn| Ok(Self::insert_media(conn, media)?.media_id))
     }
 
     fn insert_imdb(&self, imdb: &Imdb) -> Result<()> {
@@ -1038,8 +1073,9 @@ impl DB for Sqlite {
 
         // -- Minimum Rating Filter --
         if let Some(min_rating) = filters.min_rating {
-            // Use a raw SQL cast for the column type
-            let rating_clause = sql::<Double>("CAST(imdb_rating AS REAL)").ge(min_rating);
+            // COALESCE keeps medias without IMDb data visible under the default 0.0 filter
+            let rating_clause =
+                sql::<Double>("COALESCE(CAST(imdb_rating AS REAL), 0)").ge(min_rating);
             query = query.filter(rating_clause);
         }
 
@@ -1309,7 +1345,7 @@ impl DB for Sqlite {
 
             // Insert medias
             for media in &data.medias {
-                Self::insert_media(conn, media)?;
+                let _ = Self::insert_media(conn, media)?;
             }
 
             Ok(())
@@ -1515,6 +1551,34 @@ mod tests_filter_values {
                 assert!(rating >= 8.0);
             }
         }
+    }
+
+    #[test]
+    fn test_min_rating_zero_keeps_medias_without_imdb() {
+        let sqlite = setup_test_db();
+        setup_filter_test_data(&sqlite);
+
+        let filters = FilterValues {
+            name: "".to_string(),
+            r#type: ContentType::All,
+            min_rating: Some(0.0),
+            country: vec![],
+            genre: vec![],
+            people: vec![],
+            exist_imdb: None,
+            exist_multi_file: None,
+            watched: None,
+            sort_by: SortByType::Name,
+            sort_direction: SortDirectionType::Asc,
+            watch_list: None,
+            tags: vec![],
+        };
+
+        let results = sqlite.filter_medias(&filters, 0).unwrap();
+        assert!(
+            results.iter().any(|m| m.name == "No IMDB Media"),
+            "medias without IMDb data must show under the default rating filter"
+        );
     }
 
     #[test]
@@ -2404,6 +2468,19 @@ mod tests {
         // Verify update
         let retrieved = sqlite.get_media_by_id(media_id).unwrap().unwrap();
         assert_eq!(retrieved.my_ranking, 8);
+    }
+
+    #[test]
+    fn test_update_media_my_ranking_rejects_out_of_range() {
+        let sqlite = setup_test_db();
+        let media = create_test_media();
+        let media_id = sqlite.insert_media(&media).unwrap();
+
+        let err = sqlite.update_media_my_ranking(media_id, 11).unwrap_err();
+        assert!(
+            err.to_string().contains("expected range 0..=10"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

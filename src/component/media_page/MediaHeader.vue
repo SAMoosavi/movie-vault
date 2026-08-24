@@ -35,12 +35,12 @@
                     v-for="actor in media.imdb?.actors"
                     :key="actor.id"
                     target="_blank"
-                    :href="`https://www.imdb.com/name/${actor.id}`"
+                    :href="personHref(actor)"
                     class="flex cursor-pointer flex-col items-center gap-1"
                   >
                     <div class="avatar">
                       <div class="h-12 w-12 rounded-full">
-                        <img :alt="actor.name" :src="actor.url" />
+                        <img :alt="actor.name" :src="personImg(actor)" />
                       </div>
                     </div>
                     <span> {{ actor.name }} </span>
@@ -58,12 +58,12 @@
                     v-for="director in media.imdb?.directors"
                     :key="director.id"
                     target="_blank"
-                    :href="`https://www.imdb.com/name/${director.id}`"
+                    :href="personHref(director)"
                     class="flex cursor-pointer flex-col items-center gap-1"
                   >
                     <div class="avatar">
                       <div class="h-12 w-12 rounded-full">
-                        <img :alt="director.name" :src="director.url" />
+                        <img :alt="director.name" :src="personImg(director)" />
                       </div>
                     </div>
                     <span> {{ director.name }} </span>
@@ -81,12 +81,12 @@
                     v-for="writer in media.imdb?.writers"
                     :key="writer.id"
                     target="_blank"
-                    :href="`https://www.imdb.com/name/${writer.id}`"
+                    :href="personHref(writer)"
                     class="flex cursor-pointer flex-col items-center gap-1"
                   >
                     <div class="avatar">
                       <div class="h-12 w-12 rounded-full">
-                        <img :alt="writer.name" :src="writer.url" />
+                        <img :alt="writer.name" :src="personImg(writer)" />
                       </div>
                     </div>
                     <span> {{ writer.name }} </span>
@@ -127,7 +127,18 @@
 
 <script setup lang="ts">
 import { UsersIcon, InfoIcon, GlobeIcon, PuzzleIcon } from 'lucide-vue-next'
-import type { Media } from '../../type'
+import type { Media, Person } from '@/type'
 
 defineProps<{ media: Media }>()
+
+// OMDb provides no person IDs/photos; older rows store the plain name as id
+function personHref(person: Person): string {
+  return person.id.startsWith('nm')
+    ? `https://www.imdb.com/name/${person.id}`
+    : `https://www.imdb.com/find/?q=${encodeURIComponent(person.name)}&s=nm`
+}
+
+function personImg(person: Person): string {
+  return person.url !== '' ? person.url : 'https://placehold.co/100x100?text=%3F'
+}
 </script>

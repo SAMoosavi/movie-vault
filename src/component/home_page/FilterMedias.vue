@@ -290,23 +290,25 @@
                 class="btn filter-reset btn-error"
                 type="radio"
                 @click="filters.type = 'all'"
-                name="watch_list"
+                name="type"
                 aria-label="All"
-                :checked="filters.type === null"
+                :checked="filters.type === 'all'"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
                 @click="filters.type = 'movie'"
-                name="watch_list"
+                name="type"
                 aria-label="Movies"
+                :checked="filters.type === 'movie'"
               />
               <input
                 class="btn checked:btn-primary transition-all duration-150"
                 type="radio"
                 @click="filters.type = 'series'"
-                name="watch_list"
+                name="type"
                 aria-label="Series"
+                :checked="filters.type === 'series'"
               />
             </div>
           </div>
@@ -327,38 +329,41 @@ import {
 } from 'lucide-vue-next'
 
 // --- Stores & helpers ---
-import { useFiltersStore } from '../../stores/Filters'
+import { useFiltersStore } from '@/stores/Filters'
+import { useTagsStore } from '@/stores/tags'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
-import { get_people, get_countries, get_genres, get_tags } from '../../functions/invoker'
+import { computed, onMounted, ref } from 'vue'
+import { get_people, get_countries, get_genres } from '@/functions/invoker'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Components & types ---
 import AutocompleteSelect from '../AutocompleteSelect.vue'
-import type { NumericalString } from '../../type'
+import type { NumericalString } from '@/type'
 
 // --- State / lifecycle ---
 const filtersStore = useFiltersStore()
+const tagsStore = useTagsStore()
 const { filters } = storeToRefs(filtersStore)
+const { tags: tagList } = storeToRefs(tagsStore)
 
 const countries = ref<NumericalString[]>([])
 const genres = ref<NumericalString[]>([])
 const people = ref<NumericalString[]>([])
-const tags = ref<NumericalString[]>([])
+const tags = computed<NumericalString[]>(() => tagList.value.map((tag) => [tag.id, tag.name]))
 
 onMounted(async () => {
   try {
-    const [genresData, countriesData, peopleData, tagsData] = await Promise.all([
+    const [genresData, countriesData, peopleData] = await Promise.all([
       get_genres(),
       get_countries(),
       get_people(),
-      get_tags(),
+      tagsStore.reload(),
     ])
     genres.value = genresData
     countries.value = countriesData
     people.value = peopleData
-    tags.value = tagsData.map((tag) => [tag.id, tag.name])
   } catch (e) {
-    console.error('Data fetching error:', e)
+    handleFrontendError('home.filters.load', e, 'Failed to load filter data')
   }
 })
 

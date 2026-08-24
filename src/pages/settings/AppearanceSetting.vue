@@ -35,10 +35,11 @@ import { ref, watch, onMounted } from 'vue'
 import { Store } from '@tauri-apps/plugin-store'
 
 // --- Theme helpers ---
-import { getDefaultTheme, initStore, loadTheme, setTheme, themes } from '../../functions/theme.ts'
+import { getDefaultTheme, initStore, loadTheme, setTheme, themes } from '@/functions/theme.ts'
+import { handleFrontendError } from '@/functions/errorHandling'
 
 // --- Components ---
-import SettingCategoryCard from '../../component/SettingCategoryCard.vue'
+import SettingCategoryCard from '@/component/SettingCategoryCard.vue'
 
 // --- State ---
 let settingsStore: Store | null = null
@@ -55,7 +56,7 @@ watch(
       try {
         await setTheme(newTheme, settingsStore)
       } catch (error) {
-        console.error('Failed to save theme:', error)
+        handleFrontendError('settings.appearance.save_theme', error, 'Failed to save theme')
       }
     }
   },
@@ -63,9 +64,13 @@ watch(
 )
 
 onMounted(async () => {
-  settingsStore = await initStore()
-  let theme = await loadTheme(settingsStore)
-  if (!theme) theme = getDefaultTheme()
-  selectedTheme.value = theme
+  try {
+    settingsStore = await initStore()
+    let theme = await loadTheme(settingsStore)
+    if (!theme) theme = getDefaultTheme()
+    selectedTheme.value = theme
+  } catch (error) {
+    handleFrontendError('settings.appearance.load_theme', error, 'Failed to load theme settings')
+  }
 })
 </script>

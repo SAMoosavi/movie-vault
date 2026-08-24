@@ -2683,7 +2683,7 @@ dependencies = [
 
 [[package]]
 name = "movie-vault"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -2695,7 +2695,7 @@ dependencies = [
  "mockall",
  "mockito",
  "r2d2",
- "rand 0.9.5",
+ "rand 0.10.2",
  "rayon",
  "regex",
  "serde",
