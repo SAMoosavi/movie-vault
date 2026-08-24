@@ -61,15 +61,15 @@
           <template v-else>
             <div
               v-for="item in searchItems"
-              :key="item.id"
+              :key="item.imdbId"
               class="card from-primary/50 to-secondary/50 cursor-pointer bg-gradient-to-br p-0.5 shadow-xl transition hover:scale-[1.02] hover:shadow-2xl"
-              @click="selectMedia(item.id)"
+              @click="selectMedia(item.imdbId)"
             >
               <div class="card card-compact bg-base-100 h-full w-full overflow-hidden shadow-lg">
                 <figure class="relative h-full">
                   <img
-                    :src="item.primaryImage ? item.primaryImage.url : 'https://placehold.co/300x450?text=No+Image'"
-                    :alt="item.primaryTitle || item.originalTitle"
+                    :src="item.poster !== '' ? item.poster : 'https://placehold.co/300x450?text=No+Image'"
+                    :alt="item.title"
                     class="h-full w-full object-cover"
                     loading="lazy"
                   />
@@ -77,19 +77,14 @@
                   <!-- Year -->
                   <div class="badge badge-primary absolute top-2 right-2 flex items-center gap-1 text-xs">
                     <CalendarIcon class="h-3 w-3" />
-                    <span>{{ item.startYear }}</span>
+                    <span>{{ item.year }}</span>
                   </div>
 
                   <!-- Title -->
                   <div
                     class="bg-secondary text-secondary-content card absolute bottom-2 left-1/2 max-w-3/4 -translate-x-1/2 p-1 text-center text-xs text-wrap"
                   >
-                    {{ item.primaryTitle || item.originalTitle }}
-                  </div>
-
-                  <div class="badge badge-primary absolute top-2 left-2 flex items-center gap-1 text-xs">
-                    <StarIcon class="h-3 w-3" />
-                    <span>{{ item.rating?.aggregateRating }}</span>
+                    {{ item.title }}
                   </div>
                 </figure>
               </div>
@@ -115,17 +110,15 @@
 
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue'
-import { fetch } from '@tauri-apps/plugin-http'
 import { toast } from 'vue3-toastify'
-import { SearchX, Search, CalendarIcon, PlusIcon, StarIcon } from 'lucide-vue-next'
-import { create_media_from_imdb } from '@/functions/invoker'
-import type { MediaSearchResult, SearchedMedia } from './SearchMediaImdb'
+import { SearchX, Search, CalendarIcon, PlusIcon } from 'lucide-vue-next'
+import { create_media_from_imdb, search_imdb, type ImdbSearchResult } from '@/functions/invoker'
 import { useRouter } from 'vue-router'
 import { handleFrontendError } from '@/functions/errorHandling'
 
 const imdbId = ref('')
 const mediaName = ref('')
-const searchItems = ref<SearchedMedia[]>([])
+const searchItems = ref<ImdbSearchResult[]>([])
 const loading = ref(false)
 const loadingSearch = ref(false)
 const router = useRouter()
@@ -140,9 +133,7 @@ async function performSearch(query: string) {
   }
   loadingSearch.value = true
   try {
-    const res = await fetch(`https://api.imdbapi.dev/search/titles?query=${encodeURIComponent(title)}`)
-    const data: MediaSearchResult = await res.json()
-    searchItems.value = data?.titles ?? []
+    searchItems.value = await search_imdb(title)
   } catch (err) {
     handleFrontendError('add_media.search', err, 'Search failed')
     searchItems.value = []

@@ -2,6 +2,11 @@ import type { FilterValues, NumericalString, Media, Tag } from '@/type'
 import { invoke } from '@tauri-apps/api/core'
 import { normalizeInvokeError } from './errorMessage'
 import { logFrontendError } from './errorHandling'
+import { useApiKeysStore } from '@/stores/ApiKeys'
+
+function api_keys(): string[] {
+  return useApiKeysStore().apiKeys
+}
 
 async function invokeCommand<T>(command: string, payload?: Record<string, unknown>): Promise<T> {
   try {
@@ -13,7 +18,7 @@ async function invokeCommand<T>(command: string, payload?: Record<string, unknow
 }
 
 export async function sync_files(dir: string): Promise<number> {
-  return await invokeCommand<number>('sync_files', { root: dir })
+  return await invokeCommand<number>('sync_files', { root: dir, apiKeys: api_keys() })
 }
 
 export async function get_people(): Promise<NumericalString[]> {
@@ -36,12 +41,23 @@ export async function get_media_by_id(mediaId: number): Promise<Media> {
   return await invokeCommand<Media>('get_media_by_id', { mediaId })
 }
 
+export interface ImdbSearchResult {
+  imdbId: string
+  title: string
+  year?: number
+  poster: string
+}
+
+export async function search_imdb(query: string): Promise<ImdbSearchResult[]> {
+  return await invokeCommand<ImdbSearchResult[]>('search_imdb', { query, apiKeys: api_keys() })
+}
+
 export async function update_media_imdb(mediaId: number, imdbId: string): Promise<number> {
-  return await invokeCommand<number>('update_media_imdb', { mediaId, imdbId })
+  return await invokeCommand<number>('update_media_imdb', { mediaId, imdbId, apiKeys: api_keys() })
 }
 
 export async function create_media_from_imdb(imdbId: string): Promise<number> {
-  return await invokeCommand<number>('create_media_from_imdb', { imdbId })
+  return await invokeCommand<number>('create_media_from_imdb', { imdbId, apiKeys: api_keys() })
 }
 
 export async function update_media_watched(mediaId: number, watched: boolean): Promise<void> {

@@ -26,7 +26,7 @@ export interface Season {
 }
 
 export interface Person {
-  id: number
+  id: string
   name: string
   url: string
 }

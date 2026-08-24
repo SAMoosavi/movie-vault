@@ -29,6 +29,8 @@ mod metadata_extractor;
 
 struct AppState {
     db: Sqlite,
+    // serializes sync_files so startup sync, mount-poll and watcher events can't interleave
+    sync_lock: tokio::sync::Mutex<()>,
 }
 
 #[derive(Clone, Serialize)]
@@ -48,16 +50,81 @@ fn to_frontend_error(context: &str, err: anyhow::Error) -> String {
     msg
 }
 
+// ponytail: heals medias inserted while the old IMDb API was dead; cheap SELECT once healed
+// ponytail: treats entries with people missing photos/IDs as stale (pre-OMDb rows); drop once all users are migrated
+fn needs_imdb_refresh(media: &Media) -> bool {
+    match &media.imdb {
+        None => true,
+        Some(imdb) => [&imdb.actors, &imdb.writers, &imdb.directors]
+            .iter()
+            .any(|people| !people.is_empty() && people.iter().any(|p| p.url.is_empty())),
+    }
+}
+
+async fn backfill_missing_imdb(db: &Sqlite, api_keys: &[String]) -> Result<usize, String> {
+    let missing: Vec<Media> = db
+        .get_all_medias()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(needs_imdb_refresh)
+        .collect();
+
+    if missing.is_empty() {
+        return Ok(0);
+    }
+    info!("Refreshing IMDb data for {} medias", missing.len());
+
+    let mut updated = 0usize;
+    for chunk in missing.chunks(50) {
+        let mut chunk = chunk.to_vec();
+        // refetch by existing ID when known so titles resolve even with odd names
+        fetch_imdb::refresh_by_ids(&mut chunk, api_keys).await;
+
+        for media in &chunk {
+            if let Some(imdb) = &media.imdb {
+                if imdb.imdb_id.is_empty() {
+                    continue;
+                }
+                db.insert_imdb(imdb).map_err(|e| e.to_string())?;
+                db.update_media_imdb(media.id, &imdb.imdb_id)
+                    .map_err(|e| e.to_string())?;
+                updated += 1;
+            }
+        }
+        info!("Backfilled {}/{} medias", updated, missing.len());
+    }
+
+    Ok(updated)
+}
+
 #[tauri::command]
 async fn sync_files(
     root: String,
+    api_keys: Vec<String>,
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<usize, String> {
     let db = &state.db;
+    let _sync_guard = state.sync_lock.lock().await;
+
     info!("Starting sync_files for root: {root}");
 
+    if !PathBuf::from(&root).exists() {
+        // ponytail: unmounted drive is not a deletion; keep rows so remount recovers without a full rescan
+        warn!("Root {} does not exist (unmounted?); skipping sync", root);
+        return Ok(0);
+    }
+
     let result: anyhow::Result<usize> = async {
+        media_scanner::sync_files(db)
+            .await
+            .context("failed to sync files with DB")?;
+        info!("media_scanner::sync_files completed");
+
+        if let Err(e) = backfill_missing_imdb(db, &api_keys).await {
+            error!("IMDb backfill failed: {}", e);
+        }
+
         media_scanner::sync_files(db)
             .await
             .context("failed to sync files with DB")?;
@@ -96,7 +163,7 @@ async fn sync_files(
                 processed + chunk.len()
             );
 
-            let imdb_stats = fetch_imdb::set_imdb_data(&mut chunk)
+            let imdb_stats = fetch_imdb::set_imdb_data(&mut chunk, &api_keys)
                 .await
                 .with_context(|| format!("failed to enrich imdb data for chunk {}", i + 1))?;
             imdb_enriched += imdb_stats.enriched;
@@ -236,15 +303,29 @@ fn get_media_by_id(
 }
 
 #[tauri::command]
+async fn search_imdb(
+    query: String,
+    api_keys: Vec<String>,
+) -> Result<Vec<fetch_imdb::SearchResult>, String> {
+    fetch_imdb::search_imdb(&query, &api_keys)
+        .await
+        .map_err(|e| {
+            error!("IMDb search failed for '{}': {}", query, e);
+            e.to_string()
+        })
+}
+
+#[tauri::command]
 async fn update_media_imdb(
     media_id: IdType,
     imdb_id: &str,
+    api_keys: Vec<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     info!("update_media_imdb called with media_id={media_id}, imdb_id={imdb_id}");
 
     let result: anyhow::Result<IdType> = async {
-        let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+        let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id, &api_keys)
             .await
             .with_context(|| format!("failed to fetch imdb payload for imdb_id={imdb_id}"))?;
 
@@ -271,12 +352,13 @@ async fn update_media_imdb(
 #[tauri::command]
 async fn create_media_from_imdb(
     imdb_id: &str,
+    api_keys: Vec<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<IdType, String> {
     info!("create_media_from_imdb called with imdb_id={imdb_id}");
 
     let result: anyhow::Result<IdType> = async {
-        let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id)
+        let imdb = fetch_imdb::get_imdb_data_by_id(imdb_id, &api_keys)
             .await
             .with_context(|| format!("failed to fetch imdb payload for imdb_id={imdb_id}"))?;
 
@@ -578,6 +660,7 @@ pub fn run() {
             get_genres,
             filter_medias,
             get_media_by_id,
+            search_imdb,
             get_people,
             update_media_imdb,
             create_media_from_imdb,
@@ -599,10 +682,44 @@ pub fn run() {
         ])
         .setup(|app| {
             let db = Sqlite::from_app_handle(app.app_handle())?;
-            app.manage(AppState { db });
+            app.manage(AppState {
+                db,
+                sync_lock: tokio::sync::Mutex::new(()),
+            });
             info!("Tauri app setup complete");
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod backfill_tests {
+    use super::*;
+
+    #[test]
+    fn needs_imdb_refresh_flags_stale_people() {
+        let person = |url: &str| crate::data_model::Person {
+            id: url.to_string(),
+            name: "X".to_string(),
+            url: url.to_string(),
+        };
+
+        let mut media = Media::default();
+        assert!(needs_imdb_refresh(&media), "no imdb at all");
+
+        let imdb = crate::data_model::Imdb {
+            actors: vec![person("http://photo")],
+            ..Default::default()
+        };
+        media.imdb = Some(imdb.clone());
+        assert!(!needs_imdb_refresh(&media));
+
+        let stale = crate::data_model::Imdb {
+            writers: vec![person("")],
+            ..imdb
+        };
+        media.imdb = Some(stale);
+        assert!(needs_imdb_refresh(&media), "writer without photo is stale");
+    }
 }

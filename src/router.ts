@@ -10,6 +10,11 @@ const settingChildren: RouteRecordRaw[] = [
     component: () => import('./pages/settings/DirectorySetting.vue'),
     name: 'directories_setting',
   },
+  {
+    path: 'api-keys',
+    component: () => import('./pages/settings/ApiKeySetting.vue'),
+    name: 'api_keys_setting',
+  },
   { path: 'data', component: () => import('./pages/settings/DataSetting.vue'), name: 'data_setting' },
 ]
 
@@ -28,12 +33,4 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior(_to, _from, savedPosition) {
-    // Always scroll to top when navigating to a new page
-    // except when using browser back/forward buttons with saved position
-    if (savedPosition) {
-      return savedPosition
-    }
-    return { top: 0 }
-  },
 })

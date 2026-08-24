@@ -14,7 +14,7 @@
       </div>
 
       <!-- Router View -->
-      <div class="flex-1 overflow-auto">
+      <div ref="scrollContainer" class="flex-1 overflow-auto">
         <router-view />
       </div>
     </div>
@@ -23,15 +23,16 @@
 
 <script setup lang="ts">
 // --- External Libraries ---
-import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
+import { onMounted, onBeforeUnmount, watch, ref, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue3-toastify'
 
 // --- Local Components ---
 import AppNavbar from './component/AppNavbar.vue'
 
 // --- Tauri API ---
-import { watch as fsWatch, stat, type UnwatchFn } from '@tauri-apps/plugin-fs'
-import { listen, type UnlistenFn as EventUnlistenFn } from '@tauri-apps/api/event'
+import { watch as fsWatch, stat, exists, type UnwatchFn } from '@tauri-apps/plugin-fs'
+import { listen } from '@tauri-apps/api/event'
 import { dirname, normalize } from '@tauri-apps/api/path'
 import { info, warn } from '@tauri-apps/plugin-log'
 
@@ -52,11 +53,35 @@ const mediasStore = useMediasStore()
 const dirsStore = useDirsStore()
 const { directoryPaths } = storeToRefs(dirsStore)
 let unwatchFns: UnwatchFn[] = []
+const watchedDirs = new Set<string>()
+let checkingMounts = false
+
+// ponytail: manual scroll memory because pages scroll this div, not the window (vue-router can't save it)
+const router = useRouter()
+const scrollContainer = ref<HTMLElement | null>(null)
+const scrollMemory = new Map<string, number>()
+let lastHistPos = -1
+
+router.beforeEach((_to, from) => {
+  if (scrollContainer.value) {
+    scrollMemory.set(from.fullPath, scrollContainer.value.scrollTop)
+  }
+})
+
+router.afterEach(async (to) => {
+  await nextTick()
+  if (!scrollContainer.value) return
+  const histPos = Number(router.options.history.state.position ?? 0)
+  const goingBack = histPos < lastHistPos
+  lastHistPos = histPos
+  scrollContainer.value.scrollTop = goingBack ? (scrollMemory.get(to.fullPath) ?? 0) : 0
+})
 
 // --- Helper: Stop watching directories ---
 function stopWatching() {
   unwatchFns.forEach((fn) => fn())
   unwatchFns = []
+  watchedDirs.clear()
 }
 
 interface SyncFileProgressBare {
@@ -70,27 +95,23 @@ interface SyncFileProgressBare {
 
 const progress = ref(0)
 const showProgress = ref(false)
-let unlistenProgress: EventUnlistenFn | null = null
 
-async function setupProgressListener() {
-  unlistenProgress = await listen<SyncFileProgressBare>('sync-progress', (event) => {
-    const { processed, total, insertedNew, mergedExisting, imdbEnriched, imdbFailures } = event.payload
-    progress.value = total > 0 ? Math.round((processed / total) * 100) : 0
-    showProgress.value = true
-    console.log(`Sync progress: ${progress.value}%`)
+listen<SyncFileProgressBare>('sync-progress', (event) => {
+  const { processed, total, insertedNew, mergedExisting, imdbEnriched, imdbFailures } = event.payload
+  progress.value = total > 0 ? Math.round((processed / total) * 100) : 0
+  showProgress.value = true
 
-    if (processed === total) {
-      if (imdbFailures > 0) {
-        toast.warning(`Sync completed with partial IMDb enrichment (${imdbFailures} failed, ${imdbEnriched} enriched).`)
-      } else {
-        info(
-          `Sync completed successfully: inserted_new=${insertedNew}, merged_existing=${mergedExisting}, imdb_enriched=${imdbEnriched}`,
-        )
-      }
-      setTimeout(() => (showProgress.value = false), 500)
+  if (processed === total) {
+    if (imdbFailures > 0) {
+      toast.warning(`Sync completed with partial IMDb enrichment (${imdbFailures} failed, ${imdbEnriched} enriched).`)
+    } else {
+      info(
+        `Sync completed successfully: inserted_new=${insertedNew}, merged_existing=${mergedExisting}, imdb_enriched=${imdbEnriched}`,
+      )
     }
-  })
-}
+    setTimeout(() => (showProgress.value = false), 500)
+  }
+})
 
 async function resolveToDirectory(inputPath: string) {
   const cleanPath = await normalize(inputPath)
@@ -105,51 +126,68 @@ async function resolveToDirectory(inputPath: string) {
   }
 }
 
-// --- Helper: Start watching directories ---
+// --- Helper: Start watching existing directories ---
 async function startWatching(paths: string[]) {
   stopWatching()
-  try {
-    info(`Setting up file watchers for: ${paths.join(', ')}`)
-    const unwatch = await fsWatch(
-      paths,
-      async (e) => {
-        if (typeof e.type === 'object' && !('access' in e.type)) {
-          try {
-            info(`File change detected: ${e.paths.join(', ')}`)
-            for (const path of e.paths) {
-              info(`File change detected: ${path}`)
-              const dir = await resolveToDirectory(path)
-              info(`File change detected dir: ${dir}`)
-              await sync_files(dir)
-              info(`sync_file successfully from ${dir}`)
-            }
+  for (const path of paths) {
+    try {
+      info(`Setting up file watcher for: ${path}`)
+      const unwatch = await fsWatch(
+        path,
+        async (e) => {
+          if (typeof e.type === 'object' && !('access' in e.type)) {
+            try {
+              info(`File change detected: ${e.paths.join(', ')}`)
+              for (const changed of e.paths) {
+                const dir = await resolveToDirectory(changed)
+                await sync_files(dir)
+                info(`sync_file successfully from ${dir}`)
+              }
 
-            info('reload media')
-            await mediasStore.reload()
-          } catch (error) {
-            handleFrontendError('app.sync.watch_event', error, 'Automatic sync failed')
+              info('reload media')
+              await mediasStore.reload()
+            } catch (error) {
+              handleFrontendError('app.sync.watch_event', error, 'Automatic sync failed')
+            }
           }
-        }
-      },
-      { recursive: true, delayMs: 1000 },
-    )
-    unwatchFns.push(unwatch)
-    info('File watchers started successfully')
-  } catch (err) {
-    logFrontendError('app.sync.watch_setup', err)
+        },
+        { recursive: true, delayMs: 1000 },
+      )
+      unwatchFns.push(unwatch)
+      watchedDirs.add(path)
+    } catch (err) {
+      logFrontendError('app.sync.watch_setup', err)
+      warn(`Failed to set up file watcher for ${path}`)
+    }
+  }
+}
+
+// --- Poll for mounts/unmounts of media directories ---
+// ponytail: mounting a drive emits no file events inside it; poll so watchers start when it appears
+async function checkMounts() {
+  if (checkingMounts) return
+  checkingMounts = true
+  try {
+    for (const dir of directoryPaths.value) {
+      const dirExists = await exists(dir).catch(() => false)
+      if (dirExists && !watchedDirs.has(dir)) {
+        info(`Directory ${dir} appeared; starting watcher and syncing`)
+        await startWatching(directoryPaths.value)
+        await sync_files(dir)
+        await mediasStore.reload()
+      } else if (!dirExists && watchedDirs.has(dir)) {
+        info(`Directory ${dir} disappeared; dropping its watcher`)
+        await startWatching(directoryPaths.value.filter((d) => d !== dir))
+      }
+    }
+  } finally {
+    checkingMounts = false
   }
 }
 
 // --- Lifecycle: On mount, initialize theme and sync files ---
 onMounted(async () => {
   info('App mounted: initializing theme and syncing files')
-
-  try {
-    await setupProgressListener()
-    info('Sync progress listener initialized')
-  } catch (error) {
-    logFrontendError('app.sync.progress_listener', error)
-  }
 
   try {
     info('Initializing store for theme')
@@ -195,13 +233,12 @@ watch(
   { immediate: true, deep: true },
 )
 
+const mountTimer = window.setInterval(() => void checkMounts(), 5000)
+
 // --- Clean up watchers on unmount ---
 onBeforeUnmount(() => {
   info('Cleaning up watchers on unmount')
   stopWatching()
-  if (unlistenProgress) {
-    unlistenProgress()
-    unlistenProgress = null
-  }
+  window.clearInterval(mountTimer)
 })
 </script>
