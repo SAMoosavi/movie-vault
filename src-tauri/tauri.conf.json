@@ -10,13 +10,8 @@
     "frontendDist": "../dist"
   },
   "plugins": {
-    "sql": {
-      "preload": ["sqlite:movies.db"]
-    },
     "updater": {
-      "active": true,
       "endpoints": ["https://github.com/SAMoosavi/movie-vault/releases/latest/download/latest.json"],
-      "dialog": false,
       "pubkey": "@file:./tauri.keys_pub"
     }
   },
@@ -34,6 +29,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
