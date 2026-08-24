@@ -970,16 +970,11 @@ impl DB for Sqlite {
     }
 
     fn update_media_imdb(&self, media_id: IdType, imdb_id: &str) -> Result<IdType> {
-        self.get_conn()?.transaction(|conn| {
-            let mut media = Self::get_media_by_id(conn, media_id)?.ok_or_else(|| {
-                anyhow::anyhow!("cannot update imdb for media_id={media_id}: media not found")
-            })?;
-            diesel::delete(medias::table.filter(medias::id.eq(media.id))).execute(conn)?;
-            let imdb = Self::get_imdb(conn, Some(imdb_id.into()))?;
-            media.imdb = imdb;
-
-            Ok(Self::insert_media(conn, &media)?.media_id)
-        })
+        let conn = &mut self.get_conn()?;
+        diesel::update(medias::table.filter(medias::id.eq(media_id)))
+            .set(medias::imdb_id.eq(imdb_id))
+            .execute(conn)?;
+        Ok(media_id)
     }
 
     fn insert_media(&self, media: &Media) -> Result<IdType> {
