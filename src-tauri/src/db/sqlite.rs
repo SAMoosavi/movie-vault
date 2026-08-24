@@ -33,6 +33,20 @@ use tauri_plugin_log::log::{error, info, warn};
 
 type DbPool = Pool<ConnectionManager<SqliteConnection>>;
 
+/// Applies per-connection PRAGMAs to every pooled connection.
+#[derive(Debug)]
+struct PragmaCustomizer;
+
+impl diesel::r2d2::CustomizeConnection<SqliteConnection, diesel::r2d2::Error> for PragmaCustomizer {
+    fn on_acquire(
+        &self,
+        conn: &mut SqliteConnection,
+    ) -> std::result::Result<(), diesel::r2d2::Error> {
+        conn.batch_execute("PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;")
+            .map_err(diesel::r2d2::Error::QueryError)
+    }
+}
+
 pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 enum PersonType {
     Actor,
@@ -76,12 +90,14 @@ impl Sqlite {
         info!("Opening SQLite database at {}", url);
 
         let manager = ConnectionManager::<SqliteConnection>::new(url.clone());
-        let pool = Pool::builder().max_size(8).build(manager)?;
+        // PRAGMAs must be applied to EVERY pooled connection, not just one
+        let pool = Pool::builder()
+            .max_size(8)
+            .connection_customizer(Box::new(PragmaCustomizer))
+            .build(manager)?;
 
         let mut conn = pool.get()?;
-        conn.batch_execute(
-            "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;",
-        )?;
+        conn.batch_execute("PRAGMA journal_mode = WAL;")?;
         conn.run_pending_migrations(MIGRATIONS)
             .map_err(|e| anyhow::Error::msg(e.to_string()))?;
 
